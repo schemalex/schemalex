@@ -1,3 +1,5 @@
+[![wercker status](https://app.wercker.com/status/13480237267a3517d152deb7fc7b6b2e/s/master "wercker status")](https://app.wercker.com/project/bykey/13480237267a3517d152deb7fc7b6b2e)
+
 # schemalex
 
 Generate sql of difference two mysql schema
