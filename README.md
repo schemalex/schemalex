@@ -77,3 +77,7 @@ COMMIT;
 
 * http://rspace.googlecode.com/hg/slide/lex.html#landing-slide
 * http://blog.gopheracademy.com/advent-2014/parsers-lexers/
+
+## LICENSE
+
+MIT
