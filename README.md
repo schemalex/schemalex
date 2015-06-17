@@ -2,7 +2,7 @@
 
 # schemalex
 
-Generate sql of difference two mysql schema
+Generate difference sql of two mysql schema
 
 ## DESCRIPTION
 
