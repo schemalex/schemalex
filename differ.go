@@ -12,19 +12,30 @@ type Differ struct {
 	AfterStmts  []CreateTableStatement
 }
 
-func (d *Differ) DiffWithTransaction(w io.Writer) {
-	stmts := d.Diff()
-	if len(stmts) < 1 {
-		return
-	}
+func (d *Differ) WriteDiffWithTransaction(w io.Writer) {
+	stmts := d.DiffWithTransaction()
 
-	fmt.Fprintln(w, "BEGIN;\n")
-	fmt.Fprintln(w, "SET FOREIGN_KEY_CHECKS = 0;\n")
 	for _, stmt := range stmts {
 		fmt.Fprintln(w, stmt+";\n")
 	}
-	fmt.Fprintln(w, "SET FOREIGN_KEY_CHECKS = 1;\n")
-	fmt.Fprintln(w, "COMMIT;\n")
+}
+
+func (d *Differ) DiffWithTransaction() []string {
+	var stmts []string
+
+	diff := d.Diff()
+
+	if len(diff) == 0 {
+		return stmts
+	}
+
+	stmts = append(stmts, "BEGIN")
+	stmts = append(stmts, "SET FOREIGN_KEY_CHECKS = 0")
+	stmts = append(stmts, diff...)
+	stmts = append(stmts, "SET FOREIGN_KEY_CHECKS = 1")
+	stmts = append(stmts, "COMMIT")
+
+	return stmts
 }
 
 func (d *Differ) Diff() []string {
