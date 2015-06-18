@@ -41,7 +41,7 @@ func TestDiffer(t *testing.T) {
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
 			After:  "CREATE TABLE `fuga` ( `id` BIGINT NOT NULL );",
-			Expect: "ALTER TABLE `fuga` CHANGE COLUMN `id` BIGINT NOT NULL",
+			Expect: "ALTER TABLE `fuga` CHANGE COLUMN `id` `id` BIGINT NOT NULL",
 		},
 		// drop primary key
 		{

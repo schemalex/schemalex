@@ -199,7 +199,7 @@ func (d *Differ) alterTableColumns(before *CreateTableStatement, after *CreateTa
 			continue
 		}
 
-		stmt := fmt.Sprintf("ALTER TABLE `%s` CHANGE COLUMN %s", before.Name, afterColumnStmt.String())
+		stmt := fmt.Sprintf("ALTER TABLE `%s` CHANGE COLUMN `%s` %s", before.Name, afterColumnStmt.Name, afterColumnStmt.String())
 		stmts = append(stmts, stmt)
 	}
 
