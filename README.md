@@ -39,7 +39,7 @@ CREATE TABLE `fuga` (
 ```
 
 ```
-$ schemalex --before /path/to/sql --after /path/to/sql
+$ schemalex <options> /path/to/before.sql /path/to/after.sql
 ```
 
 output
