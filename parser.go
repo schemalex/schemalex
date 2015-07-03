@@ -205,7 +205,7 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 				if err := p.parseColumnIndexUniqueKey(&indexStmt); err != nil {
 					return err
 				}
-			case FOREIGN: // TODO
+			case FOREIGN:
 				indexStmt.Kind = IndexKindForeignKey
 				if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
 					return err
