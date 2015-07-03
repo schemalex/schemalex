@@ -106,7 +106,7 @@ id bigint unsigned not null auto_increment
 				t.Errorf("should err: input:%v", spec.Input)
 				continue
 			}
-			t.Log("error:", spec.Input)
+			t.Log("input:", spec.Input, "error:", err)
 		} else {
 			if err != nil {
 				t.Errorf(err.Error())
