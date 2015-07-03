@@ -154,16 +154,21 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 		case CreateTableColumnStatement:
 			stmt.Columns = append(stmt.Columns, t)
 		default:
-			panic("")
+			panic("not reach")
 		}
 		targetStmt = nil
 	}
 
-	setStmt := func(s interface{}) {
+	setStmt := func(f func() (interface{}, error)) error {
 		if targetStmt != nil {
-			panic("")
+			return p.parseErrorf("seems not to be end previous column or index definition")
 		}
-		targetStmt = s
+		stmt, err := f()
+		if err != nil {
+			return err
+		}
+		targetStmt = stmt
+		return nil
 	}
 
 	for {
@@ -181,184 +186,232 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			return nil
 		case COMMA:
 			if targetStmt == nil {
-				panic("")
+				return p.parseErrorf("unexpected COMMA")
 			}
 			appendStmt()
 		case CONSTRAINT:
-			indexStmt := CreateTableIndexStatement{}
-			t, str := p.parseIgnoreWhiteSpace()
-			if t == IDENT || t == BACKTICK_IDENT {
-				// TODO: should smart
-				copyStr := str
-				indexStmt.Symbol = &copyStr
-				t, str = p.parseIgnoreWhiteSpace()
-			}
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
+				t, str := p.parseIgnoreWhiteSpace()
+				if t == IDENT || t == BACKTICK_IDENT {
+					// TODO: should smart
+					copyStr := str
+					indexStmt.Symbol = &copyStr
+					t, str = p.parseIgnoreWhiteSpace()
+				}
 
-			switch t {
-			case PRIMARY:
+				switch t {
+				case PRIMARY:
+					indexStmt.Kind = IndexKindPrimaryKey
+					if err := p.parseColumnIndexPrimaryKey(&indexStmt); err != nil {
+						return nil, err
+					}
+				case UNIQUE:
+					indexStmt.Kind = IndexKindUnique
+					if err := p.parseColumnIndexUniqueKey(&indexStmt); err != nil {
+						return nil, err
+					}
+				case FOREIGN:
+					indexStmt.Kind = IndexKindForeignKey
+					if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
+						return nil, err
+					}
+				default:
+					return nil, p.parseErrorf("not supported")
+				}
+				return indexStmt, nil
+			})
+			if err != nil {
+				return err
+			}
+		case PRIMARY:
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindPrimaryKey
 				if err := p.parseColumnIndexPrimaryKey(&indexStmt); err != nil {
-					return err
+					return nil, err
 				}
-			case UNIQUE:
+				return indexStmt, nil
+			})
+			if err != nil {
+				return err
+			}
+		case UNIQUE:
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindUnique
 				if err := p.parseColumnIndexUniqueKey(&indexStmt); err != nil {
-					return err
+					return nil, err
 				}
-			case FOREIGN:
-				indexStmt.Kind = IndexKindForeignKey
-				if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
-					return err
-				}
-			default:
-				return p.parseErrorf("not supported")
-			}
-			setStmt(indexStmt)
-		case PRIMARY:
-			indexStmt := CreateTableIndexStatement{}
-			indexStmt.Kind = IndexKindPrimaryKey
-			if err := p.parseColumnIndexPrimaryKey(&indexStmt); err != nil {
+				return indexStmt, nil
+			})
+			if err != nil {
 				return err
 			}
-			setStmt(indexStmt)
-		case UNIQUE:
-			indexStmt := CreateTableIndexStatement{}
-			indexStmt.Kind = IndexKindUnique
-			if err := p.parseColumnIndexUniqueKey(&indexStmt); err != nil {
-				return err
-			}
-			setStmt(indexStmt)
 		case INDEX:
 			fallthrough
 		case KEY:
-			indexStmt := CreateTableIndexStatement{}
-			indexStmt.Kind = IndexKindNormal // TODO. separate to KEY and INDEX
-			p.parseColumnIndexKey(&indexStmt)
-			setStmt(indexStmt)
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
+				indexStmt.Kind = IndexKindNormal // TODO. separate to KEY and INDEX
+				if err := p.parseColumnIndexKey(&indexStmt); err != nil {
+					return nil, err
+				}
+				return indexStmt, nil
+			})
+			if err != nil {
+				return err
+			}
 		case FULLTEXT:
-			indexStmt := CreateTableIndexStatement{}
-			indexStmt.Kind = IndexKindFullText
-			p.parseColumnIndexFullTextKey(&indexStmt)
-			setStmt(indexStmt)
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
+				indexStmt.Kind = IndexKindFullText
+				if err := p.parseColumnIndexFullTextKey(&indexStmt); err != nil {
+					return nil, err
+				}
+				return indexStmt, nil
+			})
+			if err != nil {
+				return err
+			}
 		case SPARTIAL:
-			indexStmt := CreateTableIndexStatement{}
-			indexStmt.Kind = IndexKindSpartial
-			p.parseColumnIndexFullTextKey(&indexStmt)
-			setStmt(indexStmt)
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
+				indexStmt.Kind = IndexKindSpartial
+				if err := p.parseColumnIndexFullTextKey(&indexStmt); err != nil {
+					return nil, err
+				}
+				return indexStmt, nil
+			})
+			if err != nil {
+				return err
+			}
 		case FOREIGN:
-			indexStmt := CreateTableIndexStatement{}
-			indexStmt.Kind = IndexKindForeignKey
-			p.parseColumnIndexForeignKey(&indexStmt)
-			setStmt(indexStmt)
+			err := setStmt(func() (interface{}, error) {
+				indexStmt := CreateTableIndexStatement{}
+				indexStmt.Kind = IndexKindForeignKey
+				if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
+					return nil, err
+				}
+				return indexStmt, nil
+			})
+			if err != nil {
+				return err
+			}
 		case CHECK: // TODO
 			return p.parseErrorf("not support CHECK")
 		case IDENT, BACKTICK_IDENT:
 
-			colStmt := CreateTableColumnStatement{}
-			colStmt.Name = str
-			t, _ := p.parseIgnoreWhiteSpace()
+			err := setStmt(func() (interface{}, error) {
+				colStmt := CreateTableColumnStatement{}
+				colStmt.Name = str
+				t, _ := p.parseIgnoreWhiteSpace()
 
-			var err error
-			switch t {
-			case BIT:
-				colStmt.Type = ColumnTypeBit
-				err = p.parseColumnOption(&colStmt, ColumnOptionSize)
-			case TINYINT:
-				colStmt.Type = ColumnTypeTinyInt
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
-			case SMALLINT:
-				colStmt.Type = ColumnTypeSmallInt
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
-			case MEDIUMINT:
-				colStmt.Type = ColumnTypeMediumInt
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
-			case INT:
-				colStmt.Type = ColumnTypeInt
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
-			case INTEGER:
-				colStmt.Type = ColumnTypeInteger
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
-			case BIGINT:
-				colStmt.Type = ColumnTypeBigInt
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
-			case REAL:
-				colStmt.Type = ColumnTypeReal
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
-			case DOUBLE:
-				colStmt.Type = ColumnTypeDouble
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
-			case FLOAT:
-				colStmt.Type = ColumnTypeFloat
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
-			case DECIMAL:
-				colStmt.Type = ColumnTypeDecimal
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimalOptional)
-			case NUMERIC:
-				colStmt.Type = ColumnTypeNumeric
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimalOptional)
-			case DATE:
-				colStmt.Type = ColumnTypeDate
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
-			case TIME:
-				colStmt.Type = ColumnTypeTime
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
-			case TIMESTAMP:
-				colStmt.Type = ColumnTypeTimestamp
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
-			case DATETIME:
-				colStmt.Type = ColumnTypeDateTime
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
-			case YEAR:
-				colStmt.Type = ColumnTypeYear
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
-			case CHAR:
-				colStmt.Type = ColumnTypeChar
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
-			case VARCHAR:
-				colStmt.Type = ColumnTypeVarChar
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
-			case BINARY:
-				colStmt.Type = ColumnTypeBinary
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagBinary)
-			case VARBINARY:
-				colStmt.Type = ColumnTypeVarBinary
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagBinary)
-			case TINYBLOB:
-				colStmt.Type = ColumnTypeTinyBlob
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
-			case BLOB:
-				colStmt.Type = ColumnTypeBlob
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
-			case MEDIUMBLOB:
-				colStmt.Type = ColumnTypeMediumBlob
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
-			case LONGBLOB:
-				colStmt.Type = ColumnTypeLongBlob
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
-			case TINYTEXT:
-				colStmt.Type = ColumnTypeTinyText
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
-			case TEXT:
-				colStmt.Type = ColumnTypeText
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
-			case MEDIUMTEXT:
-				colStmt.Type = ColumnTypeMediumText
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
-			case LONGTEXT:
-				colStmt.Type = ColumnTypeLongText
-				err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
-			// case "ENUM":
-			// case "SET":
-			default:
-				return p.parseErrorf("not supported type")
-			}
+				var err error
+				switch t {
+				case BIT:
+					colStmt.Type = ColumnTypeBit
+					err = p.parseColumnOption(&colStmt, ColumnOptionSize)
+				case TINYINT:
+					colStmt.Type = ColumnTypeTinyInt
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+				case SMALLINT:
+					colStmt.Type = ColumnTypeSmallInt
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+				case MEDIUMINT:
+					colStmt.Type = ColumnTypeMediumInt
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+				case INT:
+					colStmt.Type = ColumnTypeInt
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+				case INTEGER:
+					colStmt.Type = ColumnTypeInteger
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+				case BIGINT:
+					colStmt.Type = ColumnTypeBigInt
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+				case REAL:
+					colStmt.Type = ColumnTypeReal
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
+				case DOUBLE:
+					colStmt.Type = ColumnTypeDouble
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
+				case FLOAT:
+					colStmt.Type = ColumnTypeFloat
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
+				case DECIMAL:
+					colStmt.Type = ColumnTypeDecimal
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimalOptional)
+				case NUMERIC:
+					colStmt.Type = ColumnTypeNumeric
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimalOptional)
+				case DATE:
+					colStmt.Type = ColumnTypeDate
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+				case TIME:
+					colStmt.Type = ColumnTypeTime
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
+				case TIMESTAMP:
+					colStmt.Type = ColumnTypeTimestamp
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
+				case DATETIME:
+					colStmt.Type = ColumnTypeDateTime
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
+				case YEAR:
+					colStmt.Type = ColumnTypeYear
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+				case CHAR:
+					colStmt.Type = ColumnTypeChar
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+				case VARCHAR:
+					colStmt.Type = ColumnTypeVarChar
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+				case BINARY:
+					colStmt.Type = ColumnTypeBinary
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagBinary)
+				case VARBINARY:
+					colStmt.Type = ColumnTypeVarBinary
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagBinary)
+				case TINYBLOB:
+					colStmt.Type = ColumnTypeTinyBlob
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+				case BLOB:
+					colStmt.Type = ColumnTypeBlob
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+				case MEDIUMBLOB:
+					colStmt.Type = ColumnTypeMediumBlob
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+				case LONGBLOB:
+					colStmt.Type = ColumnTypeLongBlob
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+				case TINYTEXT:
+					colStmt.Type = ColumnTypeTinyText
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+				case TEXT:
+					colStmt.Type = ColumnTypeText
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+				case MEDIUMTEXT:
+					colStmt.Type = ColumnTypeMediumText
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+				case LONGTEXT:
+					colStmt.Type = ColumnTypeLongText
+					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+				// case "ENUM":
+				// case "SET":
+				default:
+					return nil, p.parseErrorf("not supported type")
+				}
+
+				if err != nil {
+					return nil, err
+				}
+
+				return colStmt, nil
+			})
 
 			if err != nil {
 				return err
 			}
-
-			setStmt(colStmt)
-			// stmt.Columns = append(stmt.Columns, colStmt)
 		default:
 			return p.parseErrorf("unexpected create table fields")
 		}
