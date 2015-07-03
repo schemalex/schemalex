@@ -356,6 +356,7 @@ type CreateTableIndexStatement struct {
 	Type     IndexType
 	ColNames []string
 	// TODO Options.
+	Reference *Reference
 }
 
 func (c *CreateTableIndexStatement) String() string {
@@ -382,6 +383,10 @@ func (c *CreateTableIndexStatement) String() string {
 	}
 
 	strs = append(strs, "("+strings.Join(cols, ", ")+")")
+
+	if c.Reference != nil {
+		strs = append(strs, c.Reference.String())
+	}
 
 	return strings.Join(strs, " ")
 }
@@ -432,6 +437,94 @@ func (i IndexType) String() string {
 		return "USING BTREE"
 	case IndexTypeHash:
 		return "USING HASH"
+	default:
+		panic("not reach")
+	}
+}
+
+type Reference struct {
+	TableName string
+	ColNames  []string
+	Match     ReferenceMatch
+	OnDelete  ReferenceOption
+	OnUpdate  ReferenceOption
+}
+
+func (r *Reference) String() string {
+	var strs []string
+
+	strs = append(strs, "REFERENCES")
+	strs = append(strs, fmt.Sprintf("`%s`", r.TableName))
+
+	var cols []string
+
+	for _, colName := range r.ColNames {
+		cols = append(cols, fmt.Sprintf("`%s`", colName))
+	}
+
+	strs = append(strs, "("+strings.Join(cols, ", ")+")")
+
+	if str := r.Match.String(); str != "" {
+		strs = append(strs, str)
+	}
+
+	if r.OnDelete != ReferenceOptionNone {
+		strs = append(strs, fmt.Sprintf("ON DELETE %s", r.OnDelete.String()))
+	}
+
+	if r.OnUpdate != ReferenceOptionNone {
+		strs = append(strs, fmt.Sprintf("ON UPDATE %s", r.OnUpdate.String()))
+	}
+
+	return strings.Join(strs, " ")
+}
+
+type ReferenceMatch int
+
+const (
+	ReferenceMatchNone ReferenceMatch = iota
+	ReferenceMatchFull
+	ReferenceMatchPartial
+	ReferenceMatchSimple
+)
+
+func (r ReferenceMatch) String() string {
+	switch r {
+	case ReferenceMatchNone:
+		return ""
+	case ReferenceMatchFull:
+		return "MATCH FULL"
+	case ReferenceMatchPartial:
+		return "MATCH PARTIAL"
+	case ReferenceMatchSimple:
+		return "MATCH SIMPLE"
+	default:
+		panic("not reach")
+	}
+}
+
+type ReferenceOption int
+
+const (
+	ReferenceOptionNone ReferenceOption = iota
+	ReferenceOptionRestrict
+	ReferenceOptionCascade
+	ReferenceOptionSetNull
+	ReferenceOptionNoAction
+)
+
+func (r ReferenceOption) String() string {
+	switch r {
+	case ReferenceOptionNone:
+		return ""
+	case ReferenceOptionRestrict:
+		return "RESTRICT"
+	case ReferenceOptionCascade:
+		return "CASCADE"
+	case ReferenceOptionSetNull:
+		return "SET NULL"
+	case ReferenceOptionNoAction:
+		return "NO ACTION"
 	default:
 		panic("not reach")
 	}

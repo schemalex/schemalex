@@ -741,9 +741,131 @@ func (p *Parser) parseColumnIndexForeignKey(stmt *CreateTableIndexStatement) err
 	if err := p.parseColumnIndexName(stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexColName(stmt); err != nil {
+
+	cols, err := p.parseColumnIndexColName(stmt)
+	if err != nil {
 		return err
 	}
+	stmt.ColNames = append(stmt.ColNames, cols...)
+
+	t, _ = p.parseIgnoreWhiteSpace()
+	p.reset()
+	if t == REFERENCES {
+		if err := p.parseColumnReference(stmt); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
+	var r Reference
+
+	t, _ := p.parseIgnoreWhiteSpace()
+	if t != REFERENCES {
+		return p.parseErrorf("should REFERENCES")
+	}
+
+	t, tableName := p.parseIgnoreWhiteSpace()
+	if !(t == IDENT || t == BACKTICK_IDENT) {
+		return p.parseErrorf("should IDENT or BACKTICK_IDENT")
+	}
+	r.TableName = tableName
+
+	cols, err := p.parseColumnIndexColName(stmt)
+	if err != nil {
+		return err
+	}
+	r.ColNames = append(r.ColNames, cols...)
+
+	t, _ = p.parseIgnoreWhiteSpace()
+	if t == MATCH {
+		t, _ := p.parseIgnoreWhiteSpace()
+		switch t {
+		case FULL:
+			r.Match = ReferenceMatchFull
+		case PARTIAL:
+			r.Match = ReferenceMatchPartial
+		case SIMPLE:
+			r.Match = ReferenceMatchSimple
+		default:
+			return p.parseErrorf("should FULL, PARTIAL or SIMPLE")
+		}
+		t, _ = p.parseIgnoreWhiteSpace()
+	}
+
+	if t != ON {
+		p.reset()
+		stmt.Reference = &r
+		return nil
+	}
+
+	parseRefenceOption := func() (ReferenceOption, error) {
+		t, _ = p.parseIgnoreWhiteSpace()
+		switch t {
+		case RESTRICT:
+			return ReferenceOptionRestrict, nil
+		case CASCADE:
+			return ReferenceOptionCascade, nil
+		case SET:
+			t, _ := p.parseIgnoreWhiteSpace()
+			if t != NULL {
+				return 0, p.parseErrorf("should NULL")
+			}
+			return ReferenceOptionSetNull, nil
+		case NO:
+			t, _ := p.parseIgnoreWhiteSpace()
+			if t != ACTION {
+				return 0, p.parseErrorf("should ACTION")
+			}
+			return ReferenceOptionNoAction, nil
+		default:
+			return 0, p.parseErrorf("should RESTRICT, CASCADE, SET or NO")
+		}
+	}
+
+	t, _ = p.parseIgnoreWhiteSpace()
+	switch t {
+	case DELETE:
+		option, err := parseRefenceOption()
+		if err != nil {
+			return err
+		}
+		r.OnDelete = option
+	case UPDATE:
+		option, err := parseRefenceOption()
+		if err != nil {
+			return err
+		}
+		r.OnUpdate = option
+		stmt.Reference = &r
+		return nil
+	default:
+		return p.parseErrorf("should DELETE or UPDATE")
+	}
+
+	t, _ = p.parseIgnoreWhiteSpace()
+	if t != ON {
+		p.reset()
+		stmt.Reference = &r
+		return nil
+	}
+
+	t, _ = p.parseIgnoreWhiteSpace()
+	switch t {
+	case UPDATE:
+		option, err := parseRefenceOption()
+		if err != nil {
+			return err
+		}
+		r.OnUpdate = option
+	default:
+		return p.parseErrorf("should UPDATE")
+	}
+
+	stmt.Reference = &r
+
 	return nil
 }
 
