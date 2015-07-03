@@ -394,6 +394,7 @@ const (
 	IndexKindUnique
 	IndexKindFullText
 	IndexKindSpartial
+	IndexKindForeignKey
 )
 
 func (i IndexKind) String() string {
@@ -408,6 +409,8 @@ func (i IndexKind) String() string {
 		return "FULLTEXT INDEX"
 	case IndexKindSpartial:
 		return "SPARTIAL INDEX"
+	case IndexKindForeignKey:
+		return "FOREIGN KEY"
 	default:
 		panic("not reach")
 	}

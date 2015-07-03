@@ -206,7 +206,10 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 					return err
 				}
 			case FOREIGN: // TODO
-				return p.parseErrorf("not support FOREIGN")
+				indexStmt.Kind = IndexKindForeignKey
+				if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
+					return err
+				}
 			default:
 				return p.parseErrorf("not supported")
 			}
@@ -242,8 +245,11 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			indexStmt.Kind = IndexKindSpartial
 			p.parseColumnIndexFullTextKey(&indexStmt)
 			setStmt(indexStmt)
-		case FOREIGN: // TODO
-			return p.parseErrorf("not support FOREIGN")
+		case FOREIGN:
+			indexStmt := CreateTableIndexStatement{}
+			indexStmt.Kind = IndexKindForeignKey
+			p.parseColumnIndexForeignKey(&indexStmt)
+			setStmt(indexStmt)
 		case CHECK: // TODO
 			return p.parseErrorf("not support CHECK")
 		case IDENT, BACKTICK_IDENT:

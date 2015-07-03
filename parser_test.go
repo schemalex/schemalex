@@ -91,6 +91,12 @@ id bigint unsigned not null auto_increment
 			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nUNIQUE INDEX `uniq_id` (`id`, `c`),\nPRIMARY KEY (`id`)\n)",
 		},
+		// with basic foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) )",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
+		},
 	}
 
 	for _, spec := range specs {
