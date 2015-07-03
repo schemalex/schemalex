@@ -670,9 +670,13 @@ func (p *Parser) parseColumnIndexPrimaryKey(stmt *CreateTableIndexStatement) err
 	if err := p.parseColumnIndexType(stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexColName(stmt); err != nil {
+
+	cols, err := p.parseColumnIndexColName(stmt)
+	if err != nil {
 		return err
 	}
+	stmt.ColNames = append(stmt.ColNames, cols...)
+
 	return nil
 }
 
@@ -688,9 +692,12 @@ func (p *Parser) parseColumnIndexUniqueKey(stmt *CreateTableIndexStatement) erro
 	if err := p.parseColumnIndexType(stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexColName(stmt); err != nil {
+
+	cols, err := p.parseColumnIndexColName(stmt)
+	if err != nil {
 		return err
 	}
+	stmt.ColNames = append(stmt.ColNames, cols...)
 
 	return nil
 }
@@ -702,9 +709,13 @@ func (p *Parser) parseColumnIndexKey(stmt *CreateTableIndexStatement) error {
 	if err := p.parseColumnIndexType(stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexColName(stmt); err != nil {
+
+	cols, err := p.parseColumnIndexColName(stmt)
+	if err != nil {
 		return err
 	}
+	stmt.ColNames = append(stmt.ColNames, cols...)
+
 	return nil
 }
 
@@ -712,9 +723,13 @@ func (p *Parser) parseColumnIndexFullTextKey(stmt *CreateTableIndexStatement) er
 	if err := p.parseColumnIndexName(stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexColName(stmt); err != nil {
+
+	cols, err := p.parseColumnIndexColName(stmt)
+	if err != nil {
 		return err
 	}
+	stmt.ColNames = append(stmt.ColNames, cols...)
+
 	return nil
 }
 
@@ -761,27 +776,30 @@ func (p *Parser) parseColumnIndexType(stmt *CreateTableIndexStatement) error {
 	return nil
 }
 
-func (p *Parser) parseColumnIndexColName(stmt *CreateTableIndexStatement) error {
+// TODO rename method name
+func (p *Parser) parseColumnIndexColName(stmt *CreateTableIndexStatement) ([]string, error) {
+	var strs []string
+
 	t, _ := p.parseIgnoreWhiteSpace()
 	if t != LPAREN {
-		return p.parseErrorf("should (")
+		return nil, p.parseErrorf("should (")
 	}
 
 	for {
 		t, s := p.parseIgnoreWhiteSpace()
 		if !(t == IDENT || t == BACKTICK_IDENT) {
-			return p.parseErrorf("should IDENT or BACKTICK_IDENT")
+			return nil, p.parseErrorf("should IDENT or BACKTICK_IDENT")
 		}
-		stmt.ColNames = append(stmt.ColNames, s)
+		strs = append(strs, s)
 		t, s = p.parseIgnoreWhiteSpace()
 		switch t {
 		case COMMA:
 			// search next
 			continue
 		case RPAREN:
-			return nil
+			return strs, nil
 		default:
-			return p.parseErrorf("should , or )")
+			return nil, p.parseErrorf("should , or )")
 		}
 	}
 }
