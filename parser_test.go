@@ -127,6 +127,12 @@ id bigint unsigned not null auto_increment
 			Error:  true,
 			Expect: "",
 		},
+		// unexpected ident shown after references `fuga` (`id`)
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) HOGE )",
+			Error:  true,
+			Expect: "",
+		},
 	}
 
 	for _, spec := range specs {
