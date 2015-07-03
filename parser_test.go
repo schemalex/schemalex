@@ -91,6 +91,54 @@ id bigint unsigned not null auto_increment
 			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nUNIQUE INDEX `uniq_id` (`id`, `c`),\nPRIMARY KEY (`id`)\n)",
 		},
+		// with basic foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) )",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
+		},
+		// with simple reference foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) )",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`)\n)",
+		},
+		// with match reference foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH SIMPLE )",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH SIMPLE\n)",
+		},
+		// with on delete reference foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE SET NULL)",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE SET NULL\n)",
+		},
+		// with match and on delete reference foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH PARTIAL ON DELETE NO ACTION)",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH PARTIAL ON DELETE NO ACTION\n)",
+		},
+		// with on delete, on update reference foreign key
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE)",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE\n)",
+		},
+		// on delete after on update got error
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON UPDATE CASCADE ON DELETE RESTRICT)",
+			Error:  true,
+			Expect: "",
+		},
+		// unexpected ident shown after references `fuga` (`id`)
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) HOGE )",
+			Error:  true,
+			Expect: "",
+		},
 	}
 
 	for _, spec := range specs {
@@ -100,7 +148,7 @@ id bigint unsigned not null auto_increment
 				t.Errorf("should err: input:%v", spec.Input)
 				continue
 			}
-			t.Log("error:", spec.Input)
+			t.Log("input:", spec.Input, "error:", err)
 		} else {
 			if err != nil {
 				t.Errorf(err.Error())

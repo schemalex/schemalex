@@ -63,7 +63,6 @@ COMMIT;
 ## TODO
 
 * COLUMN
-    * FOREIGN KEY
     * CHECK (expr)
 * Type
     * SET
