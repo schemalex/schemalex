@@ -834,7 +834,7 @@ func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
 
 	t, _ = p.parseIgnoreWhiteSpace()
 	if t == MATCH {
-		t, _ := p.parseIgnoreWhiteSpace()
+		t, _ = p.parseIgnoreWhiteSpace()
 		switch t {
 		case FULL:
 			r.Match = ReferenceMatchFull
