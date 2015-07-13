@@ -58,9 +58,7 @@ func _main(before, after string) error {
 	}
 
 	d := &schemalex.Differ{filterCreateTableStatement(beforeStmts), filterCreateTableStatement(afterStmts)}
-	d.WriteDiffWithTransaction(os.Stdout)
-
-	return nil
+	return d.WriteDiffWithTransaction(os.Stdout)
 }
 
 func filterCreateTableStatement(stmts []schemalex.Stmt) []schemalex.CreateTableStatement {

@@ -12,21 +12,29 @@ type Differ struct {
 	AfterStmts  []CreateTableStatement
 }
 
-func (d *Differ) WriteDiffWithTransaction(w io.Writer) {
-	stmts := d.DiffWithTransaction()
+func (d *Differ) WriteDiffWithTransaction(w io.Writer) error {
+	stmts, err := d.DiffWithTransaction()
+	if err != nil {
+		return err
+	}
 
 	for _, stmt := range stmts {
 		fmt.Fprintln(w, stmt+";\n")
 	}
+
+	return nil
 }
 
-func (d *Differ) DiffWithTransaction() []string {
+func (d *Differ) DiffWithTransaction() ([]string, error) {
 	var stmts []string
 
-	diff := d.Diff()
+	diff, err := d.Diff()
+	if err != nil {
+		return nil, err
+	}
 
 	if len(diff) == 0 {
-		return stmts
+		return stmts, nil
 	}
 
 	stmts = append(stmts, "BEGIN")
@@ -35,10 +43,10 @@ func (d *Differ) DiffWithTransaction() []string {
 	stmts = append(stmts, "SET FOREIGN_KEY_CHECKS = 1")
 	stmts = append(stmts, "COMMIT")
 
-	return stmts
+	return stmts, nil
 }
 
-func (d *Differ) Diff() []string {
+func (d *Differ) Diff() ([]string, error) {
 	var stmts []string
 
 	// drop table
@@ -48,9 +56,15 @@ func (d *Differ) Diff() []string {
 	stmts = append(stmts, d.creaeTables()...)
 
 	// alter table
-	stmts = append(stmts, d.alterTables()...)
+	{
+		diffStmts, err := d.alterTables()
+		if err != nil {
+			return nil, err
+		}
+		stmts = append(stmts, diffStmts...)
+	}
 
-	return stmts
+	return stmts, nil
 }
 
 func (d *Differ) dropTables() []string {
@@ -88,7 +102,7 @@ func (d *Differ) creaeTables() []string {
 	return stmts
 }
 
-func (d *Differ) alterTables() []string {
+func (d *Differ) alterTables() ([]string, error) {
 	var stmts []string
 
 	before := d.beforeTableSets()
@@ -115,17 +129,30 @@ func (d *Differ) alterTables() []string {
 		}
 
 		if beforeStmt == nil || afterStmt == nil {
-			panic("")
+			return nil, fmt.Errorf("table %s is not found before tables or after tables", name)
 		}
 
 		stmts = append(stmts, d.dropTableColumns(beforeStmt, afterStmt)...)
 		stmts = append(stmts, d.addTableColumns(beforeStmt, afterStmt)...)
-		stmts = append(stmts, d.alterTableColumns(beforeStmt, afterStmt)...)
-		stmts = append(stmts, d.dropTableIndexes(beforeStmt, afterStmt)...)
+		{
+			diffStmts, err := d.alterTableColumns(beforeStmt, afterStmt)
+			if err != nil {
+				return nil, err
+			}
+			stmts = append(stmts, diffStmts...)
+		}
+
+		{
+			diffStmts, err := d.dropTableIndexes(beforeStmt, afterStmt)
+			if err != nil {
+				return nil, err
+			}
+			stmts = append(stmts, diffStmts...)
+		}
 		stmts = append(stmts, d.addTableIndexes(beforeStmt, afterStmt)...)
 	}
 
-	return stmts
+	return stmts, nil
 }
 
 func (d *Differ) dropTableColumns(before *CreateTableStatement, after *CreateTableStatement) []string {
@@ -165,7 +192,7 @@ func (d *Differ) addTableColumns(before *CreateTableStatement, after *CreateTabl
 	return stmts
 }
 
-func (d *Differ) alterTableColumns(before *CreateTableStatement, after *CreateTableStatement) []string {
+func (d *Differ) alterTableColumns(before *CreateTableStatement, after *CreateTableStatement) ([]string, error) {
 	var stmts []string
 
 	beforeColumns := d.tableColumnNameSets(before)
@@ -192,7 +219,7 @@ func (d *Differ) alterTableColumns(before *CreateTableStatement, after *CreateTa
 		}
 
 		if beforeColumnStmt == nil || afterColumnStmt == nil {
-			panic("")
+			return nil, fmt.Errorf("column %s is not found before columns or after columns", columnName)
 		}
 
 		if beforeColumnStmt.String() == afterColumnStmt.String() {
@@ -203,10 +230,10 @@ func (d *Differ) alterTableColumns(before *CreateTableStatement, after *CreateTa
 		stmts = append(stmts, stmt)
 	}
 
-	return stmts
+	return stmts, nil
 }
 
-func (d *Differ) dropTableIndexes(before *CreateTableStatement, after *CreateTableStatement) []string {
+func (d *Differ) dropTableIndexes(before *CreateTableStatement, after *CreateTableStatement) ([]string, error) {
 	var stmts []string
 
 	beforeIndexes := d.tableIndexSets(before)
@@ -222,7 +249,7 @@ func (d *Differ) dropTableIndexes(before *CreateTableStatement, after *CreateTab
 					stmt = fmt.Sprintf("ALTER TABLE `%s` DROP INDEX PRIMARY KEY", before.Name)
 				} else {
 					if indexStmt.Name == nil {
-						panic("cant drop index without name")
+						return nil, fmt.Errorf("cant drop index without name: %s", indexStmt.String())
 					}
 					stmt = fmt.Sprintf("ALTER TABLE `%s` DROP INDEX `%s`", before.Name, *indexStmt.Name)
 				}
@@ -232,7 +259,7 @@ func (d *Differ) dropTableIndexes(before *CreateTableStatement, after *CreateTab
 		}
 	}
 
-	return stmts
+	return stmts, nil
 }
 
 func (d *Differ) addTableIndexes(before *CreateTableStatement, after *CreateTableStatement) []string {

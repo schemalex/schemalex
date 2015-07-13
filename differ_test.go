@@ -87,7 +87,11 @@ func TestDiffer(t *testing.T) {
 		}
 
 		differ := &Differ{stmts2CreateTalbeStatements(beforeStmts), stmts2CreateTalbeStatements(afterStmts)}
-		if e, g := spec.Expect, strings.Join(differ.Diff(), ";"); e != g {
+		stmts, err := differ.Diff()
+		if err != nil {
+			t.Fatal(err)
+		}
+		if e, g := spec.Expect, strings.Join(stmts, ";"); e != g {
 			t.Errorf("should: %v\n got: %v\n spec:%v", e, g, spec)
 		}
 	}
