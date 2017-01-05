@@ -142,7 +142,7 @@ func (c *CreateTableColumnStatement) String() string {
 	strs = append(strs, fmt.Sprintf("`%s`", c.Name))
 	strs = append(strs, c.Type.String())
 
-	if c.Length != nil {
+	if c.Length.Valid {
 		strs = append(strs, fmt.Sprintf("(%s)", c.Length.String()))
 	}
 
@@ -223,36 +223,17 @@ const (
 	ColumnOptionFlagBinary          = ColumnOptionSize
 )
 
-type Length interface {
-	String() string
-}
-
-type LengthNumber struct{ Length string }
-
-func (l *LengthNumber) String() string {
-	return l.Length
-}
-
-type LengthDecimal struct {
+type Length struct {
+	Decimals MaybeString
 	Length   string
-	Decimals string
+	Valid    bool
 }
 
-func (l *LengthDecimal) String() string {
-	return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
-}
-
-type LengthOptionalDecimal struct {
-	Length   string
-	Decimals *string
-}
-
-func (l LengthOptionalDecimal) String() string {
-	if l.Decimals == nil {
-		return l.Length
-	} else {
-		return fmt.Sprintf("%s, %s", l.Length, *l.Decimals)
+func (l *Length) String() string {
+	if l.Decimals.Valid {
+		return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
 	}
+	return l.Length
 }
 
 type ColumnType int

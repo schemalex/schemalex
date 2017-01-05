@@ -602,13 +602,17 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 				if t.Type != RPAREN {
 					return p.parseErrorf("should )")
 				}
-				col.Length = &LengthNumber{tlen}
+				col.Length.Valid = true
+				col.Length.Length = tlen
 			} else if check(ColumnOptionDecimalSize) {
 				strs, err := p.parseIndents(NUMBER, COMMA, NUMBER, RPAREN)
 				if err != nil {
 					return err
 				}
-				col.Length = &LengthDecimal{strs[0], strs[2]}
+				col.Length.Valid = true
+				col.Length.Length = strs[0]
+				col.Length.Decimals.Valid =true
+				col.Length.Decimals.Value = strs[2]
 			} else if check(ColumnOptionDecimalOptionalSize) {
 				t := p.parseIgnoreWhiteSpace()
 				if t.Type != NUMBER {
@@ -617,7 +621,8 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 				t = p.parseIgnoreWhiteSpace()
 				tlen := t.Value
 				if t.Type == RPAREN {
-					col.Length = LengthOptionalDecimal{t.Value, nil}
+					col.Length.Valid = true
+					col.Length.Length = tlen
 					continue
 				} else if t.Type != COMMA {
 					return p.parseErrorf("should ,")
@@ -630,7 +635,10 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 				if t.Type != RPAREN {
 					return p.parseErrorf("should )")
 				}
-				col.Length = LengthOptionalDecimal{tlen, &t.Value}
+					col.Length.Valid = true
+				col.Length.Length = tlen
+				col.Length.Decimals.Valid = true
+				col.Length.Decimals.Value = t.Value
 			} else {
 				return p.parseErrorf("cant apply ColumnOptionSize, ColumnOptionDecimalSize, ColumnOptionDecimalOptionalSize")
 			}
