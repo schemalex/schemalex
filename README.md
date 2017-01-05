@@ -1,76 +1,56 @@
-[![wercker status](https://app.wercker.com/status/13480237267a3517d152deb7fc7b6b2e/s/master "wercker status")](https://app.wercker.com/project/bykey/13480237267a3517d152deb7fc7b6b2e)
-
 # schemalex
 
 Generate difference sql of two mysql schema
 
-## DESCRIPTION
-
-It is private study project for me and still alpha quority. API will be changed.
-
-### DOWNLOAD
+### SYNOPSIS
 
 ```
-$ go get github.com/soh335/schemalex/cmd/schemalex
-```
+package schemalex_test
 
-### USAGE
+import (
+	"os"
 
-before
-```sql
-CREATE TABLE `hoge` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    PRIMARY KEY (`id`)
-);
-```
+	"github.com/lestrrat/schemalex"
+)
 
-after
-```sql
-CREATE TABLE `hoge` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    `c` VARCHAR (20) NOT NULL DEFAULT "hoge",
-    PRIMARY KEY (`id`)
+func Example() {
+	const sql1 = `CREATE TABLE hoge (
+    id INTEGER NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+);`
+	const sql2 = `CREATE TABLE hoge (
+    id INTEGER NOT NULL AUTO_INCREMENT,
+    c VARCHAR (20) NOT NULL DEFAULT "hoge",
+    PRIMARY KEY (id)
 );
 
-CREATE TABLE `fuga` (
-    `id` INTEGER NOT NULL AUTO_INCREMENT,
-    PRIMARY KEY (`id`)
-);
+CREATE TABLE fuga (
+    id INTEGER NOT NULL AUTO_INCREMENT,
+    PRIMARY KEY (id)
+);`
+
+	s := schemalex.New()
+	stmts1, _ := s.Parse(sql1)
+	stmts2, _ := s.Parse(sql2)
+	schemalex.Diff(os.Stdout, stmts1, stmts2)
+
+	// OUTPUT:
+	// BEGIN;
+	//
+	// SET FOREIGN_KEY_CHECKS = 0;
+	//
+	// CREATE TABLE `fuga` (
+	// `id` INTEGER NOT NULL AUTO_INCREMENT,
+	// PRIMARY KEY (`id`)
+	// );
+	//
+	// ALTER TABLE `hoge` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT "hoge";
+	//
+	// SET FOREIGN_KEY_CHECKS = 1;
+	//
+	// COMMIT;
+}
 ```
-
-```
-$ schemalex <options> /path/to/before.sql /path/to/after.sql
-```
-
-output
-```sql
-BEGIN;
-
-SET FOREIGN_KEY_CHECKS = 0;
-
-CREATE TABLE `fuga` (
-`id` INTEGER NOT NULL AUTO_INCREMENT,
-PRIMARY KEY (`id`)
-);
-
-ALTER TABLE `hoge` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT "hoge";
-
-SET FOREIGN_KEY_CHECKS = 1;
-
-COMMIT;
-```
-
-## TODO
-
-* COLUMN
-    * CHECK (expr)
-* Type
-    * SET
-    * ENUM
-    * SPATIAL type
-* INDEX OPTION
-* DATABASE CHARACTER
-* MANY, MANY REFACTORING
 
 ## SEE ALSO
 
