@@ -1,0 +1,3 @@
+package: github.com/lestrrat/schemalex
+import:
+- package: github.com/deckarep/golang-set

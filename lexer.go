@@ -90,7 +90,7 @@ func (l *lexer) read() (token, string) {
 	case ')':
 		return RPAREN, ""
 	case ';':
-		return SEMICORON, ""
+		return SEMICOLON, ""
 	case ',':
 		return COMMA, ""
 	case '.':
@@ -106,7 +106,7 @@ func (l *lexer) read() (token, string) {
 	case '=':
 		return EQUAL, ""
 	default:
-		return ILLEAGAL, ""
+		return ILLEGAL, ""
 	}
 }
 
@@ -158,7 +158,7 @@ func (l *lexer) runQuote(pair rune, t token) (token, string) {
 	for {
 		r := l.next()
 		if r == eof {
-			return ILLEAGAL, ""
+			return ILLEGAL, ""
 		} else if r == '\\' {
 			if l.peek() == pair {
 				r = l.next()
@@ -174,7 +174,7 @@ func (l *lexer) runQuote(pair rune, t token) (token, string) {
 		b.WriteRune(r)
 	}
 
-	return ILLEAGAL, ""
+	return ILLEGAL, ""
 }
 
 // https://dev.mysql.com/doc/refman/5.6/en/comments.html

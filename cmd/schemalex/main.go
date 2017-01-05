@@ -7,7 +7,7 @@ import (
 	"log"
 	"os"
 
-	"github.com/soh335/schemalex"
+	"github.com/lestrrat/schemalex"
 )
 
 var (

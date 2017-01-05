@@ -557,7 +557,7 @@ func (p *Parser) parseCreateTableOptions(stmt *CreateTableStatement) error {
 			return p.parseErrorf("not support UNION")
 		case EOF:
 			return nil
-		case SEMICORON:
+		case SEMICOLON:
 			p.reset()
 			return nil
 		default:
@@ -992,7 +992,7 @@ func (p *Parser) parseIgnoreWhiteSpace() (token, string) {
 		return t, i
 	}
 
-	return ILLEAGAL, ""
+	return ILLEGAL, ""
 }
 
 func (p *Parser) parseIndents(idents []token) ([]string, error) {
@@ -1010,7 +1010,7 @@ func (p *Parser) parseIndents(idents []token) ([]string, error) {
 func (p *Parser) eol() bool {
 	t, _ := p.parseIgnoreWhiteSpace()
 	switch t {
-	case EOF, SEMICORON:
+	case EOF, SEMICOLON:
 		return true
 	default:
 		return false
