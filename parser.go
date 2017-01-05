@@ -99,7 +99,7 @@ func (p *Parser) parseCreateDatabase() (*CreateDatabaseStatement, error) {
 		}
 		return stmt, nil
 	case IF:
-		if _, err := p.parseIndents([]TokenType{NOT, EXISTS}); err != nil {
+		if _, err := p.parseIndents(NOT, EXISTS); err != nil {
 			return nil, err
 		}
 		t = p.parseIgnoreWhiteSpace()
@@ -133,7 +133,7 @@ func (p *Parser) parseCreateTable() (*CreateTableStatement, error) {
 		t := p.parseIgnoreWhiteSpace()
 
 		if t.Type == IF {
-			if _, err := p.parseIndents([]TokenType{NOT, EXISTS}); err != nil {
+			if _, err := p.parseIndents(NOT, EXISTS); err != nil {
 				return nil, p.parseErrorf("should NOT EXISTS")
 			}
 			stmt.IfNotExist = true
@@ -606,7 +606,7 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 				}
 				col.Length = &LengthNumber{tlen}
 			} else if check(ColumnOptionDecimalSize) {
-				strs, err := p.parseIndents([]TokenType{NUMBER, COMMA, NUMBER, RPAREN})
+				strs, err := p.parseIndents(NUMBER, COMMA, NUMBER, RPAREN)
 				if err != nil {
 					return err
 				}
@@ -1007,7 +1007,7 @@ func (p *Parser) parseIgnoreWhiteSpace() *Token {
 	return &Token{Type: ILLEGAL}
 }
 
-func (p *Parser) parseIndents(idents []TokenType) ([]string, error) {
+func (p *Parser) parseIndents(idents ...TokenType) ([]string, error) {
 	strs := []string{}
 	for _, ident := range idents {
 		t := p.parseIgnoreWhiteSpace()
