@@ -49,3 +49,7 @@ func IsIgnorable(err error) bool {
 func Wrap(err error, s string) error {
 	return daverr.Wrap(err, s)
 }
+
+func Wrapf(err error, s string, args ...interface{}) error {
+	return daverr.Wrapf(err, s, args...)
+}

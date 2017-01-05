@@ -3,7 +3,6 @@ package main
 import (
 	"flag"
 	"fmt"
-	"io/ioutil"
 	"log"
 	"os"
 
@@ -29,29 +28,19 @@ func main() {
 }
 
 func _main(before, after string) error {
-	b, err := ioutil.ReadFile(before)
-	if err != nil {
-		return err
-	}
-
-	a, err := ioutil.ReadFile(after)
-	if err != nil {
-		return err
-	}
-
 	p := schemalex.New()
 	p.ErrorMarker = *errorMarker
 	p.ErrorContext = *errorContext
 
-	beforeStmts, err := p.Parse(string(b))
+	beforeStmts, err := p.ParseFile(before)
 	if err != nil {
 		return fmt.Errorf("file:%s error:%s", before, err)
 	}
 
-	afterStmts, err := p.Parse(string(a))
+	afterStmts, err := p.ParseFile(after)
 	if err != nil {
 		return fmt.Errorf("file:%s error:%s", after, err)
 	}
 
-	return schemalex.Diff(beforeStmts, afterStmts)
+	return schemalex.Diff(os.Stdout, beforeStmts, afterStmts)
 }

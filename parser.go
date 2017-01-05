@@ -2,6 +2,7 @@ package schemalex
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
 
 	"github.com/lestrrat/schemalex/internal/errors"
@@ -20,6 +21,14 @@ type parseCtx struct {
 	lexer        lexer
 	errorMarker  string
 	errorContext int
+}
+
+func (p *Parser) ParseFile(fn string) ([]Stmt, error) {
+	src, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return nil, errors.Wrapf(err, `failed to open file %s`, fn)
+	}
+	return p.Parse(src)
 }
 
 func (p *Parser) ParseString(src string) ([]Stmt, error) {
@@ -1056,4 +1065,3 @@ func (p *Parser) parseErrorf(ctx *parseCtx, format string, a ...interface{}) err
 	pos2 := int(math.Min(float64(ctx.lexer.pos+ctx.errorContext), float64(len(ctx.lexer.input))))
 	return fmt.Errorf("parse error:%s pos: %s%s%s", fmt.Sprintf(format, a...), ctx.lexer.input[pos1:ctx.lexer.pos], ctx.errorMarker, ctx.lexer.input[ctx.lexer.pos:pos2])
 }
-
