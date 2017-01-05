@@ -204,7 +204,8 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 				if t.Type == IDENT || t.Type == BACKTICK_IDENT {
 					// TODO: should smart
 					copyStr := t.Value
-					indexStmt.Symbol = &copyStr
+					indexStmt.Symbol.Valid = true
+					indexStmt.Symbol.Value = copyStr
 					t = p.parseIgnoreWhiteSpace()
 				}
 
@@ -945,7 +946,8 @@ func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
 func (p *Parser) parseColumnIndexName(stmt *CreateTableIndexStatement) error {
 	t := p.parseIgnoreWhiteSpace()
 	if t.Type == BACKTICK_IDENT || t.Type == IDENT {
-		stmt.Name = &t.Value
+		stmt.Name.Valid = true
+		stmt.Name.Value = t.Value
 	} else {
 		p.reset()
 	}

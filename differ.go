@@ -248,10 +248,10 @@ func (d *Differ) dropTableIndexes(before *CreateTableStatement, after *CreateTab
 				if indexStmt.Kind == IndexKindPrimaryKey {
 					stmt = fmt.Sprintf("ALTER TABLE `%s` DROP INDEX PRIMARY KEY", before.Name)
 				} else {
-					if indexStmt.Name == nil {
+					if !indexStmt.Name.Valid {
 						return nil, fmt.Errorf("cant drop index without name: %s", indexStmt.String())
 					}
-					stmt = fmt.Sprintf("ALTER TABLE `%s` DROP INDEX `%s`", before.Name, *indexStmt.Name)
+					stmt = fmt.Sprintf("ALTER TABLE `%s` DROP INDEX `%s`", before.Name, indexStmt.Name.Value)
 				}
 				stmts = append(stmts, stmt)
 				break

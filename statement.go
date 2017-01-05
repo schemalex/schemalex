@@ -6,15 +6,6 @@ import (
 	"strings"
 )
 
-type Stmt interface {
-	String() string
-}
-
-type CreateDatabaseStatement struct {
-	Name       string
-	IfNotExist bool
-}
-
 func (c *CreateDatabaseStatement) String() string {
 	var buf bytes.Buffer
 
@@ -26,15 +17,6 @@ func (c *CreateDatabaseStatement) String() string {
 	buf.WriteString(Backquote(c.Name))
 	buf.WriteByte(';')
 	return buf.String()
-}
-
-type CreateTableStatement struct {
-	Name       string
-	Temporary  bool
-	IfNotExist bool
-	Columns    []CreateTableColumnStatement
-	Indexes    []CreateTableIndexStatement
-	Options    []CreateTableOptionStatement
 }
 
 func (c *CreateTableStatement) String() string {
@@ -81,22 +63,9 @@ func (c *CreateTableStatement) String() string {
 	return b.String()
 }
 
-type CreateTableOptionStatement struct {
-	Key   string
-	Value string
-}
-
 func (c *CreateTableOptionStatement) String() string {
 	return fmt.Sprintf("%s = %s", c.Key, c.Value)
 }
-
-type ColumnOptionNullState int
-
-const (
-	ColumnOptionNullStateNone ColumnOptionNullState = iota
-	ColumnOptionNullStateNull
-	ColumnOptionNullStateNotNull
-)
 
 func (c ColumnOptionNullState) String() string {
 	switch c {
@@ -109,29 +78,6 @@ func (c ColumnOptionNullState) String() string {
 	default:
 		panic("not reach")
 	}
-}
-
-type MaybeString struct {
-	Valid bool
-	Value string
-}
-
-type CreateTableColumnStatement struct {
-	Name          string
-	Type          ColumnType
-	Length        Length
-	Unsgined      bool
-	ZeroFill      bool
-	Binary        bool
-	CharacterSet  MaybeString
-	Collate       MaybeString
-	Null          ColumnOptionNullState
-	Default       MaybeString
-	AutoIncrement bool
-	Unique        bool
-	Primary       bool
-	Key           bool
-	Comment       MaybeString
 }
 
 func (c *CreateTableColumnStatement) String() string {
@@ -204,38 +150,6 @@ func (c *CreateTableColumnStatement) String() string {
 	return buf.String()
 }
 
-const (
-	ColumnOptionSize = 1 << iota
-	ColumnOptionDecimalSize
-	ColumnOptionDecimalOptionalSize
-	ColumnOptionUnsigned
-	ColumnOptionZerofill
-	ColumnOptionBinary
-	ColumnOptionCharacterSet
-	ColumnOptionCollate
-	ColumnOptionNull
-	ColumnOptionDefault
-	ColumnOptionAutoIncrement
-	ColumnOptionKey
-	ColumnOptionComment
-)
-
-const (
-	ColumnOptionFlagNone            = 0
-	ColumnOptionFlagDigit           = ColumnOptionSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagDecimal         = ColumnOptionDecimalSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagDecimalOptional = ColumnOptionDecimalOptionalSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagTime            = ColumnOptionSize
-	ColumnOptionFlagChar            = ColumnOptionSize | ColumnOptionBinary | ColumnOptionCharacterSet | ColumnOptionCollate
-	ColumnOptionFlagBinary          = ColumnOptionSize
-)
-
-type Length struct {
-	Decimals MaybeString
-	Length   string
-	Valid    bool
-}
-
 func (l *Length) String() string {
 	if l.Decimals.Valid {
 		return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
@@ -243,58 +157,43 @@ func (l *Length) String() string {
 	return l.Length
 }
 
-type CreateTableIndexStatement struct {
-	Symbol   *string
-	Kind     IndexKind
-	Name     *string
-	Type     IndexType
-	ColNames []string
-	// TODO Options.
-	Reference *Reference
-}
-
 func (c *CreateTableIndexStatement) String() string {
-	var strs []string
+	var buf bytes.Buffer
 
-	if c.Symbol != nil {
-		strs = append(strs, fmt.Sprintf("CONSTRAINT `%s`", *c.Symbol))
+	if c.Symbol.Valid {
+		buf.WriteString("CONSTRAINT ")
+		buf.WriteString(Backquote(c.Symbol.Value))
+		buf.WriteByte(' ')
 	}
 
-	strs = append(strs, c.Kind.String())
+	buf.WriteString(c.Kind.String())
 
-	if c.Name != nil {
-		strs = append(strs, fmt.Sprintf("`%s`", *c.Name))
+	if c.Name.Valid {
+		buf.WriteByte(' ')
+		buf.WriteString(Backquote(c.Name.Value))
 	}
 
 	if str := c.Type.String(); str != "" {
-		strs = append(strs, str)
+		buf.WriteByte(' ')
+		buf.WriteString(str)
 	}
 
-	var cols []string
-
-	for _, colName := range c.ColNames {
-		cols = append(cols, fmt.Sprintf("`%s`", colName))
+	buf.WriteString(" (")
+	for i, colName := range c.ColNames {
+		buf.WriteString(Backquote(colName))
+		if i < len(c.ColNames) - 1 {
+			buf.WriteString(", ")
+		}
 	}
-
-	strs = append(strs, "("+strings.Join(cols, ", ")+")")
+	buf.WriteByte(')')
 
 	if c.Reference != nil {
-		strs = append(strs, c.Reference.String())
+		buf.WriteByte(' ')
+		buf.WriteString(c.Reference.String())
 	}
 
-	return strings.Join(strs, " ")
+	return buf.String()
 }
-
-type IndexKind int
-
-const (
-	IndexKindPrimaryKey IndexKind = iota
-	IndexKindNormal
-	IndexKindUnique
-	IndexKindFullText
-	IndexKindSpartial
-	IndexKindForeignKey
-)
 
 func (i IndexKind) String() string {
 	switch i {
@@ -315,14 +214,6 @@ func (i IndexKind) String() string {
 	}
 }
 
-type IndexType int
-
-const (
-	IndexTypeNone IndexType = iota
-	IndexTypeBtree
-	IndexTypeHash
-)
-
 func (i IndexType) String() string {
 	switch i {
 	case IndexTypeNone:
@@ -336,51 +227,37 @@ func (i IndexType) String() string {
 	}
 }
 
-type Reference struct {
-	TableName string
-	ColNames  []string
-	Match     ReferenceMatch
-	OnDelete  ReferenceOption
-	OnUpdate  ReferenceOption
-}
-
 func (r *Reference) String() string {
-	var strs []string
+	var buf bytes.Buffer
 
-	strs = append(strs, "REFERENCES")
-	strs = append(strs, fmt.Sprintf("`%s`", r.TableName))
-
-	var cols []string
-
-	for _, colName := range r.ColNames {
-		cols = append(cols, fmt.Sprintf("`%s`", colName))
+	buf.WriteString("REFERENCES ")
+	buf.WriteString(Backquote(r.TableName))
+	buf.WriteString(" (")
+	for i, colName := range r.ColNames {
+		buf.WriteString(Backquote(colName))
+		if i < len(r.ColNames) - 1 {
+			buf.WriteString(", ")
+		}
 	}
-
-	strs = append(strs, "("+strings.Join(cols, ", ")+")")
+	buf.WriteByte(')')
 
 	if str := r.Match.String(); str != "" {
-		strs = append(strs, str)
+		buf.WriteByte(' ')
+		buf.WriteString(str)
 	}
 
 	if r.OnDelete != ReferenceOptionNone {
-		strs = append(strs, fmt.Sprintf("ON DELETE %s", r.OnDelete.String()))
+		buf.WriteString(" ON DELETE ")
+		buf.WriteString(r.OnDelete.String())
 	}
 
 	if r.OnUpdate != ReferenceOptionNone {
-		strs = append(strs, fmt.Sprintf("ON UPDATE %s", r.OnUpdate.String()))
+		buf.WriteString(" ON UPDATE ")
+		buf.WriteString(r.OnUpdate.String())
 	}
 
-	return strings.Join(strs, " ")
+	return buf.String()
 }
-
-type ReferenceMatch int
-
-const (
-	ReferenceMatchNone ReferenceMatch = iota
-	ReferenceMatchFull
-	ReferenceMatchPartial
-	ReferenceMatchSimple
-)
 
 func (r ReferenceMatch) String() string {
 	switch r {
@@ -396,16 +273,6 @@ func (r ReferenceMatch) String() string {
 		panic("not reach")
 	}
 }
-
-type ReferenceOption int
-
-const (
-	ReferenceOptionNone ReferenceOption = iota
-	ReferenceOptionRestrict
-	ReferenceOptionCascade
-	ReferenceOptionSetNull
-	ReferenceOptionNoAction
-)
 
 func (r ReferenceOption) String() string {
 	switch r {
