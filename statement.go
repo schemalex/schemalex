@@ -113,6 +113,11 @@ func (c ColumnOptionNullState) String() string {
 	}
 }
 
+type MaybeString struct {
+	Valid bool
+	Value string
+}
+
 type CreateTableColumnStatement struct {
 	Name          string
 	Type          ColumnType
@@ -120,15 +125,15 @@ type CreateTableColumnStatement struct {
 	Unsgined      bool
 	ZeroFill      bool
 	Binary        bool
-	CharacterSet  *string
-	Collate       *string
+	CharacterSet  MaybeString
+	Collate       MaybeString
 	Null          ColumnOptionNullState
-	Default       *string
+	Default       MaybeString
 	AutoIncrement bool
 	Unique        bool
 	Primary       bool
 	Key           bool
-	Comment       *string
+	Comment       MaybeString
 }
 
 func (c *CreateTableColumnStatement) String() string {
@@ -153,20 +158,20 @@ func (c *CreateTableColumnStatement) String() string {
 		strs = append(strs, "BINARY")
 	}
 
-	if c.CharacterSet != nil {
-		strs = append(strs, fmt.Sprintf("CHARACTER SET `%s`", *c.CharacterSet))
+	if c.CharacterSet.Valid {
+		strs = append(strs, fmt.Sprintf("CHARACTER SET `%s`", c.CharacterSet.Value))
 	}
 
-	if c.Collate != nil {
-		strs = append(strs, fmt.Sprintf("COLLATE `%s`", *c.Collate))
+	if c.Collate.Valid {
+		strs = append(strs, fmt.Sprintf("COLLATE `%s`", c.Collate.Value))
 	}
 
 	if str := c.Null.String(); str != "" {
 		strs = append(strs, str)
 	}
 
-	if c.Default != nil {
-		strs = append(strs, fmt.Sprintf("DEFAULT %s", *c.Default))
+	if c.Default.Valid {
+		strs = append(strs, fmt.Sprintf("DEFAULT %s", c.Default.Value))
 	}
 
 	if c.AutoIncrement {
@@ -185,8 +190,8 @@ func (c *CreateTableColumnStatement) String() string {
 		strs = append(strs, "KEY")
 	}
 
-	if c.Comment != nil {
-		strs = append(strs, fmt.Sprintf("'%s'", *c.Comment))
+	if c.Comment.Valid {
+		strs = append(strs, fmt.Sprintf("'%s'", c.Comment.Value))
 	}
 
 	return strings.Join(strs, " ")

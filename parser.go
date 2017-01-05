@@ -87,9 +87,8 @@ func (p *Parser) parseCreateDatabase() (*CreateDatabaseStatement, error) {
 		}
 		if p.eol() {
 			return nil
-		} else {
-			return p.parseErrorf("should EOL")
 		}
+		return p.parseErrorf("should EOL")
 	}
 
 	switch t.Type {
@@ -118,42 +117,41 @@ func (p *Parser) parseCreateTable() (*CreateTableStatement, error) {
 	stmt := CreateTableStatement{}
 	t := p.parseIgnoreWhiteSpace()
 
-	switch t.Type {
-	case TEMPORARY:
+	if t.Type == TEMPORARY {
 		stmt.Temporary = true
+		// Advance to next token
 		t = p.parseIgnoreWhiteSpace()
-		switch t.Type {
-		case IDENT, BACKTICK_IDENT:
-		default:
-			return nil, p.parseErrorf("should IDENT or BACKTICK_IDENT")
-		}
-		fallthrough
+	}
+
+	switch t.Type {
 	case IDENT, BACKTICK_IDENT:
 		stmt.Name = t.Value
-		t := p.parseIgnoreWhiteSpace()
-
-		if t.Type == IF {
-			if _, err := p.parseIndents(NOT, EXISTS); err != nil {
-				return nil, p.parseErrorf("should NOT EXISTS")
-			}
-			stmt.IfNotExist = true
-			t = p.parseIgnoreWhiteSpace()
-		}
-
-		if t.Type != LPAREN {
-			return nil, p.parseErrorf("should (")
-		}
-
-		if err := p.parseCreateTableFields(&stmt); err != nil {
-			return nil, err
-		}
-
-		return &stmt, nil
 	default:
-		return nil, p.parseErrorf("should TEMPORARY, IDENT or BACKTICK_IDENT")
+		return nil, p.parseErrorf("expected IDENT or BACKTICK_IDENT")
 	}
+
+	t = p.parseIgnoreWhiteSpace()
+
+	if t.Type == IF {
+		if _, err := p.parseIndents(NOT, EXISTS); err != nil {
+			return nil, p.parseErrorf("should NOT EXISTS")
+		}
+		stmt.IfNotExist = true
+		t = p.parseIgnoreWhiteSpace()
+	}
+
+	if t.Type != LPAREN {
+		return nil, p.parseErrorf("should (")
+	}
+
+	if err := p.parseCreateTableFields(&stmt); err != nil {
+		return nil, err
+	}
+
+	return &stmt, nil
 }
 
+// Start parsing after `CREATE TABLE *** (`
 func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 	var targetStmt interface{}
 
@@ -674,7 +672,8 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 			t := p.parseIgnoreWhiteSpace()
 			switch t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL:
-				col.Default = &t.Value
+				col.Default.Valid = true
+				col.Default.Value = t.Value
 			default:
 				return p.parseErrorf("should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
@@ -714,7 +713,8 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 			if t.Type != SINGLE_QUOTE_IDENT {
 				return p.parseErrorf("should SINGLE_QUOTE_IDENT")
 			}
-			col.Comment = &t.Value
+			col.Comment.Valid = true
+			col.Comment.Value = t.Value
 		case COMMA:
 			p.reset()
 			return nil
