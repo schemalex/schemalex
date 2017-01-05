@@ -2,10 +2,20 @@
 
 package schemalex
 
-type token int
+type TokenType int
+
+// Token represents a token
+type Token struct {
+	Type  TokenType
+	Value string
+}
+
+func NewToken(t TokenType, v string) *Token {
+	return &Token{Type: t, Value: v}
+}
 
 const (
-	ILLEGAL token = iota
+	ILLEGAL TokenType = iota
 	EOF
 	SPACE
 	IDENT
@@ -130,7 +140,7 @@ const (
 	ZEROFILL
 )
 
-var keywordIdentMap = map[string]token{
+var keywordIdentMap = map[string]TokenType{
 	"ACTION":             ACTION,
 	"AUTO_INCREMENT":     AUTO_INCREMENT,
 	"AVG_ROW_LENGTH":     AVG_ROW_LENGTH,

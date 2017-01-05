@@ -20,50 +20,54 @@ func (l *lexer) str() string {
 	return l.input[l.start:l.pos]
 }
 
-func (l *lexer) read() (token, string) {
+func (l *lexer) read() *Token {
 	l.start = l.pos
 
 	r := l.next()
 
-	if isSpace(r) {
-		// read still space end
-		return l.runSpace(), ""
-	} else if isLetter(r) {
+	switch {
+	case isSpace(r):
+		// read until space end
+		l.runSpace()
+		return &Token{Type: SPACE}
+	case isLetter(r):
 		l.backup()
 		t, s := l.runIdent(), l.str()
 		if _t, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
 			t = _t
 		}
-		return t, s
-	} else if isDigit(r) {
+		return &Token{Type: t, Value: s}
+	case isDigit(r):
 		l.backup()
 		return l.runNumber()
 	}
 
 	switch r {
 	case eof:
-		return EOF, ""
+		return &Token{Type: EOF}
 	case '`':
 		return l.runQuote('`', BACKTICK_IDENT)
 	case '"':
 		// TODO: should smart
-		t, s := l.runQuote('"', DOUBLE_QUOTE_IDENT)
-		if t != DOUBLE_QUOTE_IDENT {
-			return t, s
+		t := l.runQuote('"', DOUBLE_QUOTE_IDENT)
+		if t.Type != DOUBLE_QUOTE_IDENT {
+			return t
 		}
-		return t, `"` + s + `"`
+		t.Value = `"` + t.Value + `"`
+		return t
 	case '\'':
 		// TODO: should smart
-		t, s := l.runQuote('\'', SINGLE_QUOTE_IDENT)
-		if t != SINGLE_QUOTE_IDENT {
-			return t, s
+		t := l.runQuote('\'', SINGLE_QUOTE_IDENT)
+		if t.Type != SINGLE_QUOTE_IDENT {
+			return t
 		}
-		return t, `'` + s + `'`
+		t.Value = `'` + t.Value + `'`
+		return t
 	case '/':
 		if l.peek() == '*' {
-			return l.runCComment(), ""
+			return &Token{Type: l.runCComment()}
 		}
-		return SLASH, ""
+		return &Token{Type: SLASH}
 	case '-':
 		r1 := l.peek()
 		if r1 == '-' {
@@ -72,41 +76,41 @@ func (l *lexer) read() (token, string) {
 			// TODO: not only space. control character
 			if !isSpace(l.peek()) {
 				l.backup()
-				return DASH, ""
+				return &Token{Type: DASH}
 			}
 			l.runToEOL()
-			return COMMENT_IDENT, ""
+			return &Token{Type: COMMENT_IDENT}
 		} else if isDigit(r1) {
 			return l.runNumber()
 		} else {
-			return DASH, ""
+			return &Token{Type: DASH}
 		}
 	case '#':
 		// https://dev.mysql.com/doc/refman/5.6/en/comments.html
 		l.runToEOL()
-		return COMMENT_IDENT, ""
+		return &Token{Type: COMMENT_IDENT}
 	case '(':
-		return LPAREN, ""
+		return &Token{Type: LPAREN}
 	case ')':
-		return RPAREN, ""
+		return &Token{Type: RPAREN}
 	case ';':
-		return SEMICOLON, ""
+		return &Token{Type: SEMICOLON}
 	case ',':
-		return COMMA, ""
+		return &Token{Type: COMMA}
 	case '.':
 		if isDigit(l.peek()) {
 			return l.runNumber()
 		}
-		return DOT, ""
+		return &Token{Type: DOT}
 	case '+':
 		if isDigit(l.peek()) {
 			return l.runNumber()
 		}
-		return PLUS, ""
+		return &Token{Type: PLUS}
 	case '=':
-		return EQUAL, ""
+		return &Token{Type: EQUAL}
 	default:
-		return ILLEGAL, ""
+		return &Token{Type: ILLEGAL}
 	}
 }
 
@@ -132,14 +136,13 @@ func (l *lexer) backup() {
 	l.pos -= l.width
 }
 
-func (l *lexer) runSpace() token {
+func (l *lexer) runSpace() {
 	for isSpace(l.peek()) {
 		l.next()
 	}
-	return SPACE
 }
 
-func (l *lexer) runIdent() token {
+func (l *lexer) runIdent() TokenType {
 	for {
 		r := l.next()
 		if r == eof {
@@ -153,12 +156,12 @@ func (l *lexer) runIdent() token {
 	return IDENT
 }
 
-func (l *lexer) runQuote(pair rune, t token) (token, string) {
+func (l *lexer) runQuote(pair rune, t TokenType) *Token {
 	var b bytes.Buffer
 	for {
 		r := l.next()
 		if r == eof {
-			return ILLEGAL, ""
+			return &Token{Type: ILLEGAL}
 		} else if r == '\\' {
 			if l.peek() == pair {
 				r = l.next()
@@ -168,17 +171,17 @@ func (l *lexer) runQuote(pair rune, t token) (token, string) {
 				// it is escape
 				r = l.next()
 			} else {
-				return t, b.String()
+				return &Token{Type: t, Value: b.String()}
 			}
 		}
 		b.WriteRune(r)
 	}
 
-	return ILLEGAL, ""
+	return &Token{Type: ILLEGAL}
 }
 
 // https://dev.mysql.com/doc/refman/5.6/en/comments.html
-func (l *lexer) runCComment() token {
+func (l *lexer) runCComment() TokenType {
 	for {
 		r := l.next()
 		switch r {
@@ -193,7 +196,7 @@ func (l *lexer) runCComment() token {
 	}
 }
 
-func (l *lexer) runToEOL() token {
+func (l *lexer) runToEOL() TokenType {
 	for {
 		r := l.next()
 		switch r {
@@ -204,23 +207,22 @@ func (l *lexer) runToEOL() token {
 }
 
 // https://dev.mysql.com/doc/refman/5.6/en/number-literals.html
-func (l *lexer) runNumber() (token, string) {
-
-	runDigit := func() {
-		for {
-			r := l.next()
-			if !isDigit(r) {
-				l.backup()
-				break
-			}
+func (l *lexer) runDigit() {
+	for {
+		r := l.next()
+		if !isDigit(r) {
+			l.backup()
+			break
 		}
 	}
+}
 
-	runDigit()
+func (l *lexer) runNumber() *Token {
+	l.runDigit()
 
 	if l.peek() == '.' {
 		l.next()
-		runDigit()
+		l.runDigit()
 	}
 
 	switch l.peek() {
@@ -229,11 +231,10 @@ func (l *lexer) runNumber() (token, string) {
 		if l.peek() == '-' {
 			l.next()
 		}
-		runDigit()
-		return NUMBER, l.str()
-	default:
-		return NUMBER, l.str()
+		l.runDigit()
 	}
+
+	return &Token{Type: NUMBER, Value: l.str()}
 }
 
 func isSpace(r rune) bool {

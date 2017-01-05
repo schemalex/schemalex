@@ -5,6 +5,8 @@ import (
 	"io/ioutil"
 	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var testFile = ""
@@ -144,11 +146,10 @@ id bigint unsigned not null auto_increment
 	for _, spec := range specs {
 		stmts, err := NewParser(spec.Input).Parse()
 		if spec.Error {
-			if err == nil {
-				t.Errorf("should err: input:%v", spec.Input)
+			if !assert.Error(t, err, "should be an error") {
+				t.Logf("input: %s", spec.Input)
 				continue
 			}
-			t.Log("input:", spec.Input, "error:", err)
 		} else {
 			if err != nil {
 				t.Errorf(err.Error())
