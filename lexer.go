@@ -9,15 +9,21 @@ import (
 const eof = rune(0)
 
 type lexer struct {
-	input string
+	input []byte
 
 	pos   int
 	start int
 	width int
 }
 
+func newLexer(input []byte) *lexer {
+	return &lexer{
+		input: input,
+	}
+}
+
 func (l *lexer) str() string {
-	return l.input[l.start:l.pos]
+	return string(l.input[l.start:l.pos])
 }
 
 func (l *lexer) read() *Token {
@@ -119,7 +125,7 @@ func (l *lexer) next() rune {
 		l.width = 0
 		return eof
 	}
-	r, w := utf8.DecodeRuneInString(l.input[l.pos:])
+	r, w := utf8.DecodeRune(l.input[l.pos:])
 	l.width = w
 	l.pos += l.width
 

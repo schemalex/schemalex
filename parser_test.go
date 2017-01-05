@@ -145,7 +145,7 @@ id bigint unsigned not null auto_increment
 
 	p := New()
 	for _, spec := range specs {
-		stmts, err := p.Parse(spec.Input)
+		stmts, err := p.ParseString(spec.Input)
 		if spec.Error {
 			if !assert.Error(t, err, "should be an error") {
 				t.Logf("input: %s", spec.Input)
@@ -181,7 +181,7 @@ func TestFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stmts, err := New().Parse(string(byt))
+	stmts, err := New().Parse(byt)
 	if err != nil {
 		t.Fatal(err)
 	}

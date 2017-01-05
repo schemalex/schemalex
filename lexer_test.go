@@ -105,9 +105,8 @@ func TestRead(t *testing.T) {
 	}
 
 	for _, spec := range specs {
-		l := lexer{
-			input: spec.input,
-		}
+		var l lexer
+		l.input = []byte(spec.input)
 		_t := l.read()
 		if _t.Type != spec.TokenType {
 			t.Errorf("got %d expected %d spec:%v", _t, spec.TokenType, spec)

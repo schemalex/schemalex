@@ -22,7 +22,11 @@ type parseCtx struct {
 	errorContext int
 }
 
-func (p *Parser) Parse(src string) ([]Stmt, error) {
+func (p *Parser) ParseString(src string) ([]Stmt, error) {
+	return p.Parse([]byte(src))
+}
+
+func (p *Parser) Parse(src []byte) ([]Stmt, error) {
 	var ctx parseCtx
 	ctx.lexer.input = src
 	ctx.errorMarker = p.ErrorMarker

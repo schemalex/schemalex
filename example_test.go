@@ -23,8 +23,8 @@ CREATE TABLE fuga (
 );`
 
 	s := schemalex.New()
-	stmts1, _ := s.Parse(sql1)
-	stmts2, _ := s.Parse(sql2)
+	stmts1, _ := s.ParseString(sql1)
+	stmts2, _ := s.ParseString(sql2)
 	schemalex.Diff(os.Stdout, stmts1, stmts2)
 
 	// OUTPUT:
