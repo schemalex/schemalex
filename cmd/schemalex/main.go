@@ -39,35 +39,19 @@ func _main(before, after string) error {
 		return err
 	}
 
-	p := schemalex.NewParser(string(b))
+	p := schemalex.New()
 	p.ErrorMarker = *errorMarker
 	p.ErrorContext = *errorContext
 
-	beforeStmts, err := p.Parse()
+	beforeStmts, err := p.Parse(string(b))
 	if err != nil {
 		return fmt.Errorf("file:%s error:%s", before, err)
 	}
 
-	p = schemalex.NewParser(string(a))
-	p.ErrorMarker = *errorMarker
-	p.ErrorContext = *errorContext
-
-	afterStmts, err := p.Parse()
+	afterStmts, err := p.Parse(string(a))
 	if err != nil {
 		return fmt.Errorf("file:%s error:%s", after, err)
 	}
 
-	d := &schemalex.Differ{filterCreateTableStatement(beforeStmts), filterCreateTableStatement(afterStmts)}
-	return d.WriteDiffWithTransaction(os.Stdout)
-}
-
-func filterCreateTableStatement(stmts []schemalex.Stmt) []schemalex.CreateTableStatement {
-	var createTableStatements []schemalex.CreateTableStatement
-	for _, stmt := range stmts {
-		switch t := stmt.(type) {
-		case *schemalex.CreateTableStatement:
-			createTableStatements = append(createTableStatements, *t)
-		}
-	}
-	return createTableStatements
+	return schemalex.Diff(beforeStmts, afterStmts)
 }

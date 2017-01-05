@@ -75,13 +75,14 @@ func TestDiffer(t *testing.T) {
 		},
 	}
 
+	p := New()
 	for _, spec := range specs {
 
-		beforeStmts, err := NewParser(spec.Before).Parse()
+		beforeStmts, err := p.Parse(spec.Before)
 		if err != nil {
 			t.Fatal(err)
 		}
-		afterStmts, err := NewParser(spec.After).Parse()
+		afterStmts, err := p.Parse(spec.After)
 		if err != nil {
 			t.Fatal(err)
 		}
