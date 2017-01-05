@@ -16,17 +16,16 @@ type CreateDatabaseStatement struct {
 }
 
 func (c *CreateDatabaseStatement) String() string {
-	var strs []string
+	var buf bytes.Buffer
 
-	strs = append(strs, "CREATE DATABASE")
-
+	buf.WriteString("CREATE DATABASE")
 	if c.IfNotExist {
-		strs = append(strs, "IF NOT EXISTS")
+		buf.WriteString(" IF NOT EXISTS")
 	}
-
-	strs = append(strs, fmt.Sprintf("`%s`", c.Name))
-
-	return strings.Join(strs, " ") + ";"
+	buf.WriteByte(' ')
+	buf.WriteString(Backquote(c.Name))
+	buf.WriteByte(';')
+	return buf.String()
 }
 
 type CreateTableStatement struct {
@@ -42,18 +41,17 @@ func (c *CreateTableStatement) String() string {
 	var b bytes.Buffer
 
 	b.WriteString("CREATE")
-
 	if c.Temporary {
 		b.WriteString(" TEMPORARY")
 	}
 
 	b.WriteString(" TABLE")
-
 	if c.IfNotExist {
 		b.WriteString(" IF NOT EXISTS")
 	}
 
-	b.WriteString(fmt.Sprintf(" `%s`", c.Name))
+	b.WriteByte(' ')
+	b.WriteString(Backquote(c.Name))
 	b.WriteString(" (\n")
 
 	var fields []string
@@ -137,64 +135,73 @@ type CreateTableColumnStatement struct {
 }
 
 func (c *CreateTableColumnStatement) String() string {
-	var strs []string
+	var buf bytes.Buffer
 
-	strs = append(strs, fmt.Sprintf("`%s`", c.Name))
-	strs = append(strs, c.Type.String())
+	buf.WriteString(Backquote(c.Name))
+	buf.WriteByte(' ')
+	buf.WriteString(c.Type.String())
 
 	if c.Length.Valid {
-		strs = append(strs, fmt.Sprintf("(%s)", c.Length.String()))
+		buf.WriteString(" (")
+		buf.WriteString(c.Length.String())
+		buf.WriteByte(')')
 	}
 
 	if c.Unsgined {
-		strs = append(strs, "UNSIGNED")
+		buf.WriteString(" UNSIGNED")
 	}
 
 	if c.ZeroFill {
-		strs = append(strs, "ZEROFILL")
+		buf.WriteString(" ZEROFILL")
 	}
 
 	if c.Binary {
-		strs = append(strs, "BINARY")
+		buf.WriteString(" BINARY")
 	}
 
 	if c.CharacterSet.Valid {
-		strs = append(strs, fmt.Sprintf("CHARACTER SET `%s`", c.CharacterSet.Value))
+		buf.WriteString(" CHARACTER SET ")
+		buf.WriteString(Backquote(c.CharacterSet.Value))
 	}
 
 	if c.Collate.Valid {
-		strs = append(strs, fmt.Sprintf("COLLATE `%s`", c.Collate.Value))
+		buf.WriteString(" COLLATE ")
+		buf.WriteString(Backquote(c.Collate.Value))
 	}
 
 	if str := c.Null.String(); str != "" {
-		strs = append(strs, str)
+		buf.WriteByte(' ')
+		buf.WriteString(str)
 	}
 
 	if c.Default.Valid {
-		strs = append(strs, fmt.Sprintf("DEFAULT %s", c.Default.Value))
+		buf.WriteString(" DEFAULT ")
+		buf.WriteString(c.Default.Value)
 	}
 
 	if c.AutoIncrement {
-		strs = append(strs, "AUTO_INCREMENT")
+		buf.WriteString(" AUTO_INCREMENT")
 	}
 
 	if c.Unique {
-		strs = append(strs, "UNIQUE KEY")
+		buf.WriteString(" UNIQUE KEY")
 	}
 
 	if c.Primary {
-		strs = append(strs, "PRIMARY KEY")
+		buf.WriteString(" PRIMARY KEY")
 	}
 
 	if c.Key {
-		strs = append(strs, "KEY")
+		buf.WriteString(" KEY")
 	}
 
 	if c.Comment.Valid {
-		strs = append(strs, fmt.Sprintf("'%s'", c.Comment.Value))
+		buf.WriteString(" '")
+		buf.WriteString(c.Comment.Value)
+		buf.WriteByte('\'')
 	}
 
-	return strings.Join(strs, " ")
+	return buf.String()
 }
 
 const (
