@@ -94,7 +94,7 @@ func Statements(dst io.Writer, from, to schemalex.Statements, options ...Option)
 		if err != nil {
 			return errors.Wrap(err, `failed to produce diff`)
 		}
-		if n > 0 {
+		if txn && n > 0 || !txn && buf.Len() > 0 && n > 0{
 			buf.WriteString("\n\n")
 		}
 		pbuf.WriteTo(&buf)
