@@ -3,7 +3,7 @@ package schemalex_test
 import (
 	"os"
 
-	"github.com/lestrrat/schemalex/diff"
+	"github.com/schemalex/schemalex/diff"
 )
 
 func Example() {

@@ -5,8 +5,8 @@ import (
 	"log"
 	"os"
 
-	"github.com/lestrrat/schemalex"
-	"github.com/lestrrat/schemalex/diff"
+	"github.com/schemalex/schemalex"
+	"github.com/schemalex/schemalex/diff"
 )
 
 var (

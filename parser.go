@@ -5,7 +5,7 @@ import (
 	"io/ioutil"
 	"math"
 
-	"github.com/lestrrat/schemalex/internal/errors"
+	"github.com/schemalex/schemalex/internal/errors"
 )
 
 type Parser struct {

@@ -6,7 +6,7 @@ import (
 	"reflect"
 
 	"github.com/deckarep/golang-set"
-	"github.com/lestrrat/schemalex"
+	"github.com/schemalex/schemalex"
 	"github.com/pkg/errors"
 )
 
