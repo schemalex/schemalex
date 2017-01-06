@@ -1,12 +1,3 @@
-# schemalex
-
-Generate difference sql of two mysql schema
-
-[![Build Status](https://travis-ci.org/schemalex/schemalex.png?branch=master)](https://travis-ci.org/schemalex/schemalex)
-
-### SYNOPSIS
-
-```
 package schemalex_test
 
 import (
@@ -49,14 +40,3 @@ CREATE TABLE fuga (
 	//
 	// COMMIT;
 }
-```
-
-## SEE ALSO
-
-* http://rspace.googlecode.com/hg/slide/lex.html#landing-slide
-* http://blog.gopheracademy.com/advent-2014/parsers-lexers/
-* https://github.com/soh335/git-schemalex
-
-## LICENSE
-
-MIT

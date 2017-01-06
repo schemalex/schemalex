@@ -3,102 +3,138 @@ package schemalex
 import (
 	"bytes"
 	"fmt"
-	"strings"
+	"io"
 )
 
-type Stmt interface {
-	String() string
+type ider interface {
+	ID() string
 }
 
-type CreateDatabaseStatement struct {
-	Name       string
-	IfNotExist bool
-}
-
-func (c *CreateDatabaseStatement) String() string {
-	var strs []string
-
-	strs = append(strs, "CREATE DATABASE")
-
-	if c.IfNotExist {
-		strs = append(strs, "IF NOT EXISTS")
+func (s Statements) WriteTo(dst io.Writer) (int64, error) {
+	var n int64
+	for _, stmt := range s {
+		n1, err := stmt.WriteTo(dst)
+		n += n1
+		if err != nil {
+			return n, err
+		}
 	}
-
-	strs = append(strs, fmt.Sprintf("`%s`", c.Name))
-
-	return strings.Join(strs, " ") + ";"
+	return n, nil
 }
 
-type CreateTableStatement struct {
-	Name       string
-	Temporary  bool
-	IfNotExist bool
-	Columns    []CreateTableColumnStatement
-	Indexes    []CreateTableIndexStatement
-	Options    []CreateTableOptionStatement
+// Lookup looks up statements by their ID, which could be their
+// "name" or their stringified representation
+func (s Statements) Lookup(id string) (Stmt, bool) {
+	for _, stmt := range s {
+		if n, ok := stmt.(ider); ok {
+			if n.ID() == id {
+				return stmt, true
+			}
+		}
+	}
+	return nil, false
 }
 
-func (c *CreateTableStatement) String() string {
+func (c *CreateDatabaseStatement) ID() string {
+	return c.Name
+}
+
+func (c *CreateDatabaseStatement) WriteTo(dst io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	buf.WriteString("CREATE DATABASE")
+	if c.IfNotExist {
+		buf.WriteString(" IF NOT EXISTS")
+	}
+	buf.WriteByte(' ')
+	buf.WriteString(Backquote(c.Name))
+	buf.WriteByte(';')
+
+	return buf.WriteTo(dst)
+}
+
+func (c *CreateTableStatement) ID() string {
+	return c.Name
+}
+
+func (c *CreateTableStatement) LookupColumn(name string) (*CreateTableColumnStatement, bool) {
+	for _, col := range c.Columns {
+		if col.Name == name {
+			return col, true
+		}
+	}
+	return nil, false
+}
+
+func (c *CreateTableStatement) LookupIndex(name string) (*CreateTableIndexStatement, bool) {
+	for _, idx := range c.Indexes {
+		if idx.String() == name {
+			return idx, true
+		}
+	}
+	return nil, false
+}
+
+func (c *CreateTableStatement) WriteTo(dst io.Writer) (int64, error) {
 	var b bytes.Buffer
 
 	b.WriteString("CREATE")
-
 	if c.Temporary {
 		b.WriteString(" TEMPORARY")
 	}
 
 	b.WriteString(" TABLE")
-
 	if c.IfNotExist {
 		b.WriteString(" IF NOT EXISTS")
 	}
 
-	b.WriteString(fmt.Sprintf(" `%s`", c.Name))
-	b.WriteString(" (\n")
+	b.WriteByte(' ')
+	b.WriteString(Backquote(c.Name))
+	b.WriteString(" (")
 
-	var fields []string
-
-	for _, columnStatement := range c.Columns {
-		fields = append(fields, columnStatement.String())
+	fields := make([]Stmt, 0, len(c.Columns)+len(c.Indexes))
+	for _, col := range c.Columns {
+		fields = append(fields, col)
+	}
+	for _, idx := range c.Indexes {
+		fields = append(fields, idx)
 	}
 
-	for _, indexStatement := range c.Indexes {
-		fields = append(fields, indexStatement.String())
+	for i, stmt := range fields {
+		b.WriteByte('\n')
+		if _, err := stmt.WriteTo(&b); err != nil {
+			return 0, err
+		}
+		if i < len(fields)-1 {
+			b.WriteByte(',')
+		}
 	}
-
-	b.WriteString(strings.Join(fields, ",\n"))
 
 	b.WriteString("\n)")
 
-	var options []string
+	if l := len(c.Options); l > 0 {
+		b.WriteByte(' ')
+		for i, option := range c.Options {
+			if _, err := option.WriteTo(&b); err != nil {
+				return 0, err
+			}
 
-	for _, optionStatement := range c.Options {
-		options = append(options, optionStatement.String())
+			if i < l-1 {
+				b.WriteString(", ")
+			}
+		}
 	}
 
-	if str := strings.Join(options, ", "); str != "" {
-		b.WriteString(" " + str)
-	}
-
-	return b.String()
+	return b.WriteTo(dst)
 }
 
-type CreateTableOptionStatement struct {
-	Key   string
-	Value string
+func (c *CreateTableOptionStatement) WriteTo(dst io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	buf.WriteString(c.Key)
+	buf.WriteString(" = ")
+	buf.WriteString(c.Value)
+
+	return buf.WriteTo(dst)
 }
-
-func (c *CreateTableOptionStatement) String() string {
-	return fmt.Sprintf("%s = %s", c.Key, c.Value)
-}
-
-type ColumnOptionNullState int
-
-const (
-	ColumnOptionNullStateNone ColumnOptionNullState = iota
-	ColumnOptionNullStateNull
-	ColumnOptionNullStateNotNull
-)
 
 func (c ColumnOptionNullState) String() string {
 	switch c {
@@ -113,294 +149,126 @@ func (c ColumnOptionNullState) String() string {
 	}
 }
 
-type CreateTableColumnStatement struct {
-	Name          string
-	Type          ColumnType
-	Length        Length
-	Unsgined      bool
-	ZeroFill      bool
-	Binary        bool
-	CharacterSet  *string
-	Collate       *string
-	Null          ColumnOptionNullState
-	Default       *string
-	AutoIncrement bool
-	Unique        bool
-	Primary       bool
-	Key           bool
-	Comment       *string
-}
+func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
+	var buf bytes.Buffer
 
-func (c *CreateTableColumnStatement) String() string {
-	var strs []string
+	buf.WriteString(Backquote(c.Name))
+	buf.WriteByte(' ')
+	buf.WriteString(c.Type.String())
 
-	strs = append(strs, fmt.Sprintf("`%s`", c.Name))
-	strs = append(strs, c.Type.String())
-
-	if c.Length != nil {
-		strs = append(strs, fmt.Sprintf("(%s)", c.Length.String()))
+	if c.Length.Valid {
+		buf.WriteString(" (")
+		buf.WriteString(c.Length.String())
+		buf.WriteByte(')')
 	}
 
 	if c.Unsgined {
-		strs = append(strs, "UNSIGNED")
+		buf.WriteString(" UNSIGNED")
 	}
 
 	if c.ZeroFill {
-		strs = append(strs, "ZEROFILL")
+		buf.WriteString(" ZEROFILL")
 	}
 
 	if c.Binary {
-		strs = append(strs, "BINARY")
+		buf.WriteString(" BINARY")
 	}
 
-	if c.CharacterSet != nil {
-		strs = append(strs, fmt.Sprintf("CHARACTER SET `%s`", *c.CharacterSet))
+	if c.CharacterSet.Valid {
+		buf.WriteString(" CHARACTER SET ")
+		buf.WriteString(Backquote(c.CharacterSet.Value))
 	}
 
-	if c.Collate != nil {
-		strs = append(strs, fmt.Sprintf("COLLATE `%s`", *c.Collate))
+	if c.Collate.Valid {
+		buf.WriteString(" COLLATE ")
+		buf.WriteString(Backquote(c.Collate.Value))
 	}
 
 	if str := c.Null.String(); str != "" {
-		strs = append(strs, str)
+		buf.WriteByte(' ')
+		buf.WriteString(str)
 	}
 
-	if c.Default != nil {
-		strs = append(strs, fmt.Sprintf("DEFAULT %s", *c.Default))
+	if c.Default.Valid {
+		buf.WriteString(" DEFAULT ")
+		buf.WriteString(c.Default.Value)
 	}
 
 	if c.AutoIncrement {
-		strs = append(strs, "AUTO_INCREMENT")
+		buf.WriteString(" AUTO_INCREMENT")
 	}
 
 	if c.Unique {
-		strs = append(strs, "UNIQUE KEY")
+		buf.WriteString(" UNIQUE KEY")
 	}
 
 	if c.Primary {
-		strs = append(strs, "PRIMARY KEY")
+		buf.WriteString(" PRIMARY KEY")
 	}
 
 	if c.Key {
-		strs = append(strs, "KEY")
+		buf.WriteString(" KEY")
 	}
 
-	if c.Comment != nil {
-		strs = append(strs, fmt.Sprintf("'%s'", *c.Comment))
+	if c.Comment.Valid {
+		buf.WriteString(" '")
+		buf.WriteString(c.Comment.Value)
+		buf.WriteByte('\'')
 	}
 
-	return strings.Join(strs, " ")
+	return buf.WriteTo(dst)
 }
 
-const (
-	ColumnOptionSize = 1 << iota
-	ColumnOptionDecimalSize
-	ColumnOptionDecimalOptionalSize
-	ColumnOptionUnsigned
-	ColumnOptionZerofill
-	ColumnOptionBinary
-	ColumnOptionCharacterSet
-	ColumnOptionCollate
-	ColumnOptionNull
-	ColumnOptionDefault
-	ColumnOptionAutoIncrement
-	ColumnOptionKey
-	ColumnOptionComment
-)
-
-const (
-	ColumnOptionFlagNone            = 0
-	ColumnOptionFlagDigit           = ColumnOptionSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagDecimal         = ColumnOptionDecimalSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagDecimalOptional = ColumnOptionDecimalOptionalSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagTime            = ColumnOptionSize
-	ColumnOptionFlagChar            = ColumnOptionSize | ColumnOptionBinary | ColumnOptionCharacterSet | ColumnOptionCollate
-	ColumnOptionFlagBinary          = ColumnOptionSize
-)
-
-type Length interface {
-	String() string
-}
-
-type LengthNumber struct{ Length string }
-
-func (l *LengthNumber) String() string {
+func (l *Length) String() string {
+	if l.Decimals.Valid {
+		return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
+	}
 	return l.Length
 }
 
-type LengthDecimal struct {
-	Length   string
-	Decimals string
+func (c CreateTableIndexStatement) String() string {
+	var buf bytes.Buffer
+	c.WriteTo(&buf)
+	return buf.String()
 }
 
-func (l *LengthDecimal) String() string {
-	return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
-}
+func (c CreateTableIndexStatement) WriteTo(dst io.Writer) (int64, error) {
+	var buf bytes.Buffer
 
-type LengthOptionalDecimal struct {
-	Length   string
-	Decimals *string
-}
-
-func (l LengthOptionalDecimal) String() string {
-	if l.Decimals == nil {
-		return l.Length
-	} else {
-		return fmt.Sprintf("%s, %s", l.Length, *l.Decimals)
-	}
-}
-
-type ColumnType int
-
-const (
-	ColumnTypeBit ColumnType = iota
-	ColumnTypeTinyInt
-	ColumnTypeSmallInt
-	ColumnTypeMediumInt
-	ColumnTypeInt
-	ColumnTypeInteger
-	ColumnTypeBigInt
-	ColumnTypeReal
-	ColumnTypeDouble
-	ColumnTypeFloat
-	ColumnTypeDecimal
-	ColumnTypeNumeric
-	ColumnTypeDate
-	ColumnTypeTime
-	ColumnTypeTimestamp
-	ColumnTypeDateTime
-	ColumnTypeYear
-	ColumnTypeChar
-	ColumnTypeVarChar
-	ColumnTypeBinary
-	ColumnTypeVarBinary
-	ColumnTypeTinyBlob
-	ColumnTypeBlob
-	ColumnTypeMediumBlob
-	ColumnTypeLongBlob
-	ColumnTypeTinyText
-	ColumnTypeText
-	ColumnTypeMediumText
-	ColumnTypeLongText
-)
-
-func (c ColumnType) String() string {
-	switch c {
-	case ColumnTypeBit:
-		return "BIT"
-	case ColumnTypeTinyInt:
-		return "TINYINT"
-	case ColumnTypeSmallInt:
-		return "SMALLINT"
-	case ColumnTypeMediumInt:
-		return "MEDIUMINT"
-	case ColumnTypeInt:
-		return "INT"
-	case ColumnTypeInteger:
-		return "INTEGER"
-	case ColumnTypeBigInt:
-		return "BIGINT"
-	case ColumnTypeReal:
-		return "REAL"
-	case ColumnTypeDouble:
-		return "DOUBLE"
-	case ColumnTypeFloat:
-		return "FLOAT"
-	case ColumnTypeDecimal:
-		return "DECIMAL"
-	case ColumnTypeNumeric:
-		return "NUMERIC"
-	case ColumnTypeDate:
-		return "DATE"
-	case ColumnTypeTime:
-		return "TIME"
-	case ColumnTypeTimestamp:
-		return "TIMESTAMP"
-	case ColumnTypeDateTime:
-		return "DATETIME"
-	case ColumnTypeYear:
-		return "YEAR"
-	case ColumnTypeChar:
-		return "CHAR"
-	case ColumnTypeVarChar:
-		return "VARCHAR"
-	case ColumnTypeBinary:
-		return "BINARY"
-	case ColumnTypeVarBinary:
-		return "VARBINARY"
-	case ColumnTypeTinyBlob:
-		return "TINYBLOB"
-	case ColumnTypeBlob:
-		return "BLOB"
-	case ColumnTypeMediumBlob:
-		return "MEDIUMBLOB"
-	case ColumnTypeLongBlob:
-		return "LONGBLOB"
-	case ColumnTypeTinyText:
-		return "TINYTEXT"
-	case ColumnTypeText:
-		return "TEXT"
-	case ColumnTypeMediumText:
-		return "MEDIUMTEXT"
-	case ColumnTypeLongText:
-		return "LONGTEXT"
-	default:
-		panic("not reach")
-	}
-}
-
-type CreateTableIndexStatement struct {
-	Symbol   *string
-	Kind     IndexKind
-	Name     *string
-	Type     IndexType
-	ColNames []string
-	// TODO Options.
-	Reference *Reference
-}
-
-func (c *CreateTableIndexStatement) String() string {
-	var strs []string
-
-	if c.Symbol != nil {
-		strs = append(strs, fmt.Sprintf("CONSTRAINT `%s`", *c.Symbol))
+	if c.Symbol.Valid {
+		buf.WriteString("CONSTRAINT ")
+		buf.WriteString(Backquote(c.Symbol.Value))
+		buf.WriteByte(' ')
 	}
 
-	strs = append(strs, c.Kind.String())
+	buf.WriteString(c.Kind.String())
 
-	if c.Name != nil {
-		strs = append(strs, fmt.Sprintf("`%s`", *c.Name))
+	if c.Name.Valid {
+		buf.WriteByte(' ')
+		buf.WriteString(Backquote(c.Name.Value))
 	}
 
 	if str := c.Type.String(); str != "" {
-		strs = append(strs, str)
+		buf.WriteByte(' ')
+		buf.WriteString(str)
 	}
 
-	var cols []string
-
-	for _, colName := range c.ColNames {
-		cols = append(cols, fmt.Sprintf("`%s`", colName))
+	buf.WriteString(" (")
+	for i, colName := range c.ColNames {
+		buf.WriteString(Backquote(colName))
+		if i < len(c.ColNames)-1 {
+			buf.WriteString(", ")
+		}
 	}
-
-	strs = append(strs, "("+strings.Join(cols, ", ")+")")
+	buf.WriteByte(')')
 
 	if c.Reference != nil {
-		strs = append(strs, c.Reference.String())
+		buf.WriteByte(' ')
+		buf.WriteString(c.Reference.String())
 	}
 
-	return strings.Join(strs, " ")
+	return buf.WriteTo(dst)
 }
-
-type IndexKind int
-
-const (
-	IndexKindPrimaryKey IndexKind = iota
-	IndexKindNormal
-	IndexKindUnique
-	IndexKindFullText
-	IndexKindSpartial
-	IndexKindForeignKey
-)
 
 func (i IndexKind) String() string {
 	switch i {
@@ -421,14 +289,6 @@ func (i IndexKind) String() string {
 	}
 }
 
-type IndexType int
-
-const (
-	IndexTypeNone IndexType = iota
-	IndexTypeBtree
-	IndexTypeHash
-)
-
 func (i IndexType) String() string {
 	switch i {
 	case IndexTypeNone:
@@ -442,51 +302,37 @@ func (i IndexType) String() string {
 	}
 }
 
-type Reference struct {
-	TableName string
-	ColNames  []string
-	Match     ReferenceMatch
-	OnDelete  ReferenceOption
-	OnUpdate  ReferenceOption
-}
-
 func (r *Reference) String() string {
-	var strs []string
+	var buf bytes.Buffer
 
-	strs = append(strs, "REFERENCES")
-	strs = append(strs, fmt.Sprintf("`%s`", r.TableName))
-
-	var cols []string
-
-	for _, colName := range r.ColNames {
-		cols = append(cols, fmt.Sprintf("`%s`", colName))
+	buf.WriteString("REFERENCES ")
+	buf.WriteString(Backquote(r.TableName))
+	buf.WriteString(" (")
+	for i, colName := range r.ColNames {
+		buf.WriteString(Backquote(colName))
+		if i < len(r.ColNames)-1 {
+			buf.WriteString(", ")
+		}
 	}
-
-	strs = append(strs, "("+strings.Join(cols, ", ")+")")
+	buf.WriteByte(')')
 
 	if str := r.Match.String(); str != "" {
-		strs = append(strs, str)
+		buf.WriteByte(' ')
+		buf.WriteString(str)
 	}
 
 	if r.OnDelete != ReferenceOptionNone {
-		strs = append(strs, fmt.Sprintf("ON DELETE %s", r.OnDelete.String()))
+		buf.WriteString(" ON DELETE ")
+		buf.WriteString(r.OnDelete.String())
 	}
 
 	if r.OnUpdate != ReferenceOptionNone {
-		strs = append(strs, fmt.Sprintf("ON UPDATE %s", r.OnUpdate.String()))
+		buf.WriteString(" ON UPDATE ")
+		buf.WriteString(r.OnUpdate.String())
 	}
 
-	return strings.Join(strs, " ")
+	return buf.String()
 }
-
-type ReferenceMatch int
-
-const (
-	ReferenceMatchNone ReferenceMatch = iota
-	ReferenceMatchFull
-	ReferenceMatchPartial
-	ReferenceMatchSimple
-)
 
 func (r ReferenceMatch) String() string {
 	switch r {
@@ -502,16 +348,6 @@ func (r ReferenceMatch) String() string {
 		panic("not reach")
 	}
 }
-
-type ReferenceOption int
-
-const (
-	ReferenceOptionNone ReferenceOption = iota
-	ReferenceOptionRestrict
-	ReferenceOptionCascade
-	ReferenceOptionSetNull
-	ReferenceOptionNoAction
-)
 
 func (r ReferenceOption) String() string {
 	switch r {

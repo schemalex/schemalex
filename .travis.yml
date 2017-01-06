@@ -1,0 +1,15 @@
+language: go
+go:
+  - 1.7.4
+  - tip
+install:
+  - make installdeps
+cache:
+  directories:
+    - vendor
+    - glide-$(go version | awk '{ print $NF }' | tr '/' '-')
+before_script:
+  - make generate
+  - git diff | test -z
+script:
+  - make test

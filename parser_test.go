@@ -1,10 +1,12 @@
 package schemalex
 
 import (
+	"bytes"
 	"flag"
 	"io/ioutil"
-	"strings"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 var testFile = ""
@@ -141,14 +143,14 @@ id bigint unsigned not null auto_increment
 		},
 	}
 
+	p := New()
 	for _, spec := range specs {
-		stmts, err := NewParser(spec.Input).Parse()
+		stmts, err := p.ParseString(spec.Input)
 		if spec.Error {
-			if err == nil {
-				t.Errorf("should err: input:%v", spec.Input)
+			if !assert.Error(t, err, "should be an error") {
+				t.Logf("input: %s", spec.Input)
 				continue
 			}
-			t.Log("input:", spec.Input, "error:", err)
 		} else {
 			if err != nil {
 				t.Errorf(err.Error())
@@ -156,13 +158,10 @@ id bigint unsigned not null auto_increment
 				continue
 			}
 
-			var strs []string
+			var buf bytes.Buffer
+			stmts.WriteTo(&buf)
 
-			for _, stmt := range stmts {
-				strs = append(strs, stmt.String())
-			}
-
-			if e, g := spec.Expect, strings.Join(strs, ";\n"); e != g {
+			if e, g := spec.Expect, buf.String(); e != g {
 				t.Errorf("should:%q\n got:%q", e, g)
 			}
 		}
@@ -179,7 +178,7 @@ func TestFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stmts, err := NewParser(string(byt)).Parse()
+	stmts, err := New().Parse(byt)
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -2,166 +2,191 @@ package schemalex
 
 import (
 	"fmt"
+	"io/ioutil"
 	"math"
+
+	"github.com/schemalex/schemalex/internal/errors"
 )
 
 type Parser struct {
-	lexer        *lexer
 	ErrorMarker  string
 	ErrorContext int
 }
 
-func NewParser(str string) *Parser {
-	return &Parser{
-		lexer: &lexer{
-			input: str,
-		},
-		ErrorMarker:  "___",
-		ErrorContext: 20,
-	}
+func New() *Parser {
+	return &Parser{}
 }
 
-func (p *Parser) Parse() ([]Stmt, error) {
-	stmts := []Stmt{}
+type parseCtx struct {
+	lexer        lexer
+	errorMarker  string
+	errorContext int
+}
+
+func (p *Parser) ParseFile(fn string) (Statements, error) {
+	src, err := ioutil.ReadFile(fn)
+	if err != nil {
+		return nil, errors.Wrapf(err, `failed to open file %s`, fn)
+	}
+	return p.Parse(src)
+}
+
+func (p *Parser) ParseString(src string) (Statements, error) {
+	return p.Parse([]byte(src))
+}
+
+func (p *Parser) Parse(src []byte) (Statements, error) {
+	var ctx parseCtx
+	ctx.lexer.input = src
+	ctx.errorMarker = p.ErrorMarker
+	ctx.errorContext = p.ErrorContext
+
+	var stmts []Stmt
 LOOP:
 	for {
-		t, _ := p.parseIgnoreWhiteSpace()
+		t := p.parseIgnoreWhiteSpace(&ctx)
 	S1:
-		switch t {
+		switch t.Type {
 		case CREATE:
-			t, _ := p.parseIgnoreWhiteSpace()
-			switch t {
-			case DATABASE:
-				_, err := p.parseCreateDatabase()
-				if err != nil {
-					return nil, err
+			stmt, err := p.parseCreate(&ctx)
+			if err != nil {
+				if errors.IsIgnorable(err) {
+					// this is ignorable.
+					continue
 				}
-				// stmts = append(stmts, stmt)
-				break S1
-			case TABLE:
-				stmt, err := p.parseCreateTable()
-				if err != nil {
-					return nil, err
-				}
-				stmts = append(stmts, stmt)
-				break S1
-			default:
-				return nil, p.parseErrorf("should DATABASE or TABLE")
+				return nil, errors.Wrap(err, `failed to parse create`)
 			}
+			stmts = append(stmts, stmt)
 		case COMMENT_IDENT:
 		case DROP, SET, USE:
+			// We don't do anything about these
 			for {
-				if p.eol() {
+				if p.eol(&ctx) {
 					break S1
 				}
 			}
 		case EOF:
 			break LOOP
 		default:
-			return nil, p.parseErrorf("should CREATE, COMMENT_IDENT or EOF")
+			return nil, p.parseErrorf(&ctx, "should CREATE, COMMENT_IDENT or EOF")
 		}
 	}
 
 	return stmts, nil
 }
 
+func (p *Parser) parseCreate(ctx *parseCtx) (Stmt, error) {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	switch t.Type {
+	case DATABASE:
+		if _, err := p.parseCreateDatabase(ctx); err != nil {
+			return nil, err
+		}
+		return nil, errors.Ignorable(nil)
+	case TABLE:
+		return p.parseCreateTable(ctx)
+	default:
+		return nil, p.parseErrorf(ctx, "should DATABASE or TABLE")
+	}
+}
+
 // https://dev.mysql.com/doc/refman/5.5/en/create-database.html
 // TODO: charset, collation
-func (p *Parser) parseCreateDatabase() (*CreateDatabaseStatement, error) {
+func (p *Parser) parseCreateDatabase(ctx *parseCtx) (*CreateDatabaseStatement, error) {
 	stmt := &CreateDatabaseStatement{}
-	t, str := p.parseIgnoreWhiteSpace()
+	t := p.parseIgnoreWhiteSpace(ctx)
 	setname := func() error {
-		switch t {
+		switch t.Type {
 		case IDENT, BACKTICK_IDENT:
-			stmt.Name = str
+			stmt.Name = t.Value
 		default:
-			return p.parseErrorf("should IDENT or BACKTICK_IDENT")
+			return p.parseErrorf(ctx, "should IDENT or BACKTICK_IDENT")
 		}
-		if p.eol() {
+		if p.eol(ctx) {
 			return nil
-		} else {
-			return p.parseErrorf("should EOL")
 		}
+		return p.parseErrorf(ctx, "should EOL")
 	}
-	switch t {
+
+	switch t.Type {
 	case IDENT, BACKTICK_IDENT:
 		if err := setname(); err != nil {
 			return nil, err
 		}
 		return stmt, nil
 	case IF:
-		if _, err := p.parseIndents([]token{NOT, EXISTS}); err != nil {
+		if _, err := p.parseIndents(ctx, NOT, EXISTS); err != nil {
 			return nil, err
 		}
-		t, str = p.parseIgnoreWhiteSpace()
+		t = p.parseIgnoreWhiteSpace(ctx)
 		stmt.IfNotExist = true
 		if err := setname(); err != nil {
 			return nil, err
 		}
 		return stmt, nil
 	default:
-		return nil, p.parseErrorf("should IDENT, BACKTICK_IDENT or IF")
+		return nil, p.parseErrorf(ctx, "should IDENT, BACKTICK_IDENT or IF")
 	}
 }
 
 // http://dev.mysql.com/doc/refman/5.6/en/create-table.html
-func (p *Parser) parseCreateTable() (*CreateTableStatement, error) {
+func (p *Parser) parseCreateTable(ctx *parseCtx) (*CreateTableStatement, error) {
 	stmt := CreateTableStatement{}
-	t, str := p.parseIgnoreWhiteSpace()
+	t := p.parseIgnoreWhiteSpace(ctx)
 
-	switch t {
-	case TEMPORARY:
+	if t.Type == TEMPORARY {
 		stmt.Temporary = true
-		t, str = p.parseIgnoreWhiteSpace()
-		if !(t == IDENT || t == BACKTICK_IDENT) {
-			return nil, p.parseErrorf("should IDENT or BACKTICK_IDENT")
-		}
-		fallthrough
-	case IDENT, BACKTICK_IDENT:
-
-		stmt.Name = str
-		t, _ := p.parseIgnoreWhiteSpace()
-
-		if t == IF {
-			if _, err := p.parseIndents([]token{NOT, EXISTS}); err != nil {
-				return nil, p.parseErrorf("should NOT EXISTS")
-			}
-			stmt.IfNotExist = true
-			t, _ = p.parseIgnoreWhiteSpace()
-		}
-
-		if t != LPAREN {
-			return nil, p.parseErrorf("should (")
-		}
-
-		if err := p.parseCreateTableFields(&stmt); err != nil {
-			return nil, err
-		}
-
-		return &stmt, nil
-	default:
-		return nil, p.parseErrorf("should TEMPORARY, IDENT or BACKTICK_IDENT")
+		// Advance to next token
+		t = p.parseIgnoreWhiteSpace(ctx)
 	}
+
+	switch t.Type {
+	case IDENT, BACKTICK_IDENT:
+		stmt.Name = t.Value
+	default:
+		return nil, p.parseErrorf(ctx, "expected IDENT or BACKTICK_IDENT")
+	}
+
+	t = p.parseIgnoreWhiteSpace(ctx)
+
+	if t.Type == IF {
+		if _, err := p.parseIndents(ctx, NOT, EXISTS); err != nil {
+			return nil, p.parseErrorf(ctx, "should NOT EXISTS")
+		}
+		stmt.IfNotExist = true
+		t = p.parseIgnoreWhiteSpace(ctx)
+	}
+
+	if t.Type != LPAREN {
+		return nil, p.parseErrorf(ctx, "should (")
+	}
+
+	if err := p.parseCreateTableFields(ctx, &stmt); err != nil {
+		return nil, err
+	}
+
+	return &stmt, nil
 }
 
-func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
+// Start parsing after `CREATE TABLE *** (`
+func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatement) error {
 	var targetStmt interface{}
 
 	appendStmt := func() {
 		switch t := targetStmt.(type) {
-		case CreateTableIndexStatement:
+		case *CreateTableIndexStatement:
 			stmt.Indexes = append(stmt.Indexes, t)
-		case CreateTableColumnStatement:
+		case *CreateTableColumnStatement:
 			stmt.Columns = append(stmt.Columns, t)
 		default:
-			panic("not reach")
+			panic(fmt.Sprintf("unexpected targetStmt: %#v", t))
 		}
 		targetStmt = nil
 	}
 
 	setStmt := func(f func() (interface{}, error)) error {
 		if targetStmt != nil {
-			return p.parseErrorf("seems not to be end previous column or index definition")
+			return p.parseErrorf(ctx, "seems not to be end previous column or index definition")
 		}
 		stmt, err := f()
 		if err != nil {
@@ -172,66 +197,67 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 	}
 
 	for {
-		t, str := p.parseIgnoreWhiteSpace()
-		switch t {
+		t := p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case RPAREN:
 			appendStmt()
-			if err := p.parseCreateTableOptions(stmt); err != nil {
+			if err := p.parseCreateTableOptions(ctx, stmt); err != nil {
 				return err
 			}
 			// partition option
-			if !p.eol() {
-				return p.parseErrorf("should EOL")
+			if !p.eol(ctx) {
+				return p.parseErrorf(ctx, "should EOL")
 			}
 			return nil
 		case COMMA:
 			if targetStmt == nil {
-				return p.parseErrorf("unexpected COMMA")
+				return p.parseErrorf(ctx, "unexpected COMMA")
 			}
 			appendStmt()
 		case CONSTRAINT:
 			err := setStmt(func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
-				t, str := p.parseIgnoreWhiteSpace()
-				if t == IDENT || t == BACKTICK_IDENT {
+				t := p.parseIgnoreWhiteSpace(ctx)
+				if t.Type == IDENT || t.Type == BACKTICK_IDENT {
 					// TODO: should smart
-					copyStr := str
-					indexStmt.Symbol = &copyStr
-					t, str = p.parseIgnoreWhiteSpace()
+					copyStr := t.Value
+					indexStmt.Symbol.Valid = true
+					indexStmt.Symbol.Value = copyStr
+					t = p.parseIgnoreWhiteSpace(ctx)
 				}
 
-				switch t {
+				switch t.Type {
 				case PRIMARY:
 					indexStmt.Kind = IndexKindPrimaryKey
-					if err := p.parseColumnIndexPrimaryKey(&indexStmt); err != nil {
+					if err := p.parseColumnIndexPrimaryKey(ctx, &indexStmt); err != nil {
 						return nil, err
 					}
 				case UNIQUE:
 					indexStmt.Kind = IndexKindUnique
-					if err := p.parseColumnIndexUniqueKey(&indexStmt); err != nil {
+					if err := p.parseColumnIndexUniqueKey(ctx, &indexStmt); err != nil {
 						return nil, err
 					}
 				case FOREIGN:
 					indexStmt.Kind = IndexKindForeignKey
-					if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
+					if err := p.parseColumnIndexForeignKey(ctx, &indexStmt); err != nil {
 						return nil, err
 					}
 				default:
-					return nil, p.parseErrorf("not supported")
+					return nil, p.parseErrorf(ctx, "not supported")
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
 			}
 		case PRIMARY:
 			err := setStmt(func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
+				var indexStmt CreateTableIndexStatement
 				indexStmt.Kind = IndexKindPrimaryKey
-				if err := p.parseColumnIndexPrimaryKey(&indexStmt); err != nil {
+				if err := p.parseColumnIndexPrimaryKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -240,10 +266,10 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			err := setStmt(func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindUnique
-				if err := p.parseColumnIndexUniqueKey(&indexStmt); err != nil {
+				if err := p.parseColumnIndexUniqueKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -254,10 +280,10 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			err := setStmt(func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindNormal // TODO. separate to KEY and INDEX
-				if err := p.parseColumnIndexKey(&indexStmt); err != nil {
+				if err := p.parseColumnIndexKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -266,10 +292,10 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			err := setStmt(func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindFullText
-				if err := p.parseColumnIndexFullTextKey(&indexStmt); err != nil {
+				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -278,10 +304,10 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			err := setStmt(func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindSpartial
-				if err := p.parseColumnIndexFullTextKey(&indexStmt); err != nil {
+				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -290,284 +316,284 @@ func (p *Parser) parseCreateTableFields(stmt *CreateTableStatement) error {
 			err := setStmt(func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindForeignKey
-				if err := p.parseColumnIndexForeignKey(&indexStmt); err != nil {
+				if err := p.parseColumnIndexForeignKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
 			}
 		case CHECK: // TODO
-			return p.parseErrorf("not support CHECK")
+			return p.parseErrorf(ctx, "not support CHECK")
 		case IDENT, BACKTICK_IDENT:
 
 			err := setStmt(func() (interface{}, error) {
 				colStmt := CreateTableColumnStatement{}
-				colStmt.Name = str
-				t, _ := p.parseIgnoreWhiteSpace()
+				colStmt.Name = t.Value
+				t := p.parseIgnoreWhiteSpace(ctx)
 
 				var err error
-				switch t {
+				switch t.Type {
 				case BIT:
 					colStmt.Type = ColumnTypeBit
-					err = p.parseColumnOption(&colStmt, ColumnOptionSize)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionSize)
 				case TINYINT:
 					colStmt.Type = ColumnTypeTinyInt
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
 				case SMALLINT:
 					colStmt.Type = ColumnTypeSmallInt
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
 				case MEDIUMINT:
 					colStmt.Type = ColumnTypeMediumInt
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
 				case INT:
 					colStmt.Type = ColumnTypeInt
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
 				case INTEGER:
 					colStmt.Type = ColumnTypeInteger
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
 				case BIGINT:
 					colStmt.Type = ColumnTypeBigInt
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
 				case REAL:
 					colStmt.Type = ColumnTypeReal
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimal)
 				case DOUBLE:
 					colStmt.Type = ColumnTypeDouble
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimal)
 				case FLOAT:
 					colStmt.Type = ColumnTypeFloat
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimal)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimal)
 				case DECIMAL:
 					colStmt.Type = ColumnTypeDecimal
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimalOptional)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimalOptional)
 				case NUMERIC:
 					colStmt.Type = ColumnTypeNumeric
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagDecimalOptional)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimalOptional)
 				case DATE:
 					colStmt.Type = ColumnTypeDate
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
 				case TIME:
 					colStmt.Type = ColumnTypeTime
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagTime)
 				case TIMESTAMP:
 					colStmt.Type = ColumnTypeTimestamp
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagTime)
 				case DATETIME:
 					colStmt.Type = ColumnTypeDateTime
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagTime)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagTime)
 				case YEAR:
 					colStmt.Type = ColumnTypeYear
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
 				case CHAR:
 					colStmt.Type = ColumnTypeChar
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
 				case VARCHAR:
 					colStmt.Type = ColumnTypeVarChar
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
 				case BINARY:
 					colStmt.Type = ColumnTypeBinary
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagBinary)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagBinary)
 				case VARBINARY:
 					colStmt.Type = ColumnTypeVarBinary
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagBinary)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagBinary)
 				case TINYBLOB:
 					colStmt.Type = ColumnTypeTinyBlob
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
 				case BLOB:
 					colStmt.Type = ColumnTypeBlob
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
 				case MEDIUMBLOB:
 					colStmt.Type = ColumnTypeMediumBlob
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
 				case LONGBLOB:
 					colStmt.Type = ColumnTypeLongBlob
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
 				case TINYTEXT:
 					colStmt.Type = ColumnTypeTinyText
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
 				case TEXT:
 					colStmt.Type = ColumnTypeText
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
 				case MEDIUMTEXT:
 					colStmt.Type = ColumnTypeMediumText
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
 				case LONGTEXT:
 					colStmt.Type = ColumnTypeLongText
-					err = p.parseColumnOption(&colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
 				// case "ENUM":
 				// case "SET":
 				default:
-					return nil, p.parseErrorf("not supported type")
+					return nil, p.parseErrorf(ctx, "not supported type")
 				}
 
 				if err != nil {
 					return nil, err
 				}
 
-				return colStmt, nil
+				return &colStmt, nil
 			})
 
 			if err != nil {
 				return err
 			}
 		default:
-			return p.parseErrorf("unexpected create table fields")
+			return p.parseErrorf(ctx, "unexpected create table fields")
 		}
 	}
 }
 
-func (p *Parser) parseCreateTableOptions(stmt *CreateTableStatement) error {
+func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStatement) error {
 
-	setOption := func(key string, tokens []token) error {
-		t, str := p.parseIgnoreWhiteSpace()
-		if t == EQUAL {
-			t, str = p.parseIgnoreWhiteSpace()
+	setOption := func(key string, types []TokenType) error {
+		t := p.parseIgnoreWhiteSpace(ctx)
+		if t.Type == EQUAL {
+			t = p.parseIgnoreWhiteSpace(ctx)
 		}
-		for _, _token := range tokens {
-			if _token == t {
-				stmt.Options = append(stmt.Options, CreateTableOptionStatement{key, str})
+		for _, typ := range types {
+			if typ == t.Type {
+				stmt.Options = append(stmt.Options, &CreateTableOptionStatement{key, t.Value})
 				return nil
 			}
 		}
-		return p.parseErrorf("should %v", tokens)
+		return p.parseErrorf(ctx, "should %v", types)
 	}
 
 	for {
-		t, _ := p.parseIgnoreWhiteSpace()
-		switch t {
+		t := p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case ENGINE:
-			if err := setOption("ENGINE", []token{IDENT, BACKTICK_IDENT}); err != nil {
+			if err := setOption("ENGINE", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 				return err
 			}
 		case AUTO_INCREMENT:
-			if err := setOption("AUTO_INCREMENT", []token{NUMBER}); err != nil {
+			if err := setOption("AUTO_INCREMENT", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case AVG_ROW_LENGTH:
-			if err := setOption("AVG_ROW_LENGTH", []token{NUMBER}); err != nil {
+			if err := setOption("AVG_ROW_LENGTH", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case DEFAULT:
-			t, _ := p.parseIgnoreWhiteSpace()
-			switch t {
+			t := p.parseIgnoreWhiteSpace(ctx)
+			switch t.Type {
 			case CHARACTER:
-				t, _ := p.parseIgnoreWhiteSpace()
-				if t != SET {
-					return p.parseErrorf("should SET")
+				t := p.parseIgnoreWhiteSpace(ctx)
+				if t.Type != SET {
+					return p.parseErrorf(ctx, "should SET")
 				}
-				if err := setOption("DEFAULT CHARACTER SET", []token{IDENT, BACKTICK_IDENT}); err != nil {
+				if err := setOption("DEFAULT CHARACTER SET", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 					return err
 				}
 			case COLLATE:
-				if err := setOption("DEFAULT COLLATE", []token{IDENT, BACKTICK_IDENT}); err != nil {
+				if err := setOption("DEFAULT COLLATE", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 					return err
 				}
 			default:
-				return p.parseErrorf("should CHARACTER or COLLATE")
+				return p.parseErrorf(ctx, "should CHARACTER or COLLATE")
 			}
 		case CHARACTER:
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != SET {
-				return p.parseErrorf("should SET")
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != SET {
+				return p.parseErrorf(ctx, "should SET")
 			}
-			if err := setOption("DEFAULT CHARACTER SET", []token{IDENT, BACKTICK_IDENT}); err != nil {
+			if err := setOption("DEFAULT CHARACTER SET", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 				return err
 			}
 		case COLLATE:
-			if err := setOption("DEFAULT COLLATE", []token{IDENT, BACKTICK_IDENT}); err != nil {
+			if err := setOption("DEFAULT COLLATE", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 				return err
 			}
 		case CHECKSUM:
-			if err := setOption("CHECKSUM", []token{NUMBER}); err != nil {
+			if err := setOption("CHECKSUM", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case COMMENT:
-			if err := setOption("COMMENT", []token{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := setOption("COMMENT", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
 			}
 		case CONNECTION:
-			if err := setOption("CONNECTION", []token{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := setOption("CONNECTION", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
 			}
 		case DATA:
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != DIRECTORY {
-				return p.parseErrorf("should DIRECTORY")
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != DIRECTORY {
+				return p.parseErrorf(ctx, "should DIRECTORY")
 			}
-			if err := setOption("DATA DIRECTORY", []token{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := setOption("DATA DIRECTORY", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
 			}
 		case DELAY_KEY_WRITE:
-			if err := setOption("DELAY_KEY_WRITE", []token{NUMBER}); err != nil {
+			if err := setOption("DELAY_KEY_WRITE", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case INDEX:
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != DIRECTORY {
-				return p.parseErrorf("should DIRECTORY")
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != DIRECTORY {
+				return p.parseErrorf(ctx, "should DIRECTORY")
 			}
-			if err := setOption("INDEX DIRECTORY", []token{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := setOption("INDEX DIRECTORY", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
 			}
 		case INSERT_METHOD:
-			if err := setOption("INSERT_METHOD", []token{IDENT}); err != nil {
+			if err := setOption("INSERT_METHOD", []TokenType{IDENT}); err != nil {
 				return err
 			}
 		case KEY_BLOCK_SIZE:
-			if err := setOption("KEY_BLOCK_SIZE", []token{NUMBER}); err != nil {
+			if err := setOption("KEY_BLOCK_SIZE", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case MAX_ROWS:
-			if err := setOption("MAX_ROWS", []token{NUMBER}); err != nil {
+			if err := setOption("MAX_ROWS", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case MIN_ROWS:
-			if err := setOption("MIN_ROWS", []token{NUMBER}); err != nil {
+			if err := setOption("MIN_ROWS", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case PACK_KEYS:
-			if err := setOption("PACK_KEYS", []token{NUMBER, IDENT}); err != nil {
+			if err := setOption("PACK_KEYS", []TokenType{NUMBER, IDENT}); err != nil {
 				return err
 			}
 		case PASSWORD:
-			if err := setOption("PASSWORD", []token{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := setOption("PASSWORD", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
 			}
 		case ROW_FORMAT:
-			if err := setOption("ROW_FORMAT", []token{DEFAULT, DYNAMIC, FIXED, COMPRESSED, REDUNDANT, COMPACT}); err != nil {
+			if err := setOption("ROW_FORMAT", []TokenType{DEFAULT, DYNAMIC, FIXED, COMPRESSED, REDUNDANT, COMPACT}); err != nil {
 				return err
 			}
 		case STATS_AUTO_RECALC:
-			if err := setOption("STATS_AUTO_RECALC", []token{NUMBER, DEFAULT}); err != nil {
+			if err := setOption("STATS_AUTO_RECALC", []TokenType{NUMBER, DEFAULT}); err != nil {
 				return err
 			}
 		case STATS_PERSISTENT:
-			if err := setOption("STATS_PERSISTENT", []token{NUMBER, DEFAULT}); err != nil {
+			if err := setOption("STATS_PERSISTENT", []TokenType{NUMBER, DEFAULT}); err != nil {
 				return err
 			}
 		case STATS_SAMPLE_PAGES:
-			if err := setOption("STATS_SAMPLE_PAGES", []token{NUMBER}); err != nil {
+			if err := setOption("STATS_SAMPLE_PAGES", []TokenType{NUMBER}); err != nil {
 				return err
 			}
 		case TABLESPACE:
-			return p.parseErrorf("not support TABLESPACE")
+			return p.parseErrorf(ctx, "not support TABLESPACE")
 		case UNION:
-			return p.parseErrorf("not support UNION")
+			return p.parseErrorf(ctx, "not support UNION")
 		case EOF:
 			return nil
-		case SEMICORON:
-			p.reset()
+		case SEMICOLON:
+			p.reset(ctx)
 			return nil
 		default:
-			return p.parseErrorf("unexpected table options")
+			return p.parseErrorf(ctx, "unexpected table options")
 		}
 	}
 }
 
 // parse for column
-func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error {
+func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatement, f int) error {
 	f = f | ColumnOptionNull | ColumnOptionDefault | ColumnOptionAutoIncrement | ColumnOptionKey | ColumnOptionComment
 	pos := 0
 	check := func(_f int) bool {
@@ -581,150 +607,162 @@ func (p *Parser) parseColumnOption(col *CreateTableColumnStatement, f int) error
 		return true
 	}
 	for {
-		t, _ := p.parseIgnoreWhiteSpace()
-		switch t {
+		t := p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case LPAREN:
 			if check(ColumnOptionSize) {
-				t, length := p.parseIgnoreWhiteSpace()
-				if t != NUMBER {
-					return p.parseErrorf("should NUMBER")
+				t := p.parseIgnoreWhiteSpace(ctx)
+				tlen := t.Value
+				if t.Type != NUMBER {
+					return p.parseErrorf(ctx, "should NUMBER")
 				}
-				t, _ = p.parseIgnoreWhiteSpace()
-				if t != RPAREN {
-					return p.parseErrorf("should )")
+				t = p.parseIgnoreWhiteSpace(ctx)
+				if t.Type != RPAREN {
+					return p.parseErrorf(ctx, "should )")
 				}
-				col.Length = &LengthNumber{length}
+				col.Length.Valid = true
+				col.Length.Length = tlen
 			} else if check(ColumnOptionDecimalSize) {
-				strs, err := p.parseIndents([]token{NUMBER, COMMA, NUMBER, RPAREN})
+				strs, err := p.parseIndents(ctx, NUMBER, COMMA, NUMBER, RPAREN)
 				if err != nil {
 					return err
 				}
-				col.Length = &LengthDecimal{strs[0], strs[2]}
+				col.Length.Valid = true
+				col.Length.Length = strs[0]
+				col.Length.Decimals.Valid = true
+				col.Length.Decimals.Value = strs[2]
 			} else if check(ColumnOptionDecimalOptionalSize) {
-				t, length := p.parseIgnoreWhiteSpace()
-				if t != NUMBER {
-					return p.parseErrorf("should NUMBER")
+				t := p.parseIgnoreWhiteSpace(ctx)
+				if t.Type != NUMBER {
+					return p.parseErrorf(ctx, "should NUMBER")
 				}
-				t, _ = p.parseIgnoreWhiteSpace()
-				if t == RPAREN {
-					col.Length = LengthOptionalDecimal{length, nil}
+				t = p.parseIgnoreWhiteSpace(ctx)
+				tlen := t.Value
+				if t.Type == RPAREN {
+					col.Length.Valid = true
+					col.Length.Length = tlen
 					continue
-				} else if t != COMMA {
-					return p.parseErrorf("should ,")
+				} else if t.Type != COMMA {
+					return p.parseErrorf(ctx, "should ,")
 				}
-				t, decimal := p.parseIgnoreWhiteSpace()
-				if t != NUMBER {
-					return p.parseErrorf("should NUMBER")
+				t = p.parseIgnoreWhiteSpace(ctx)
+				if t.Type != NUMBER {
+					return p.parseErrorf(ctx, "should NUMBER")
 				}
-				t, _ = p.parseIgnoreWhiteSpace()
-				if t != RPAREN {
-					return p.parseErrorf("should )")
+				t = p.parseIgnoreWhiteSpace(ctx)
+				if t.Type != RPAREN {
+					return p.parseErrorf(ctx, "should )")
 				}
-				col.Length = LengthOptionalDecimal{length, &decimal}
+				col.Length.Valid = true
+				col.Length.Length = tlen
+				col.Length.Decimals.Valid = true
+				col.Length.Decimals.Value = t.Value
 			} else {
-				return p.parseErrorf("cant apply ColumnOptionSize, ColumnOptionDecimalSize, ColumnOptionDecimalOptionalSize")
+				return p.parseErrorf(ctx, "cant apply ColumnOptionSize, ColumnOptionDecimalSize, ColumnOptionDecimalOptionalSize")
 			}
 		case UNSIGNED:
 			if !check(ColumnOptionUnsigned) {
-				return p.parseErrorf("cant apply UNSIGNED")
+				return p.parseErrorf(ctx, "cant apply UNSIGNED")
 			}
 			col.Unsgined = true
 		case ZEROFILL:
 			if !check(ColumnOptionZerofill) {
-				return p.parseErrorf("cant apply ZEROFILL")
+				return p.parseErrorf(ctx, "cant apply ZEROFILL")
 			}
 			col.ZeroFill = true
 		case BINARY:
 			if !check(ColumnOptionBinary) {
-				return p.parseErrorf("cant apply BINARY")
+				return p.parseErrorf(ctx, "cant apply BINARY")
 			}
 			col.Binary = true
 		case NOT:
 			if !check(ColumnOptionNull) {
-				return p.parseErrorf("cant apply NOT NULL")
+				return p.parseErrorf(ctx, "cant apply NOT NULL")
 			}
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t == NULL {
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type == NULL {
 				col.Null = ColumnOptionNullStateNotNull
 			} else {
-				return p.parseErrorf("should NULL")
+				return p.parseErrorf(ctx, "should NULL")
 			}
 		case NULL:
 			if !check(ColumnOptionNull) {
-				return p.parseErrorf("cant apply NULL")
+				return p.parseErrorf(ctx, "cant apply NULL")
 			}
 			col.Null = ColumnOptionNullStateNull
 		case DEFAULT:
 			if !check(ColumnOptionDefault) {
-				return p.parseErrorf("cant apply DEFAULT")
+				return p.parseErrorf(ctx, "cant apply DEFAULT")
 			}
 			// TODO type
-			t, str := p.parseIgnoreWhiteSpace()
-			switch t {
+			t := p.parseIgnoreWhiteSpace(ctx)
+			switch t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL:
-				col.Default = &str
+				col.Default.Valid = true
+				col.Default.Value = t.Value
 			default:
-				return p.parseErrorf("should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
+				return p.parseErrorf(ctx, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
 		case AUTO_INCREMENT:
 			if !check(ColumnOptionAutoIncrement) {
-				return p.parseErrorf("cant apply AUTO_INCREMENT")
+				return p.parseErrorf(ctx, "cant apply AUTO_INCREMENT")
 			}
 			col.AutoIncrement = true
 		case UNIQUE:
 			if !check(ColumnOptionKey) {
-				return p.parseErrorf("cant apply UNIQUE KEY")
+				return p.parseErrorf(ctx, "cant apply UNIQUE KEY")
 			}
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != KEY {
-				p.reset()
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != KEY {
+				p.reset(ctx)
 			}
 			col.Unique = true
 		case KEY:
 			if !check(ColumnOptionKey) {
-				return p.parseErrorf("cant apply KEY")
+				return p.parseErrorf(ctx, "cant apply KEY")
 			}
 			col.Key = true
 		case PRIMARY:
 			if !check(ColumnOptionKey) {
-				return p.parseErrorf("cant apply PRIMARY KEY")
+				return p.parseErrorf(ctx, "cant apply PRIMARY KEY")
 			}
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != KEY {
-				p.reset()
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != KEY {
+				p.reset(ctx)
 			}
 			col.Primary = true
 		case COMMENT:
 			if !check(ColumnOptionComment) {
-				return p.parseErrorf("cant apply COMMENT")
+				return p.parseErrorf(ctx, "cant apply COMMENT")
 			}
-			t, str := p.parseIgnoreWhiteSpace()
-			if t != SINGLE_QUOTE_IDENT {
-				return p.parseErrorf("should SINGLE_QUOTE_IDENT")
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != SINGLE_QUOTE_IDENT {
+				return p.parseErrorf(ctx, "should SINGLE_QUOTE_IDENT")
 			}
-			col.Comment = &str
+			col.Comment.Valid = true
+			col.Comment.Value = t.Value
 		case COMMA:
-			p.reset()
+			p.reset(ctx)
 			return nil
 		case RPAREN:
-			p.reset()
+			p.reset(ctx)
 			return nil
 		default:
-			return p.parseErrorf("unexpected column options")
+			return p.parseErrorf(ctx, "unexpected column options")
 		}
 	}
 }
 
-func (p *Parser) parseColumnIndexPrimaryKey(stmt *CreateTableIndexStatement) error {
-	t, _ := p.parseIgnoreWhiteSpace()
-	if t != KEY {
-		return p.parseErrorf("should KEY")
+func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if t.Type != KEY {
+		return p.parseErrorf(ctx, "should KEY")
 	}
-	if err := p.parseColumnIndexType(stmt); err != nil {
+	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(stmt)
+	cols, err := p.parseColumnIndexColName(ctx, stmt)
 	if err != nil {
 		return err
 	}
@@ -733,20 +771,20 @@ func (p *Parser) parseColumnIndexPrimaryKey(stmt *CreateTableIndexStatement) err
 	return nil
 }
 
-func (p *Parser) parseColumnIndexUniqueKey(stmt *CreateTableIndexStatement) error {
-	t, _ := p.parseIgnoreWhiteSpace()
-	if !(t == KEY || t == INDEX) {
-		p.reset()
+func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if !(t.Type == KEY || t.Type == INDEX) {
+		p.reset(ctx)
 	}
 
-	if err := p.parseColumnIndexName(stmt); err != nil {
+	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexType(stmt); err != nil {
+	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(stmt)
+	cols, err := p.parseColumnIndexColName(ctx, stmt)
 	if err != nil {
 		return err
 	}
@@ -755,15 +793,15 @@ func (p *Parser) parseColumnIndexUniqueKey(stmt *CreateTableIndexStatement) erro
 	return nil
 }
 
-func (p *Parser) parseColumnIndexKey(stmt *CreateTableIndexStatement) error {
-	if err := p.parseColumnIndexName(stmt); err != nil {
+func (p *Parser) parseColumnIndexKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexType(stmt); err != nil {
+	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(stmt)
+	cols, err := p.parseColumnIndexColName(ctx, stmt)
 	if err != nil {
 		return err
 	}
@@ -772,12 +810,12 @@ func (p *Parser) parseColumnIndexKey(stmt *CreateTableIndexStatement) error {
 	return nil
 }
 
-func (p *Parser) parseColumnIndexFullTextKey(stmt *CreateTableIndexStatement) error {
-	if err := p.parseColumnIndexName(stmt); err != nil {
+func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(stmt)
+	cols, err := p.parseColumnIndexColName(ctx, stmt)
 	if err != nil {
 		return err
 	}
@@ -786,25 +824,25 @@ func (p *Parser) parseColumnIndexFullTextKey(stmt *CreateTableIndexStatement) er
 	return nil
 }
 
-func (p *Parser) parseColumnIndexForeignKey(stmt *CreateTableIndexStatement) error {
-	t, _ := p.parseIgnoreWhiteSpace()
-	if t != KEY {
-		return p.parseErrorf("should KEY")
+func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if t.Type != KEY {
+		return p.parseErrorf(ctx, "should KEY")
 	}
-	if err := p.parseColumnIndexName(stmt); err != nil {
+	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(stmt)
+	cols, err := p.parseColumnIndexColName(ctx, stmt)
 	if err != nil {
 		return err
 	}
 	stmt.ColNames = append(stmt.ColNames, cols...)
 
-	t, _ = p.parseIgnoreWhiteSpace()
-	p.reset()
-	if t == REFERENCES {
-		if err := p.parseColumnReference(stmt); err != nil {
+	t = p.parseIgnoreWhiteSpace(ctx)
+	p.reset(ctx)
+	if t.Type == REFERENCES {
+		if err := p.parseColumnReference(ctx, stmt); err != nil {
 			return err
 		}
 	}
@@ -812,30 +850,30 @@ func (p *Parser) parseColumnIndexForeignKey(stmt *CreateTableIndexStatement) err
 	return nil
 }
 
-func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnReference(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
 	var r Reference
 
-	t, _ := p.parseIgnoreWhiteSpace()
-	if t != REFERENCES {
-		return p.parseErrorf("should REFERENCES")
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if t.Type != REFERENCES {
+		return p.parseErrorf(ctx, "should REFERENCES")
 	}
 
-	t, tableName := p.parseIgnoreWhiteSpace()
-	if !(t == IDENT || t == BACKTICK_IDENT) {
-		return p.parseErrorf("should IDENT or BACKTICK_IDENT")
+	t = p.parseIgnoreWhiteSpace(ctx)
+	if !(t.Type == IDENT || t.Type == BACKTICK_IDENT) {
+		return p.parseErrorf(ctx, "should IDENT or BACKTICK_IDENT")
 	}
-	r.TableName = tableName
+	r.TableName = t.Value
 
-	cols, err := p.parseColumnIndexColName(stmt)
+	cols, err := p.parseColumnIndexColName(ctx, stmt)
 	if err != nil {
 		return err
 	}
 	r.ColNames = append(r.ColNames, cols...)
 
-	t, _ = p.parseIgnoreWhiteSpace()
-	if t == MATCH {
-		t, _ = p.parseIgnoreWhiteSpace()
-		switch t {
+	t = p.parseIgnoreWhiteSpace(ctx)
+	if t.Type == MATCH {
+		t = p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case FULL:
 			r.Match = ReferenceMatchFull
 		case PARTIAL:
@@ -843,43 +881,43 @@ func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
 		case SIMPLE:
 			r.Match = ReferenceMatchSimple
 		default:
-			return p.parseErrorf("should FULL, PARTIAL or SIMPLE")
+			return p.parseErrorf(ctx, "should FULL, PARTIAL or SIMPLE")
 		}
-		t, _ = p.parseIgnoreWhiteSpace()
+		t = p.parseIgnoreWhiteSpace(ctx)
 	}
 
-	if t != ON {
-		p.reset()
+	if t.Type != ON {
+		p.reset(ctx)
 		stmt.Reference = &r
 		return nil
 	}
 
 	parseRefenceOption := func() (ReferenceOption, error) {
-		t, _ = p.parseIgnoreWhiteSpace()
-		switch t {
+		t = p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case RESTRICT:
 			return ReferenceOptionRestrict, nil
 		case CASCADE:
 			return ReferenceOptionCascade, nil
 		case SET:
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != NULL {
-				return 0, p.parseErrorf("should NULL")
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != NULL {
+				return 0, p.parseErrorf(ctx, "should NULL")
 			}
 			return ReferenceOptionSetNull, nil
 		case NO:
-			t, _ := p.parseIgnoreWhiteSpace()
-			if t != ACTION {
-				return 0, p.parseErrorf("should ACTION")
+			t := p.parseIgnoreWhiteSpace(ctx)
+			if t.Type != ACTION {
+				return 0, p.parseErrorf(ctx, "should ACTION")
 			}
 			return ReferenceOptionNoAction, nil
 		default:
-			return 0, p.parseErrorf("should RESTRICT, CASCADE, SET or NO")
+			return 0, p.parseErrorf(ctx, "should RESTRICT, CASCADE, SET or NO")
 		}
 	}
 
-	t, _ = p.parseIgnoreWhiteSpace()
-	switch t {
+	t = p.parseIgnoreWhiteSpace(ctx)
+	switch t.Type {
 	case DELETE:
 		option, err := parseRefenceOption()
 		if err != nil {
@@ -895,18 +933,18 @@ func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
 		stmt.Reference = &r
 		return nil
 	default:
-		return p.parseErrorf("should DELETE or UPDATE")
+		return p.parseErrorf(ctx, "should DELETE or UPDATE")
 	}
 
-	t, _ = p.parseIgnoreWhiteSpace()
-	if t != ON {
-		p.reset()
+	t = p.parseIgnoreWhiteSpace(ctx)
+	if t.Type != ON {
+		p.reset(ctx)
 		stmt.Reference = &r
 		return nil
 	}
 
-	t, _ = p.parseIgnoreWhiteSpace()
-	switch t {
+	t = p.parseIgnoreWhiteSpace(ctx)
+	switch t.Type {
 	case UPDATE:
 		option, err := parseRefenceOption()
 		if err != nil {
@@ -914,7 +952,7 @@ func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
 		}
 		r.OnUpdate = option
 	default:
-		return p.parseErrorf("should UPDATE")
+		return p.parseErrorf(ctx, "should UPDATE")
 	}
 
 	stmt.Reference = &r
@@ -922,107 +960,108 @@ func (p *Parser) parseColumnReference(stmt *CreateTableIndexStatement) error {
 	return nil
 }
 
-func (p *Parser) parseColumnIndexName(stmt *CreateTableIndexStatement) error {
-	t, s := p.parseIgnoreWhiteSpace()
-	if t == BACKTICK_IDENT || t == IDENT {
-		stmt.Name = &s
+func (p *Parser) parseColumnIndexName(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if t.Type == BACKTICK_IDENT || t.Type == IDENT {
+		stmt.Name.Valid = true
+		stmt.Name.Value = t.Value
 	} else {
-		p.reset()
+		p.reset(ctx)
 	}
 	return nil
 }
 
-func (p *Parser) parseColumnIndexType(stmt *CreateTableIndexStatement) error {
-	t, _ := p.parseIgnoreWhiteSpace()
-	if t == USING {
-		t, _ = p.parseIgnoreWhiteSpace()
-		switch t {
+func (p *Parser) parseColumnIndexType(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if t.Type == USING {
+		t = p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case BTREE:
 			stmt.Type = IndexTypeBtree
 		case HASH:
 			stmt.Type = IndexTypeHash
 		default:
-			return p.parseErrorf("should BTREE or HASH")
+			return p.parseErrorf(ctx, "should BTREE or HASH")
 		}
 	} else {
-		p.reset()
+		p.reset(ctx)
 		stmt.Type = IndexTypeNone
 	}
 	return nil
 }
 
 // TODO rename method name
-func (p *Parser) parseColumnIndexColName(stmt *CreateTableIndexStatement) ([]string, error) {
+func (p *Parser) parseColumnIndexColName(ctx *parseCtx, stmt *CreateTableIndexStatement) ([]string, error) {
 	var strs []string
 
-	t, _ := p.parseIgnoreWhiteSpace()
-	if t != LPAREN {
-		return nil, p.parseErrorf("should (")
+	t := p.parseIgnoreWhiteSpace(ctx)
+	if t.Type != LPAREN {
+		return nil, p.parseErrorf(ctx, "should (")
 	}
 
 	for {
-		t, s := p.parseIgnoreWhiteSpace()
-		if !(t == IDENT || t == BACKTICK_IDENT) {
-			return nil, p.parseErrorf("should IDENT or BACKTICK_IDENT")
+		t := p.parseIgnoreWhiteSpace(ctx)
+		if !(t.Type == IDENT || t.Type == BACKTICK_IDENT) {
+			return nil, p.parseErrorf(ctx, "should IDENT or BACKTICK_IDENT")
 		}
-		strs = append(strs, s)
-		t, s = p.parseIgnoreWhiteSpace()
-		switch t {
+		strs = append(strs, t.Value)
+		t = p.parseIgnoreWhiteSpace(ctx)
+		switch t.Type {
 		case COMMA:
 			// search next
 			continue
 		case RPAREN:
 			return strs, nil
 		default:
-			return nil, p.parseErrorf("should , or )")
+			return nil, p.parseErrorf(ctx, "should , or )")
 		}
 	}
 }
 
 // util
-func (p *Parser) parseIgnoreWhiteSpace() (token, string) {
+func (p *Parser) parseIgnoreWhiteSpace(ctx *parseCtx) *Token {
 	for {
-		t, i := p.lexer.read()
+		t := ctx.lexer.read()
 		//log.Println("parseIgnoreWhiteSpace:", int(t), p.lexer.str())
 
-		if t == SPACE || t == COMMENT_IDENT {
+		if t.Type == SPACE || t.Type == COMMENT_IDENT {
 			continue
 		}
 
-		return t, i
+		return t
 	}
 
-	return ILLEAGAL, ""
+	return &Token{Type: ILLEGAL}
 }
 
-func (p *Parser) parseIndents(idents []token) ([]string, error) {
+func (p *Parser) parseIndents(ctx *parseCtx, idents ...TokenType) ([]string, error) {
 	strs := []string{}
 	for _, ident := range idents {
-		t, str := p.parseIgnoreWhiteSpace()
-		if t != ident {
-			return nil, p.parseErrorf("should %v", idents)
+		t := p.parseIgnoreWhiteSpace(ctx)
+		if t.Type != ident {
+			return nil, p.parseErrorf(ctx, "should %v", idents)
 		}
-		strs = append(strs, str)
+		strs = append(strs, t.Value)
 	}
 	return strs, nil
 }
 
-func (p *Parser) eol() bool {
-	t, _ := p.parseIgnoreWhiteSpace()
-	switch t {
-	case EOF, SEMICORON:
+func (p *Parser) eol(ctx *parseCtx) bool {
+	t := p.parseIgnoreWhiteSpace(ctx)
+	switch t.Type {
+	case EOF, SEMICOLON:
 		return true
 	default:
 		return false
 	}
 }
 
-func (p *Parser) reset() {
-	p.lexer.pos = p.lexer.start
+func (p *Parser) reset(ctx *parseCtx) {
+	ctx.lexer.pos = ctx.lexer.start
 }
 
-func (p *Parser) parseErrorf(format string, a ...interface{}) error {
-	pos1 := int(math.Max(float64(p.lexer.pos-p.ErrorContext), 0))
-	pos2 := int(math.Min(float64(p.lexer.pos+p.ErrorContext), float64(len(p.lexer.input))))
-	return fmt.Errorf("parse error:%s pos: %s%s%s", fmt.Sprintf(format, a...), p.lexer.input[pos1:p.lexer.pos], p.ErrorMarker, p.lexer.input[p.lexer.pos:pos2])
+func (p *Parser) parseErrorf(ctx *parseCtx, format string, a ...interface{}) error {
+	pos1 := int(math.Max(float64(ctx.lexer.pos-ctx.errorContext), 0))
+	pos2 := int(math.Min(float64(ctx.lexer.pos+ctx.errorContext), float64(len(ctx.lexer.input))))
+	return fmt.Errorf("parse error:%s pos: %s%s%s", fmt.Sprintf(format, a...), ctx.lexer.input[pos1:ctx.lexer.pos], ctx.errorMarker, ctx.lexer.input[ctx.lexer.pos:pos2])
 }
