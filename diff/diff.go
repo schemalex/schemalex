@@ -23,6 +23,13 @@ type option struct {
 func (o option) Name() string       { return o.name }
 func (o option) Value() interface{} { return o.value }
 
+func WithParser(p *schemalex.Parser) Option {
+	return &option{
+		name:  "parser",
+		value: p,
+	}
+}
+
 func WithTransaction(b bool) Option {
 	return &option{
 		name:  "transaction",
@@ -103,8 +110,18 @@ func Statements(dst io.Writer, from, to schemalex.Statements, options ...Option)
 	return nil
 }
 
-func Strings(dst io.Writer, from, to string) error {
-	p := schemalex.New()
+func Strings(dst io.Writer, from, to string, options ...Option) error {
+	var p *schemalex.Parser
+	for _, o := range options {
+		switch o.Name() {
+		case "parser":
+			p = o.Value().(*schemalex.Parser)
+		}
+	}
+	if p == nil {
+		p = schemalex.New()
+	}
+
 	stmts1, err := p.ParseString(from)
 	if err != nil {
 		return errors.Wrapf(err, `failed to parse "from" %s`, from)
@@ -118,8 +135,17 @@ func Strings(dst io.Writer, from, to string) error {
 	return Statements(dst, stmts1, stmts2)
 }
 
-func Files(dst io.Writer, from, to string) error {
-	p := schemalex.New()
+func Files(dst io.Writer, from, to string, options ...Option) error {
+	var p *schemalex.Parser
+	for _, o := range options {
+		switch o.Name() {
+		case "parser":
+			p = o.Value().(*schemalex.Parser)
+		}
+	}
+	if p == nil {
+		p = schemalex.New()
+	}
 	stmts1, err := p.ParseFile(from)
 	if err != nil {
 		return errors.Wrapf(err, `failed to open "from" file %s`, from)

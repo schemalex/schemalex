@@ -2,11 +2,11 @@ package main
 
 import (
 	"flag"
-	"fmt"
 	"log"
 	"os"
 
 	"github.com/lestrrat/schemalex"
+	"github.com/lestrrat/schemalex/diff"
 )
 
 var (
@@ -32,15 +32,5 @@ func _main(before, after string) error {
 	p.ErrorMarker = *errorMarker
 	p.ErrorContext = *errorContext
 
-	beforeStmts, err := p.ParseFile(before)
-	if err != nil {
-		return fmt.Errorf("file:%s error:%s", before, err)
-	}
-
-	afterStmts, err := p.ParseFile(after)
-	if err != nil {
-		return fmt.Errorf("file:%s error:%s", after, err)
-	}
-
-	return schemalex.Diff(os.Stdout, beforeStmts, afterStmts)
+	return diff.Files(os.Stderr, before, after, diff.WithParser(p))
 }
