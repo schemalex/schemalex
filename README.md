@@ -10,7 +10,7 @@ package schemalex_test
 import (
 	"os"
 
-	"github.com/lestrrat/schemalex"
+	"github.com/schemalex/schemalex/diff"
 )
 
 func Example() {
@@ -29,10 +29,7 @@ CREATE TABLE fuga (
     PRIMARY KEY (id)
 );`
 
-	s := schemalex.New()
-	stmts1, _ := s.Parse(sql1)
-	stmts2, _ := s.Parse(sql2)
-	schemalex.Diff(os.Stdout, stmts1, stmts2)
+	diff.Strings(os.Stdout, sql1, sql2, diff.WithTransaction(true))
 
 	// OUTPUT:
 	// BEGIN;
