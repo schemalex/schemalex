@@ -2,6 +2,8 @@
 
 Generate difference sql of two mysql schema
 
+[![Build Status](https://travis-ci.org/schemalex/schemalex.png?branch=master)](https://travis-ci.org/schemalex/schemalex)
+
 ### SYNOPSIS
 
 ```
