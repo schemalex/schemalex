@@ -1,3 +1,8 @@
 package: github.com/lestrrat/schemalex
 import:
 - package: github.com/deckarep/golang-set
+- package: github.com/pkg/errors
+testImport:
+- package: github.com/stretchr/testify
+  subpackages:
+  - assert
