@@ -108,6 +108,7 @@ func TestRead(t *testing.T) {
 	}
 
 	for _, spec := range specs {
+		t.Logf("Lexing %s", spec.input)
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 

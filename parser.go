@@ -14,6 +14,11 @@ type Parser struct {
 	ErrorContext int
 }
 
+type ParseError struct {
+	Line int
+	Col  int
+}
+
 func New() *Parser {
 	return &Parser{}
 }
@@ -124,7 +129,7 @@ LOOP:
 			ctx.advance()
 			break LOOP
 		default:
-			return nil, p.parseErrorf(ctx, "should CREATE, COMMENT_IDENT or EOF")
+			return nil, p.parseErrorf(ctx, "expected CREATE, COMMENT_IDENT or EOF")
 		}
 	}
 
@@ -145,7 +150,7 @@ func (p *Parser) parseCreate(ctx *parseCtx) (Stmt, error) {
 	case TABLE:
 		return p.parseCreateTable(ctx)
 	default:
-		return nil, p.parseErrorf(ctx, "should DATABASE or TABLE")
+		return nil, p.parseErrorf(ctx, "expected DATABASE or TABLE")
 	}
 }
 
@@ -314,7 +319,6 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 						return nil, err
 					}
 				default:
-fmt.Printf("t.Type = %d\n", t.Type)
 					return nil, p.parseErrorf(ctx, "not supported")
 				}
 				return &indexStmt, nil

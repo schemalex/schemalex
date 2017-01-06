@@ -10,13 +10,22 @@ import (
 
 const eof = rune(0)
 
+type lrune struct {
+	r rune
+	w int
+}
+
 type lexer struct {
-	out   chan *Token
-	input []byte
+	out       chan *Token
+	input     []byte
+	peekCount int
+	peekRunes [3]lrune
 
 	pos   int
 	start int
 	width int
+	line  int
+	col   int
 }
 
 func Lex(ctx context.Context, input []byte) chan *Token {
@@ -28,8 +37,11 @@ func Lex(ctx context.Context, input []byte) chan *Token {
 
 func newLexer(out chan *Token, input []byte) *lexer {
 	return &lexer{
-		out:   out,
-		input: input,
+		out:       out,
+		input:     input,
+		line:      1,
+		col:       1,
+		peekCount: -1,
 	}
 }
 
@@ -44,7 +56,7 @@ func (l *lexer) emit(ctx context.Context, t *Token) {
 }
 
 func (l *lexer) str() string {
-	return string(l.input[l.start:l.pos])
+	return string(l.input[l.start:l.pos-(l.peekCount+1)])
 }
 
 func (l *lexer) Run(ctx context.Context) {
@@ -57,10 +69,11 @@ OUTER:
 			return
 		default:
 		}
-		l.start = l.pos
+		l.start = l.pos-(l.peekCount+1)
 
-		r := l.next()
+		r := l.peek()
 
+		// These require peek, and then consume
 		switch {
 		case isSpace(r):
 			// read until space end
@@ -68,7 +81,6 @@ OUTER:
 			l.emit(ctx, &Token{Type: SPACE})
 			continue OUTER
 		case isLetter(r):
-			l.backup()
 			t, s := l.runIdent(), l.str()
 			if _t, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
 				t = _t
@@ -76,26 +88,27 @@ OUTER:
 			l.emit(ctx, &Token{Type: t, Value: s})
 			continue OUTER
 		case isDigit(r):
-			l.backup()
 			l.emit(ctx, l.runNumber())
 			continue OUTER
 		}
 
+		// once we got here, we can consume
+		l.advance()
 		switch r {
 		case eof:
 			l.emit(ctx, &Token{Type: EOF})
 		case '`':
-			l.emit(ctx,l.runQuote('`', BACKTICK_IDENT))
+			l.emit(ctx, l.runQuote('`', BACKTICK_IDENT))
 		case '"':
 			t := l.runQuote('"', DOUBLE_QUOTE_IDENT)
 			if t.Type == DOUBLE_QUOTE_IDENT {
-			t.Value = `"` + t.Value + `"`
+				t.Value = `"` + t.Value + `"`
 			}
 			l.emit(ctx, t)
 		case '\'':
 			t := l.runQuote('\'', SINGLE_QUOTE_IDENT)
 			if t.Type == SINGLE_QUOTE_IDENT {
-			t.Value = `'` + t.Value + `'`
+				t.Value = `'` + t.Value + `'`
 			}
 			l.emit(ctx, t)
 		case '/':
@@ -106,13 +119,12 @@ OUTER:
 				l.emit(ctx, &Token{Type: SLASH})
 			}
 		case '-':
-			switch r1 := l.peek();  {
+			switch r1 := l.peek(); {
 			case r1 == '-':
-				l.next()
+				l.advance()
 				// TODO: https://dev.mysql.com/doc/refman/5.6/en/comments.html
 				// TODO: not only space. control character
 				if !isSpace(l.peek()) {
-					l.backup()
 					l.emit(ctx, &Token{Type: DASH})
 					continue OUTER
 				}
@@ -156,42 +168,52 @@ OUTER:
 }
 
 func (l *lexer) next() rune {
-	if l.pos >= len(l.input) {
-		l.width = 0
-		return eof
-	}
-	r, w := utf8.DecodeRune(l.input[l.pos:])
-	l.width = w
-	l.pos += l.width
-
+	r := l.peek()
+	l.advance()
 	return r
 }
 
 func (l *lexer) peek() rune {
-	r := l.next()
-	l.backup()
+	if l.peekCount >= 0 {
+		return l.peekRunes[l.peekCount].r
+	}
+
+	if l.pos >= len(l.input) {
+		l.width = 0
+		return eof
+	}
+
+	r, w := utf8.DecodeRune(l.input[l.pos:])
+	l.peekCount++
+	l.peekRunes[l.peekCount].r = r
+	l.peekRunes[l.peekCount].w = w
+	l.pos += w
+
 	return r
 }
 
-func (l *lexer) backup() {
-	l.pos -= l.width
+func (l *lexer) advance() {
+	l.peekCount--
 }
 
 func (l *lexer) runSpace() {
 	for isSpace(l.peek()) {
-		l.next()
+		l.advance()
 	}
 }
 
 func (l *lexer) runIdent() TokenType {
+OUTER:
 	for {
-		r := l.next()
-		if r == eof {
-			break
-		} else if isCharacter(r) {
-		} else {
-			l.backup()
-			break
+		r := l.peek()
+		switch {
+		case r == eof:
+			l.advance()
+			break OUTER
+		case isCharacter(r):
+			l.advance()
+		default:
+			break OUTER
 		}
 	}
 	return IDENT
@@ -229,10 +251,10 @@ func (l *lexer) runCComment() TokenType {
 		case eof:
 			return EOF
 		case '*':
-			if l.next() == '/' {
+			if l.peek() == '/' {
+				l.advance()
 				return COMMENT_IDENT
 			}
-			l.backup()
 		}
 	}
 }
@@ -250,27 +272,25 @@ func (l *lexer) runToEOL() TokenType {
 // https://dev.mysql.com/doc/refman/5.6/en/number-literals.html
 func (l *lexer) runDigit() {
 	for {
-		r := l.next()
-		if !isDigit(r) {
-			l.backup()
+		if !isDigit(l.peek()) {
 			break
 		}
+		l.advance()
 	}
 }
 
 func (l *lexer) runNumber() *Token {
 	l.runDigit()
-
 	if l.peek() == '.' {
-		l.next()
+		l.advance()
 		l.runDigit()
 	}
 
 	switch l.peek() {
 	case 'E', 'e':
-		l.next()
+		l.advance()
 		if l.peek() == '-' {
-			l.next()
+			l.advance()
 		}
 		l.runDigit()
 	}
