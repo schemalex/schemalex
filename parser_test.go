@@ -1,9 +1,9 @@
 package schemalex
 
 import (
+	"bytes"
 	"flag"
 	"io/ioutil"
-	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -158,13 +158,10 @@ id bigint unsigned not null auto_increment
 				continue
 			}
 
-			var strs []string
+			var buf bytes.Buffer
+			stmts.WriteTo(&buf)
 
-			for _, stmt := range stmts {
-				strs = append(strs, stmt.String())
-			}
-
-			if e, g := spec.Expect, strings.Join(strs, ";\n"); e != g {
+			if e, g := spec.Expect, buf.String(); e != g {
 				t.Errorf("should:%q\n got:%q", e, g)
 			}
 		}

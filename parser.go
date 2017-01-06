@@ -23,7 +23,7 @@ type parseCtx struct {
 	errorContext int
 }
 
-func (p *Parser) ParseFile(fn string) ([]Stmt, error) {
+func (p *Parser) ParseFile(fn string) (Statements, error) {
 	src, err := ioutil.ReadFile(fn)
 	if err != nil {
 		return nil, errors.Wrapf(err, `failed to open file %s`, fn)
@@ -31,11 +31,11 @@ func (p *Parser) ParseFile(fn string) ([]Stmt, error) {
 	return p.Parse(src)
 }
 
-func (p *Parser) ParseString(src string) ([]Stmt, error) {
+func (p *Parser) ParseString(src string) (Statements, error) {
 	return p.Parse([]byte(src))
 }
 
-func (p *Parser) Parse(src []byte) ([]Stmt, error) {
+func (p *Parser) Parse(src []byte) (Statements, error) {
 	var ctx parseCtx
 	ctx.lexer.input = src
 	ctx.errorMarker = p.ErrorMarker

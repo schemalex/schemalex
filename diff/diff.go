@@ -85,7 +85,7 @@ func Statements(dst io.Writer, from, to schemalex.Statements, options ...Option)
 
 	var buf bytes.Buffer
 	if txn {
-		buf.WriteString("\nBEGIN;\nSET FOREIGN_KEY_CHECKS = 0;\n")
+		buf.WriteString("\nBEGIN;\n\nSET FOREIGN_KEY_CHECKS = 0;")
 	}
 
 	for _, p := range procs {
@@ -94,14 +94,13 @@ func Statements(dst io.Writer, from, to schemalex.Statements, options ...Option)
 		if err != nil {
 			return errors.Wrap(err, `failed to produce diff`)
 		}
-
-		if buf.Len() > 0 && n > 0 {
-			buf.WriteByte('\n')
+		if n > 0 {
+			buf.WriteString("\n\n")
 		}
 		pbuf.WriteTo(&buf)
 	}
 	if txn {
-		buf.WriteString("\nSET FOREIGN_KEY_CHECKS = 1;\nCOMMIT;")
+		buf.WriteString("\n\nSET FOREIGN_KEY_CHECKS = 1;\n\nCOMMIT;")
 	}
 
 	if _, err := buf.WriteTo(dst); err != nil {
@@ -132,7 +131,7 @@ func Strings(dst io.Writer, from, to string, options ...Option) error {
 		return errors.Wrapf(err, `failed to parse "to" %s`, to)
 	}
 
-	return Statements(dst, stmts1, stmts2)
+	return Statements(dst, stmts1, stmts2, options...)
 }
 
 func Files(dst io.Writer, from, to string, options ...Option) error {
@@ -156,7 +155,7 @@ func Files(dst io.Writer, from, to string, options ...Option) error {
 		return errors.Wrapf(err, `failed to open "to" file %s`, to)
 	}
 
-	return Statements(dst, stmts1, stmts2)
+	return Statements(dst, stmts1, stmts2, options...)
 }
 
 func dropTables(ctx *diffCtx, dst io.Writer) (int64, error) {
@@ -185,15 +184,13 @@ func createTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 			continue
 		}
 
-		var pbuf bytes.Buffer
-		n, err := stmt.WriteTo(&pbuf)
+		if buf.Len() > 0 {
+			buf.WriteByte('\n')
+		}
+		_, err := stmt.WriteTo(&buf)
 		if err != nil {
 			return 0, err
 		}
-		if buf.Len() > 0 && n > 0 {
-			buf.WriteByte('\n')
-		}
-		pbuf.WriteTo(&buf)
 		buf.WriteByte(';')
 	}
 	return buf.WriteTo(dst)
