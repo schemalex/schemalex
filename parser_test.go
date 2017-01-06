@@ -145,6 +145,10 @@ id bigint unsigned not null auto_increment
 			Input: "create table hoge (`foo` DECIMAL(32,30))",
 			Expect: "CREATE TABLE `hoge` (\n`foo` DECIMAL (32,30)\n)",
 		},
+		{
+			Input: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, CONSTRAINT `symbol` UNIQUE KEY `uniq_id` USING BTREE (`id`) )",
+			Expect: "CREATE TABLE `fuga` (\n`id` INTEGER NOT NULL AUTO_INCREMENT,\nCONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)\n)",
+		},
 	}
 
 	p := New()

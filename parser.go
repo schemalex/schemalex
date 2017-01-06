@@ -293,6 +293,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 					copyStr := t.Value
 					indexStmt.Symbol.Valid = true
 					indexStmt.Symbol.Value = copyStr
+					ctx.advance()
 					ctx.skipWhiteSpaces()
 				}
 
@@ -313,6 +314,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 						return nil, err
 					}
 				default:
+fmt.Printf("t.Type = %d\n", t.Type)
 					return nil, p.parseErrorf(ctx, "not supported")
 				}
 				return &indexStmt, nil
