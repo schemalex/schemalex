@@ -32,5 +32,5 @@ func _main(before, after string) error {
 	p.ErrorMarker = *errorMarker
 	p.ErrorContext = *errorContext
 
-	return diff.Files(os.Stderr, before, after, diff.WithParser(p))
+	return diff.Files(os.Stderr, before, after, diff.WithTransaction(true), diff.WithParser(p))
 }
