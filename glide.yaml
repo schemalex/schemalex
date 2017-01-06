@@ -2,6 +2,9 @@ package: github.com/schemalex/schemalex
 import:
 - package: github.com/deckarep/golang-set
 - package: github.com/pkg/errors
+- package: golang.org/x/net
+  subpackages:
+  - context
 testImport:
 - package: github.com/stretchr/testify
   subpackages:

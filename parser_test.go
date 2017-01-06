@@ -145,24 +145,23 @@ id bigint unsigned not null auto_increment
 
 	p := New()
 	for _, spec := range specs {
+		t.Logf("Parsing '%s'", spec.Input)
 		stmts, err := p.ParseString(spec.Input)
 		if spec.Error {
 			if !assert.Error(t, err, "should be an error") {
-				t.Logf("input: %s", spec.Input)
 				continue
 			}
 		} else {
 			if err != nil {
 				t.Errorf(err.Error())
-				t.Logf("input:%s", spec.Input)
-				continue
+				return
 			}
 
 			var buf bytes.Buffer
 			stmts.WriteTo(&buf)
 
-			if e, g := spec.Expect, buf.String(); e != g {
-				t.Errorf("should:%q\n got:%q", e, g)
+			if !assert.Equal(t, spec.Expect, buf.String(), "should match") {
+				return
 			}
 		}
 	}

@@ -4,11 +4,14 @@ import (
 	"bytes"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/net/context"
 )
 
 const eof = rune(0)
 
 type lexer struct {
+	out   chan *Token
 	input []byte
 
 	pos   int
@@ -16,9 +19,27 @@ type lexer struct {
 	width int
 }
 
-func newLexer(input []byte) *lexer {
+func Lex(ctx context.Context, input []byte) chan *Token {
+	ch := make(chan *Token, 3)
+	l := newLexer(ch, input)
+	go l.Run(ctx)
+	return ch
+}
+
+func newLexer(out chan *Token, input []byte) *lexer {
 	return &lexer{
+		out:   out,
 		input: input,
+	}
+}
+
+func (l *lexer) emit(ctx context.Context, t *Token) {
+	//t.Pos = l.start // TODO check if this is correct
+	select {
+	case <-ctx.Done():
+		return
+	case l.out <- t:
+		return
 	}
 }
 
@@ -26,97 +47,111 @@ func (l *lexer) str() string {
 	return string(l.input[l.start:l.pos])
 }
 
-func (l *lexer) read() *Token {
-	l.start = l.pos
+func (l *lexer) Run(ctx context.Context) {
+	defer close(l.out)
 
-	r := l.next()
+OUTER:
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
+		l.start = l.pos
 
-	switch {
-	case isSpace(r):
-		// read until space end
-		l.runSpace()
-		return &Token{Type: SPACE}
-	case isLetter(r):
-		l.backup()
-		t, s := l.runIdent(), l.str()
-		if _t, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
-			t = _t
-		}
-		return &Token{Type: t, Value: s}
-	case isDigit(r):
-		l.backup()
-		return l.runNumber()
-	}
+		r := l.next()
 
-	switch r {
-	case eof:
-		return &Token{Type: EOF}
-	case '`':
-		return l.runQuote('`', BACKTICK_IDENT)
-	case '"':
-		// TODO: should smart
-		t := l.runQuote('"', DOUBLE_QUOTE_IDENT)
-		if t.Type != DOUBLE_QUOTE_IDENT {
-			return t
-		}
-		t.Value = `"` + t.Value + `"`
-		return t
-	case '\'':
-		// TODO: should smart
-		t := l.runQuote('\'', SINGLE_QUOTE_IDENT)
-		if t.Type != SINGLE_QUOTE_IDENT {
-			return t
-		}
-		t.Value = `'` + t.Value + `'`
-		return t
-	case '/':
-		if l.peek() == '*' {
-			return &Token{Type: l.runCComment()}
-		}
-		return &Token{Type: SLASH}
-	case '-':
-		r1 := l.peek()
-		if r1 == '-' {
-			l.next()
-			// TODO: https://dev.mysql.com/doc/refman/5.6/en/comments.html
-			// TODO: not only space. control character
-			if !isSpace(l.peek()) {
-				l.backup()
-				return &Token{Type: DASH}
+		switch {
+		case isSpace(r):
+			// read until space end
+			l.runSpace()
+			l.emit(ctx, &Token{Type: SPACE})
+			continue OUTER
+		case isLetter(r):
+			l.backup()
+			t, s := l.runIdent(), l.str()
+			if _t, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
+				t = _t
 			}
+			l.emit(ctx, &Token{Type: t, Value: s})
+			continue OUTER
+		case isDigit(r):
+			l.backup()
+			l.emit(ctx, l.runNumber())
+			continue OUTER
+		}
+
+		switch r {
+		case eof:
+			l.emit(ctx, &Token{Type: EOF})
+		case '`':
+			l.emit(ctx,l.runQuote('`', BACKTICK_IDENT))
+		case '"':
+			t := l.runQuote('"', DOUBLE_QUOTE_IDENT)
+			if t.Type == DOUBLE_QUOTE_IDENT {
+			t.Value = `"` + t.Value + `"`
+			}
+			l.emit(ctx, t)
+		case '\'':
+			t := l.runQuote('\'', SINGLE_QUOTE_IDENT)
+			if t.Type == SINGLE_QUOTE_IDENT {
+			t.Value = `'` + t.Value + `'`
+			}
+			l.emit(ctx, t)
+		case '/':
+			switch c := l.peek(); c {
+			case '*':
+				l.emit(ctx, &Token{Type: l.runCComment()})
+			default:
+				l.emit(ctx, &Token{Type: SLASH})
+			}
+		case '-':
+			switch r1 := l.peek();  {
+			case r1 == '-':
+				l.next()
+				// TODO: https://dev.mysql.com/doc/refman/5.6/en/comments.html
+				// TODO: not only space. control character
+				if !isSpace(l.peek()) {
+					l.backup()
+					l.emit(ctx, &Token{Type: DASH})
+					continue OUTER
+				}
+				l.runToEOL()
+				l.emit(ctx, &Token{Type: COMMENT_IDENT})
+			case isDigit(r1):
+				l.emit(ctx, l.runNumber())
+			default:
+				l.emit(ctx, &Token{Type: DASH})
+			}
+		case '#':
+			// https://dev.mysql.com/doc/refman/5.6/en/comments.html
 			l.runToEOL()
-			return &Token{Type: COMMENT_IDENT}
-		} else if isDigit(r1) {
-			return l.runNumber()
-		} else {
-			return &Token{Type: DASH}
+			l.emit(ctx, &Token{Type: COMMENT_IDENT})
+		case '(':
+			l.emit(ctx, &Token{Type: LPAREN})
+		case ')':
+			l.emit(ctx, &Token{Type: RPAREN})
+		case ';':
+			l.emit(ctx, &Token{Type: SEMICOLON})
+		case ',':
+			l.emit(ctx, &Token{Type: COMMA})
+		case '.':
+			if isDigit(l.peek()) {
+				l.emit(ctx, l.runNumber())
+			} else {
+				l.emit(ctx, &Token{Type: DOT})
+			}
+		case '+':
+			if isDigit(l.peek()) {
+				l.emit(ctx, l.runNumber())
+			} else {
+				l.emit(ctx, &Token{Type: PLUS})
+			}
+		case '=':
+			l.emit(ctx, &Token{Type: EQUAL})
+		default:
+			l.emit(ctx, &Token{Type: ILLEGAL})
 		}
-	case '#':
-		// https://dev.mysql.com/doc/refman/5.6/en/comments.html
-		l.runToEOL()
-		return &Token{Type: COMMENT_IDENT}
-	case '(':
-		return &Token{Type: LPAREN}
-	case ')':
-		return &Token{Type: RPAREN}
-	case ';':
-		return &Token{Type: SEMICOLON}
-	case ',':
-		return &Token{Type: COMMA}
-	case '.':
-		if isDigit(l.peek()) {
-			return l.runNumber()
-		}
-		return &Token{Type: DOT}
-	case '+':
-		if isDigit(l.peek()) {
-			return l.runNumber()
-		}
-		return &Token{Type: PLUS}
-	case '=':
-		return &Token{Type: EQUAL}
-	default:
-		return &Token{Type: ILLEGAL}
 	}
 }
 

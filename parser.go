@@ -6,6 +6,7 @@ import (
 	"math"
 
 	"github.com/schemalex/schemalex/internal/errors"
+	"golang.org/x/net/context"
 )
 
 type Parser struct {
@@ -18,9 +19,59 @@ func New() *Parser {
 }
 
 type parseCtx struct {
-	lexer        lexer
+	context.Context
+	lexer        lexer // TODO delete
+	lexsrc       chan *Token
 	errorMarker  string
 	errorContext int
+	peekCount    int
+	peekTokens   [3]*Token
+}
+
+func newParseCtx(ctx context.Context) *parseCtx {
+	return &parseCtx{
+		Context:   ctx,
+		peekCount: -1,
+	}
+}
+
+var eofToken = Token{Type: EOF}
+
+// peek the next token. if already
+// note: we do NOT check for peekCout > 2 for efficiency.
+// if you do that, you're f*cked.
+func (pctx *parseCtx) peek() *Token {
+	if pctx.peekCount < 0 {
+		select {
+		case <-pctx.Context.Done():
+			return &eofToken
+		case t, ok := <-pctx.lexsrc:
+			if !ok {
+				return &eofToken
+			}
+			pctx.peekCount++
+			pctx.peekTokens[pctx.peekCount] = t
+		}
+	}
+	return pctx.peekTokens[pctx.peekCount]
+}
+
+func (pctx *parseCtx) advance() {
+	if pctx.peekCount >= 0 {
+		pctx.peekCount--
+	}
+}
+
+func (pctx *parseCtx) rewind() {
+	if pctx.peekCount < 2 {
+		pctx.peekCount++
+	}
+}
+
+func (pctx *parseCtx) next() *Token {
+	t := pctx.peek()
+	pctx.advance()
+	return t
 }
 
 func (p *Parser) ParseFile(fn string) (Statements, error) {
@@ -36,19 +87,22 @@ func (p *Parser) ParseString(src string) (Statements, error) {
 }
 
 func (p *Parser) Parse(src []byte) (Statements, error) {
-	var ctx parseCtx
-	ctx.lexer.input = src
+	cctx, cancel := context.WithCancel(context.TODO())
+	defer cancel()
+
+	ctx := newParseCtx(cctx)
+	ctx.lexsrc = Lex(cctx, src)
 	ctx.errorMarker = p.ErrorMarker
 	ctx.errorContext = p.ErrorContext
 
 	var stmts []Stmt
 LOOP:
 	for {
-		t := p.parseIgnoreWhiteSpace(&ctx)
+		t := p.parseIgnoreWhiteSpace(ctx)
 	S1:
 		switch t.Type {
 		case CREATE:
-			stmt, err := p.parseCreate(&ctx)
+			stmt, err := p.parseCreate(ctx)
 			if err != nil {
 				if errors.IsIgnorable(err) {
 					// this is ignorable.
@@ -61,14 +115,14 @@ LOOP:
 		case DROP, SET, USE:
 			// We don't do anything about these
 			for {
-				if p.eol(&ctx) {
+				if p.eol(ctx) {
 					break S1
 				}
 			}
 		case EOF:
 			break LOOP
 		default:
-			return nil, p.parseErrorf(&ctx, "should CREATE, COMMENT_IDENT or EOF")
+			return nil, p.parseErrorf(ctx, "should CREATE, COMMENT_IDENT or EOF")
 		}
 	}
 
@@ -1021,7 +1075,7 @@ func (p *Parser) parseColumnIndexColName(ctx *parseCtx, stmt *CreateTableIndexSt
 // util
 func (p *Parser) parseIgnoreWhiteSpace(ctx *parseCtx) *Token {
 	for {
-		t := ctx.lexer.read()
+		t := ctx.next()
 		//log.Println("parseIgnoreWhiteSpace:", int(t), p.lexer.str())
 
 		if t.Type == SPACE || t.Type == COMMENT_IDENT {
@@ -1056,8 +1110,9 @@ func (p *Parser) eol(ctx *parseCtx) bool {
 	}
 }
 
+// temporary
 func (p *Parser) reset(ctx *parseCtx) {
-	ctx.lexer.pos = ctx.lexer.start
+	ctx.rewind()
 }
 
 func (p *Parser) parseErrorf(ctx *parseCtx, format string, a ...interface{}) error {
