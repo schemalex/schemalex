@@ -3,12 +3,32 @@ package schemalex
 import (
 	"bytes"
 	"fmt"
-	"strings"
+	"io"
 )
 
-func (c *CreateDatabaseStatement) String() string {
-	var buf bytes.Buffer
+type ider interface {
+	ID() string
+}
 
+// Lookup looks up statements by their ID, which could be their
+// "name" or their stringified representation
+func (s Statements) Lookup(id string) (Stmt, bool) {
+	for _, stmt := range s {
+		if n, ok := stmt.(ider); ok {
+			if n.ID() == id {
+				return stmt, true
+			}
+		}
+	}
+	return nil, false
+}
+
+func (c *CreateDatabaseStatement) ID() string {
+	return c.Name
+}
+
+func (c *CreateDatabaseStatement) WriteTo(dst io.Writer) (int64, error) {
+	var buf bytes.Buffer
 	buf.WriteString("CREATE DATABASE")
 	if c.IfNotExist {
 		buf.WriteString(" IF NOT EXISTS")
@@ -16,10 +36,33 @@ func (c *CreateDatabaseStatement) String() string {
 	buf.WriteByte(' ')
 	buf.WriteString(Backquote(c.Name))
 	buf.WriteByte(';')
-	return buf.String()
+
+	return buf.WriteTo(dst)
 }
 
-func (c *CreateTableStatement) String() string {
+func (c *CreateTableStatement) ID() string {
+	return c.Name
+}
+
+func (c *CreateTableStatement) LookupColumn(name string) (*CreateTableColumnStatement, bool) {
+	for _, col := range c.Columns {
+		if col.Name == name {
+			return col, true
+		}
+	}
+	return nil, false
+}
+
+func (c *CreateTableStatement) LookupIndex(name string) (*CreateTableIndexStatement, bool) {
+	for _, idx := range c.Indexes {
+		if idx.String() == name {
+			return idx, true
+		}
+	}
+	return nil, false
+}
+
+func (c *CreateTableStatement) WriteTo(dst io.Writer) (int64, error) {
 	var b bytes.Buffer
 
 	b.WriteString("CREATE")
@@ -34,37 +77,51 @@ func (c *CreateTableStatement) String() string {
 
 	b.WriteByte(' ')
 	b.WriteString(Backquote(c.Name))
-	b.WriteString(" (\n")
+	b.WriteString(" (")
 
-	var fields []string
-
-	for _, columnStatement := range c.Columns {
-		fields = append(fields, columnStatement.String())
+	fields := make([]Stmt, 0, len(c.Columns)+len(c.Indexes))
+	for _, col := range c.Columns {
+		fields = append(fields, col)
+	}
+	for _, idx := range c.Indexes {
+		fields = append(fields, idx)
 	}
 
-	for _, indexStatement := range c.Indexes {
-		fields = append(fields, indexStatement.String())
+	for i, stmt := range fields {
+		b.WriteByte('\n')
+		if _, err := stmt.WriteTo(&b); err != nil {
+			return 0, err
+		}
+		if i < len(fields)-1 {
+			b.WriteByte(',')
+		}
 	}
-
-	b.WriteString(strings.Join(fields, ",\n"))
 
 	b.WriteString("\n)")
 
-	var options []string
+	if l := len(c.Options); l > 0 {
+		b.WriteByte(' ')
+		for i, option := range c.Options {
+			if _, err := option.WriteTo(&b); err != nil {
+				return 0, err
+			}
 
-	for _, optionStatement := range c.Options {
-		options = append(options, optionStatement.String())
+			if i < l-1 {
+				b.WriteString(", ")
+			}
+		}
 	}
 
-	if str := strings.Join(options, ", "); str != "" {
-		b.WriteString(" " + str)
-	}
-
-	return b.String()
+	return b.WriteTo(dst)
 }
 
-func (c *CreateTableOptionStatement) String() string {
-	return fmt.Sprintf("%s = %s", c.Key, c.Value)
+func (c *CreateTableOptionStatement) WriteTo(dst io.Writer) (int64, error) {
+	var buf bytes.Buffer
+	buf.WriteString(c.Key)
+	buf.WriteString(" = ")
+	buf.WriteString(c.Value)
+
+	return buf.WriteTo(dst)
 }
 
 func (c ColumnOptionNullState) String() string {
@@ -80,7 +137,7 @@ func (c ColumnOptionNullState) String() string {
 	}
 }
 
-func (c *CreateTableColumnStatement) String() string {
+func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 
 	buf.WriteString(Backquote(c.Name))
@@ -147,7 +204,7 @@ func (c *CreateTableColumnStatement) String() string {
 		buf.WriteByte('\'')
 	}
 
-	return buf.String()
+	return buf.WriteTo(dst)
 }
 
 func (l *Length) String() string {
@@ -157,7 +214,13 @@ func (l *Length) String() string {
 	return l.Length
 }
 
-func (c *CreateTableIndexStatement) String() string {
+func (c CreateTableIndexStatement) String() string {
+	var buf bytes.Buffer
+	c.WriteTo(&buf)
+	return buf.String()
+}
+
+func (c CreateTableIndexStatement) WriteTo(dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 
 	if c.Symbol.Valid {
@@ -181,7 +244,7 @@ func (c *CreateTableIndexStatement) String() string {
 	buf.WriteString(" (")
 	for i, colName := range c.ColNames {
 		buf.WriteString(Backquote(colName))
-		if i < len(c.ColNames) - 1 {
+		if i < len(c.ColNames)-1 {
 			buf.WriteString(", ")
 		}
 	}
@@ -192,7 +255,7 @@ func (c *CreateTableIndexStatement) String() string {
 		buf.WriteString(c.Reference.String())
 	}
 
-	return buf.String()
+	return buf.WriteTo(dst)
 }
 
 func (i IndexKind) String() string {
@@ -235,7 +298,7 @@ func (r *Reference) String() string {
 	buf.WriteString(" (")
 	for i, colName := range r.ColNames {
 		buf.WriteString(Backquote(colName))
-		if i < len(r.ColNames) - 1 {
+		if i < len(r.ColNames)-1 {
 			buf.WriteString(", ")
 		}
 	}

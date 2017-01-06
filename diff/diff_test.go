@@ -1,11 +1,14 @@
-package schemalex
+package diff_test
 
 import (
-	"strings"
+	"bytes"
 	"testing"
+
+	"github.com/lestrrat/schemalex/diff"
+	"github.com/stretchr/testify/assert"
 )
 
-func TestDiffer(t *testing.T) {
+func TestDiff(t *testing.T) {
 	type Spec struct {
 		Before string
 		After  string
@@ -17,55 +20,55 @@ func TestDiffer(t *testing.T) {
 		{
 			Before: "CREATE TABLE `hoge` ( `id` integer not null ); CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			Expect: "DROP TABLE `hoge`",
+			Expect: "DROP TABLE `hoge`;",
 		},
 		// create table
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
 			After:  "CREATE TABLE `hoge` ( `id` INTEGER NOT NULL ) ENGINE=InnoDB; CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			Expect: "CREATE TABLE `hoge` (\n`id` INTEGER NOT NULL\n) ENGINE = InnoDB",
+			Expect: "CREATE TABLE `hoge` (\n`id` INTEGER NOT NULL\n) ENGINE = InnoDB;",
 		},
 		// drop column
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `c` VARCHAR (20) NOT NULL DEFAULT 'xxx' );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			Expect: "ALTER TABLE `fuga` DROP COLUMN `c`",
+			Expect: "ALTER TABLE `fuga` DROP COLUMN `c`;",
 		},
 		// add column
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `c` VARCHAR (20) NOT NULL DEFAULT 'xxx' );",
-			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'xxx'",
+			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'xxx';",
 		},
 		// change column
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
 			After:  "CREATE TABLE `fuga` ( `id` BIGINT NOT NULL );",
-			Expect: "ALTER TABLE `fuga` CHANGE COLUMN `id` `id` BIGINT NOT NULL",
+			Expect: "ALTER TABLE `fuga` CHANGE COLUMN `id` `id` BIGINT NOT NULL;",
 		},
 		// drop primary key
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (`id`) );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT );",
-			Expect: "ALTER TABLE `fuga` DROP INDEX PRIMARY KEY",
+			Expect: "ALTER TABLE `fuga` DROP INDEX PRIMARY KEY;",
 		},
 		// add primary key
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (`id`) );",
-			Expect: "ALTER TABLE `fuga` ADD PRIMARY KEY (`id`)",
+			Expect: "ALTER TABLE `fuga` ADD PRIMARY KEY (`id`);",
 		},
 		// drop unique key
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, CONSTRAINT `symbol` UNIQUE KEY `uniq_id` USING BTREE (`id`) );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT );",
-			Expect: "ALTER TABLE `fuga` DROP INDEX `uniq_id`",
+			Expect: "ALTER TABLE `fuga` DROP INDEX `uniq_id`;",
 		},
 		// add unique key
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, CONSTRAINT `symbol` UNIQUE KEY `uniq_id` USING BTREE (`id`) );",
-			Expect: "ALTER TABLE `fuga` ADD CONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)",
+			Expect: "ALTER TABLE `fuga` ADD CONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`);",
 		},
 		// not change index
 		{
@@ -75,36 +78,15 @@ func TestDiffer(t *testing.T) {
 		},
 	}
 
-	p := New()
+	var buf bytes.Buffer
 	for _, spec := range specs {
+		buf.Reset()
 
-		beforeStmts, err := p.ParseString(spec.Before)
-		if err != nil {
-			t.Fatal(err)
+		if !assert.NoError(t, diff.Strings(&buf, spec.Before, spec.After), "diff.String should succeed") {
+			return
 		}
-		afterStmts, err := p.ParseString(spec.After)
-		if err != nil {
-			t.Fatal(err)
-		}
-
-		differ := &Differ{stmts2CreateTalbeStatements(beforeStmts), stmts2CreateTalbeStatements(afterStmts)}
-		stmts, err := differ.Diff()
-		if err != nil {
-			t.Fatal(err)
-		}
-		if e, g := spec.Expect, strings.Join(stmts, ";"); e != g {
-			t.Errorf("should: %v\n got: %v\n spec:%v", e, g, spec)
+		if !assert.Equal(t, spec.Expect, buf.String(), "result SQL should match") {
+			return
 		}
 	}
-}
-
-func stmts2CreateTalbeStatements(stmts []Stmt) []CreateTableStatement {
-	var createTableStatements []CreateTableStatement
-	for _, stmt := range stmts {
-		switch t := stmt.(type) {
-		case *CreateTableStatement:
-			createTableStatements = append(createTableStatements, *t)
-		}
-	}
-	return createTableStatements
 }

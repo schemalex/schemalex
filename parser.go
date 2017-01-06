@@ -174,12 +174,12 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 
 	appendStmt := func() {
 		switch t := targetStmt.(type) {
-		case CreateTableIndexStatement:
+		case *CreateTableIndexStatement:
 			stmt.Indexes = append(stmt.Indexes, t)
-		case CreateTableColumnStatement:
+		case *CreateTableColumnStatement:
 			stmt.Columns = append(stmt.Columns, t)
 		default:
-			panic("not reach")
+			panic(fmt.Sprintf("unexpected targetStmt: %#v", t))
 		}
 		targetStmt = nil
 	}
@@ -245,19 +245,19 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				default:
 					return nil, p.parseErrorf(ctx, "not supported")
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
 			}
 		case PRIMARY:
 			err := setStmt(func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
+				var indexStmt CreateTableIndexStatement
 				indexStmt.Kind = IndexKindPrimaryKey
 				if err := p.parseColumnIndexPrimaryKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -269,7 +269,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				if err := p.parseColumnIndexUniqueKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -283,7 +283,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				if err := p.parseColumnIndexKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -295,7 +295,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -307,7 +307,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -319,7 +319,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				if err := p.parseColumnIndexForeignKey(ctx, &indexStmt); err != nil {
 					return nil, err
 				}
-				return indexStmt, nil
+				return &indexStmt, nil
 			})
 			if err != nil {
 				return err
@@ -432,7 +432,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 					return nil, err
 				}
 
-				return colStmt, nil
+				return &colStmt, nil
 			})
 
 			if err != nil {
@@ -453,7 +453,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 		}
 		for _, typ := range types {
 			if typ == t.Type {
-				stmt.Options = append(stmt.Options, CreateTableOptionStatement{key, t.Value})
+				stmt.Options = append(stmt.Options, &CreateTableOptionStatement{key, t.Value})
 				return nil
 			}
 		}

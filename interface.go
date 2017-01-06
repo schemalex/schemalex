@@ -1,8 +1,12 @@
 package schemalex
 
+import "io"
+
 type Stmt interface {
-	String() string
+	WriteTo(io.Writer) (int64, error)
 }
+
+type Statements []Stmt
 
 type CreateDatabaseStatement struct {
 	Name       string
@@ -13,9 +17,9 @@ type CreateTableStatement struct {
 	Name       string
 	Temporary  bool
 	IfNotExist bool
-	Columns    []CreateTableColumnStatement
-	Indexes    []CreateTableIndexStatement
-	Options    []CreateTableOptionStatement
+	Columns    []*CreateTableColumnStatement
+	Indexes    []*CreateTableIndexStatement
+	Options    []*CreateTableOptionStatement
 }
 
 type CreateTableOptionStatement struct {
@@ -141,5 +145,3 @@ const (
 	ReferenceOptionSetNull
 	ReferenceOptionNoAction
 )
-
-
