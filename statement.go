@@ -221,7 +221,7 @@ func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
 
 func (l *Length) String() string {
 	if l.Decimals.Valid {
-		return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
+		return fmt.Sprintf("%s,%s", l.Length, l.Decimals.Value)
 	}
 	return l.Length
 }

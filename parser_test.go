@@ -141,6 +141,10 @@ id bigint unsigned not null auto_increment
 			Error:  true,
 			Expect: "",
 		},
+		{
+			Input: "create table hoge (`foo` DECIMAL(32,30))",
+			Expect: "CREATE TABLE `hoge` (\n`foo` DECIMAL (32,30)\n)",
+		},
 	}
 
 	p := New()
