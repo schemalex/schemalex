@@ -137,13 +137,13 @@ func (c *CreateTableOptionStatement) WriteTo(dst io.Writer) (int64, error) {
 	return buf.WriteTo(dst)
 }
 
-func (c ColumnOptionNullState) String() string {
+func (c coloptNullState) String() string {
 	switch c {
-	case ColumnOptionNullStateNone:
+	case coloptNullStateNone:
 		return ""
-	case ColumnOptionNullStateNull:
+	case coloptNullStateNull:
 		return "NULL"
-	case ColumnOptionNullStateNotNull:
+	case coloptNullStateNotNull:
 		return "NOT NULL"
 	default:
 		panic("not reach")

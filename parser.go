@@ -779,7 +779,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case NULL:
-				col.Null = ColumnOptionNullStateNotNull
+				col.Null = coloptNullStateNotNull
 			default:
 				return newParseError(ctx, t, "should NULL")
 			}
@@ -787,7 +787,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			if !check(ColumnOptionNull) {
 				return newParseError(ctx, t, "cant apply NULL")
 			}
-			col.Null = ColumnOptionNullStateNull
+			col.Null = coloptNullStateNull
 		case DEFAULT:
 			if !check(ColumnOptionDefault) {
 				return newParseError(ctx, t, "cant apply DEFAULT")

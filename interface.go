@@ -27,12 +27,14 @@ type CreateTableOptionStatement struct {
 	Value string
 }
 
-type ColumnOptionNullState int
+
+// XXX need a comment
+type coloptNullState int
 
 const (
-	ColumnOptionNullStateNone ColumnOptionNullState = iota
-	ColumnOptionNullStateNull
-	ColumnOptionNullStateNotNull
+	coloptNullStateNone coloptNullState = iota
+	coloptNullStateNull
+	coloptNullStateNotNull
 )
 
 type MaybeString struct {
@@ -49,7 +51,7 @@ type CreateTableColumnStatement struct {
 	Binary        bool
 	CharacterSet  MaybeString
 	Collate       MaybeString
-	Null          ColumnOptionNullState
+	Null          coloptNullState
 	Default       MaybeString
 	AutoIncrement bool
 	Unique        bool
