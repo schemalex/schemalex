@@ -44,7 +44,7 @@ func (e ParseError) Error() string {
 	if e.eof {
 		buf.WriteString(" (at EOF)")
 	}
-	buf.WriteByte('\n')
+	buf.WriteString("\n    ")
 	buf.WriteString(e.context)
 	return buf.String()
 }
