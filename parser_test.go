@@ -202,7 +202,7 @@ func TestParseError1(t *testing.T) {
 		return
 	}
 
-	expected := "parse error: expected RPAREN at line 2 column 16 (at EOF)\n\"CREATE TABLE bar\" <---- AROUND HERE"
+	expected := "parse error: expected RPAREN at line 2 column 16 (at EOF)\n    \"CREATE TABLE bar\" <---- AROUND HERE"
 	if !assert.Equal(t, expected, err.Error(), "error matches") {
 		return
 	}
@@ -216,7 +216,7 @@ func TestParseError2(t *testing.T) {
 		return
 	}
 
-	expected := "parse error: unexpected column options at line 2 column 37\n\"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
+	expected := "parse error: unexpected column options at line 2 column 37\n    \"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
 	if !assert.Equal(t, expected, err.Error(), "error matches") {
 		return
 	}
