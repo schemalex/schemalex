@@ -11,7 +11,7 @@ import (
 // will look something like this:
 //
 //    parse error: expected RPAREN at line 3 column 14
-//	  "CREATE TABLE foo " <---- AROUND HERE
+//	      "CREATE TABLE foo " <---- AROUND HERE
 type ParseError struct {
 	context string
 	line    int
