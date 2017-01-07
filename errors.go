@@ -13,12 +13,16 @@ import (
 //    parse error: expected RPAREN at line 3 column 14
 //	      "CREATE TABLE foo " <---- AROUND HERE
 type ParseError struct {
+	file    string
 	context string
 	line    int
 	col     int
 	message string
 	eof     bool
 }
+
+// File returns the file name (if applicable) where the error was encountered
+func (e ParseError) File() string { return e.file }
 
 // Line returns the line number where the error was encountered
 func (e ParseError) Line() int { return e.line }
@@ -37,6 +41,10 @@ func (e ParseError) Error() string {
 	var buf bytes.Buffer
 	buf.WriteString("parse error: ")
 	buf.WriteString(e.message)
+	if f := e.file; len(f) > 0 {
+		buf.WriteString(" in file ")
+		buf.WriteString(f)
+	}
 	buf.WriteString(" at line ")
 	buf.WriteString(strconv.Itoa(e.line))
 	buf.WriteString(" column ")

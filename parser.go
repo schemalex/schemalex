@@ -76,7 +76,15 @@ func (p *Parser) ParseFile(fn string) (Statements, error) {
 	if err != nil {
 		return nil, errors.Wrapf(err, `failed to open file %s`, fn)
 	}
-	return p.Parse(src)
+
+	stmts, err := p.Parse(src)
+	if err != nil {
+		if pe, ok := err.(*ParseError); ok {
+			pe.file = fn
+		}
+		return nil, err
+	}
+	return stmts, nil
 }
 
 func (p *Parser) ParseString(src string) (Statements, error) {
