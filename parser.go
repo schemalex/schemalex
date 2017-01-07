@@ -19,7 +19,6 @@ func New() *Parser {
 type parseCtx struct {
 	context.Context
 	input      []byte
-	lexer      lexer // TODO delete
 	lexsrc     chan *Token
 	peekCount  int
 	peekTokens [3]*Token
