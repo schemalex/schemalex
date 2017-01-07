@@ -3,34 +3,26 @@ package schemalex
 import (
 	"fmt"
 	"io/ioutil"
-	"math"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"golang.org/x/net/context"
 )
 
-type Parser struct {
-	ErrorMarker  string
-	ErrorContext int
-}
+// Parser is responsible to parse a set of SQL statements
+type Parser struct{}
 
-type ParseError struct {
-	Line int
-	Col  int
-}
-
+// New creates a new Parser
 func New() *Parser {
 	return &Parser{}
 }
 
 type parseCtx struct {
 	context.Context
-	lexer        lexer // TODO delete
-	lexsrc       chan *Token
-	errorMarker  string
-	errorContext int
-	peekCount    int
-	peekTokens   [3]*Token
+	input      []byte
+	lexer      lexer // TODO delete
+	lexsrc     chan *Token
+	peekCount  int
+	peekTokens [3]*Token
 }
 
 func newParseCtx(ctx context.Context) *parseCtx {
@@ -96,9 +88,8 @@ func (p *Parser) Parse(src []byte) (Statements, error) {
 	defer cancel()
 
 	ctx := newParseCtx(cctx)
+	ctx.input = src
 	ctx.lexsrc = Lex(cctx, src)
-	ctx.errorMarker = p.ErrorMarker
-	ctx.errorContext = p.ErrorContext
 
 	var stmts []Stmt
 LOOP:
@@ -112,6 +103,9 @@ LOOP:
 					// this is ignorable.
 					continue
 				}
+				if pe, ok := err.(*ParseError); ok {
+					return nil, pe
+				}
 				return nil, errors.Wrap(err, `failed to parse create`)
 			}
 			stmts = append(stmts, stmt)
@@ -119,7 +113,7 @@ LOOP:
 			ctx.advance()
 		case DROP, SET, USE:
 			// We don't do anything about these
-	S1:
+		S1:
 			for {
 				if p.eol(ctx) {
 					break S1
@@ -129,7 +123,7 @@ LOOP:
 			ctx.advance()
 			break LOOP
 		default:
-			return nil, p.parseErrorf(ctx, "expected CREATE, COMMENT_IDENT or EOF")
+			return nil, newParseError(ctx, t, "expected CREATE, COMMENT_IDENT or EOF")
 		}
 	}
 
@@ -150,7 +144,7 @@ func (p *Parser) parseCreate(ctx *parseCtx) (Stmt, error) {
 	case TABLE:
 		return p.parseCreateTable(ctx)
 	default:
-		return nil, p.parseErrorf(ctx, "expected DATABASE or TABLE")
+		return nil, newParseError(ctx, t, "expected DATABASE or TABLE")
 	}
 }
 
@@ -168,12 +162,12 @@ func (p *Parser) parseCreateDatabase(ctx *parseCtx) (*CreateDatabaseStatement, e
 		case IDENT, BACKTICK_IDENT:
 			stmt.Name = t.Value
 		default:
-			return p.parseErrorf(ctx, "should IDENT or BACKTICK_IDENT")
+			return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 		}
 		if p.eol(ctx) {
 			return nil
 		}
-		return p.parseErrorf(ctx, "should EOL")
+		return newParseError(ctx, t, "should EOL")
 	}
 
 	ctx.skipWhiteSpaces()
@@ -195,7 +189,7 @@ func (p *Parser) parseCreateDatabase(ctx *parseCtx) (*CreateDatabaseStatement, e
 		}
 		return &stmt, nil
 	default:
-		return nil, p.parseErrorf(ctx, "should IDENT, BACKTICK_IDENT or IF")
+		return nil, newParseError(ctx, t, "should IDENT, BACKTICK_IDENT or IF")
 	}
 }
 
@@ -218,21 +212,23 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (*CreateTableStatement, error) 
 	case IDENT, BACKTICK_IDENT:
 		stmt.Name = t.Value
 	default:
-		return nil, p.parseErrorf(ctx, "expected IDENT or BACKTICK_IDENT")
+		return nil, newParseError(ctx, t, "expected IDENT or BACKTICK_IDENT")
+		//		return nil, newParseError(ctx, t, "expected IDENT or BACKTICK_IDENT")
 	}
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.peek(); t.Type == IF {
 		ctx.advance()
 		if _, err := p.parseIdents(ctx, NOT, EXISTS); err != nil {
-			return nil, p.parseErrorf(ctx, "should NOT EXISTS")
+			return nil, newParseError(ctx, t, "should NOT EXISTS")
 		}
 		ctx.skipWhiteSpaces()
 		stmt.IfNotExist = true
 	}
 
 	if t := ctx.next(); t.Type != LPAREN {
-		return nil, p.parseErrorf(ctx, "should (")
+		return nil, newParseError(ctx, t, "expected RPAREN")
+		//		return nil, newParseError(ctx, t, "expected RPAREN")
 	}
 
 	if err := p.parseCreateTableFields(ctx, &stmt); err != nil {
@@ -258,9 +254,9 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 		targetStmt = nil
 	}
 
-	setStmt := func(f func() (interface{}, error)) error {
+	setStmt := func(t *Token, f func() (interface{}, error)) error {
 		if targetStmt != nil {
-			return p.parseErrorf(ctx, "seems not to be end previous column or index definition")
+			return newParseError(ctx, t, "previous column or index definition not terminated")
 		}
 		stmt, err := f()
 		if err != nil {
@@ -272,7 +268,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 
 	for {
 		ctx.skipWhiteSpaces()
-		switch t:= ctx.next(); t.Type {
+		switch t := ctx.next(); t.Type {
 		case RPAREN:
 			appendStmt()
 			if err := p.parseCreateTableOptions(ctx, stmt); err != nil {
@@ -280,16 +276,16 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 			}
 			// partition option
 			if !p.eol(ctx) {
-				return p.parseErrorf(ctx, "should EOL")
+				return newParseError(ctx, t, "should EOL")
 			}
 			return nil
 		case COMMA:
 			if targetStmt == nil {
-				return p.parseErrorf(ctx, "unexpected COMMA")
+				return newParseError(ctx, t, "unexpected COMMA")
 			}
 			appendStmt()
 		case CONSTRAINT:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				var indexStmt CreateTableIndexStatement
 				ctx.skipWhiteSpaces()
 				switch t := ctx.peek(); t.Type {
@@ -319,7 +315,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 						return nil, err
 					}
 				default:
-					return nil, p.parseErrorf(ctx, "not supported")
+					return nil, newParseError(ctx, t, "not supported")
 				}
 				return &indexStmt, nil
 			})
@@ -327,7 +323,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		case PRIMARY:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				var indexStmt CreateTableIndexStatement
 				indexStmt.Kind = IndexKindPrimaryKey
 				if err := p.parseColumnIndexPrimaryKey(ctx, &indexStmt); err != nil {
@@ -339,7 +335,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		case UNIQUE:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindUnique
 				if err := p.parseColumnIndexUniqueKey(ctx, &indexStmt); err != nil {
@@ -353,7 +349,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 		case INDEX:
 			fallthrough
 		case KEY:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindNormal // TODO. separate to KEY and INDEX
 				if err := p.parseColumnIndexKey(ctx, &indexStmt); err != nil {
@@ -365,7 +361,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		case FULLTEXT:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindFullText
 				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
@@ -377,7 +373,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		case SPARTIAL:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindSpartial
 				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
@@ -389,7 +385,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		case FOREIGN:
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				indexStmt := CreateTableIndexStatement{}
 				indexStmt.Kind = IndexKindForeignKey
 				if err := p.parseColumnIndexForeignKey(ctx, &indexStmt); err != nil {
@@ -401,10 +397,10 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		case CHECK: // TODO
-			return p.parseErrorf(ctx, "not support CHECK")
+			return newParseError(ctx, t, "not support CHECK")
 		case IDENT, BACKTICK_IDENT:
 
-			err := setStmt(func() (interface{}, error) {
+			err := setStmt(t, func() (interface{}, error) {
 				colStmt := CreateTableColumnStatement{}
 				colStmt.Name = t.Value
 
@@ -501,7 +497,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				// case "ENUM":
 				// case "SET":
 				default:
-					return nil, p.parseErrorf(ctx, "not supported type")
+					return nil, newParseError(ctx, t, "not supported type")
 				}
 
 				if err != nil {
@@ -515,7 +511,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				return err
 			}
 		default:
-			return p.parseErrorf(ctx, "unexpected create table fields")
+			return newParseError(ctx, t, "unexpected create table fields")
 		}
 	}
 }
@@ -535,7 +531,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 				return nil
 			}
 		}
-		return p.parseErrorf(ctx, "should %v", types)
+		return newParseError(ctx, t, "should %v", types)
 	}
 
 	for {
@@ -559,7 +555,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 			case CHARACTER:
 				ctx.skipWhiteSpaces()
 				if t := ctx.next(); t.Type != SET {
-					return p.parseErrorf(ctx, "expected SET")
+					return newParseError(ctx, t, "expected SET")
 				}
 				if err := setOption("DEFAULT CHARACTER SET", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 					return err
@@ -569,12 +565,12 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 					return err
 				}
 			default:
-				return p.parseErrorf(ctx, "expected CHARACTER or COLLATE")
+				return newParseError(ctx, t, "expected CHARACTER or COLLATE")
 			}
 		case CHARACTER:
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type != SET {
-				return p.parseErrorf(ctx, "expected SET")
+				return newParseError(ctx, t, "expected SET")
 			}
 			if err := setOption("DEFAULT CHARACTER SET", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
 				return err
@@ -598,7 +594,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 		case DATA:
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type != DIRECTORY {
-				return p.parseErrorf(ctx, "should DIRECTORY")
+				return newParseError(ctx, t, "should DIRECTORY")
 			}
 			if err := setOption("DATA DIRECTORY", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
@@ -610,7 +606,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 		case INDEX:
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type != DIRECTORY {
-				return p.parseErrorf(ctx, "should DIRECTORY")
+				return newParseError(ctx, t, "should DIRECTORY")
 			}
 			if err := setOption("INDEX DIRECTORY", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
 				return err
@@ -656,16 +652,16 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 				return err
 			}
 		case TABLESPACE:
-			return p.parseErrorf(ctx, "not support TABLESPACE")
+			return newParseError(ctx, t, "not support TABLESPACE")
 		case UNION:
-			return p.parseErrorf(ctx, "not support UNION")
+			return newParseError(ctx, t, "not support UNION")
 		case EOF:
 			return nil
 		case SEMICOLON:
 			ctx.rewind()
 			return nil
 		default:
-			return p.parseErrorf(ctx, "unexpected table options")
+			return newParseError(ctx, t, "unexpected table options")
 		}
 	}
 }
@@ -690,16 +686,16 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 		case LPAREN:
 			if check(ColumnOptionSize) {
 				ctx.skipWhiteSpaces()
-				t := ctx.next();
+				t := ctx.next()
 				if t.Type != NUMBER {
-					return p.parseErrorf(ctx, "expected NUMBER (column size)")
+					return newParseError(ctx, t, "expected NUMBER (column size)")
 				}
 				tlen := t.Value
 
 				ctx.skipWhiteSpaces()
 				t = ctx.next()
 				if t.Type != RPAREN {
-					return p.parseErrorf(ctx, "expected RPAREN (column size)")
+					return newParseError(ctx, t, "expected RPAREN (column size)")
 				}
 				col.Length.Valid = true
 				col.Length.Length = tlen
@@ -716,7 +712,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				ctx.skipWhiteSpaces()
 				t := ctx.next()
 				if t.Type != NUMBER {
-					return p.parseErrorf(ctx, "expected NUMBER (decimal size `M`)")
+					return newParseError(ctx, t, "expected NUMBER (decimal size `M`)")
 				}
 				tlen := t.Value
 
@@ -727,61 +723,61 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 					col.Length.Length = tlen
 					continue
 				} else if t.Type != COMMA {
-					return p.parseErrorf(ctx, "expected COMMA (decimal size)")
+					return newParseError(ctx, t, "expected COMMA (decimal size)")
 				}
 
 				ctx.skipWhiteSpaces()
 				t = ctx.next()
 				if t.Type != NUMBER {
-					return p.parseErrorf(ctx, "expected NUMBER (decimal size `D`)")
+					return newParseError(ctx, t, "expected NUMBER (decimal size `D`)")
 				}
 				tscale := t.Value
 
 				ctx.skipWhiteSpaces()
 				if t := ctx.next(); t.Type != RPAREN {
-					return p.parseErrorf(ctx, "expected RPARENT (decimal size)")
+					return newParseError(ctx, t, "expected RPARENT (decimal size)")
 				}
 				col.Length.Valid = true
 				col.Length.Length = tlen
 				col.Length.Decimals.Valid = true
 				col.Length.Decimals.Value = tscale
 			} else {
-				return p.parseErrorf(ctx, "cant apply ColumnOptionSize, ColumnOptionDecimalSize, ColumnOptionDecimalOptionalSize")
+				return newParseError(ctx, t, "cant apply ColumnOptionSize, ColumnOptionDecimalSize, ColumnOptionDecimalOptionalSize")
 			}
 		case UNSIGNED:
 			if !check(ColumnOptionUnsigned) {
-				return p.parseErrorf(ctx, "cant apply UNSIGNED")
+				return newParseError(ctx, t, "cant apply UNSIGNED")
 			}
 			col.Unsgined = true
 		case ZEROFILL:
 			if !check(ColumnOptionZerofill) {
-				return p.parseErrorf(ctx, "cant apply ZEROFILL")
+				return newParseError(ctx, t, "cant apply ZEROFILL")
 			}
 			col.ZeroFill = true
 		case BINARY:
 			if !check(ColumnOptionBinary) {
-				return p.parseErrorf(ctx, "cant apply BINARY")
+				return newParseError(ctx, t, "cant apply BINARY")
 			}
 			col.Binary = true
 		case NOT:
 			if !check(ColumnOptionNull) {
-				return p.parseErrorf(ctx, "cant apply NOT NULL")
+				return newParseError(ctx, t, "cant apply NOT NULL")
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case NULL:
 				col.Null = ColumnOptionNullStateNotNull
 			default:
-				return p.parseErrorf(ctx, "should NULL")
+				return newParseError(ctx, t, "should NULL")
 			}
 		case NULL:
 			if !check(ColumnOptionNull) {
-				return p.parseErrorf(ctx, "cant apply NULL")
+				return newParseError(ctx, t, "cant apply NULL")
 			}
 			col.Null = ColumnOptionNullStateNull
 		case DEFAULT:
 			if !check(ColumnOptionDefault) {
-				return p.parseErrorf(ctx, "cant apply DEFAULT")
+				return newParseError(ctx, t, "cant apply DEFAULT")
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
@@ -789,16 +785,16 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				col.Default.Valid = true
 				col.Default.Value = t.Value
 			default:
-				return p.parseErrorf(ctx, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
+				return newParseError(ctx, t, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
 		case AUTO_INCREMENT:
 			if !check(ColumnOptionAutoIncrement) {
-				return p.parseErrorf(ctx, "cant apply AUTO_INCREMENT")
+				return newParseError(ctx, t, "cant apply AUTO_INCREMENT")
 			}
 			col.AutoIncrement = true
 		case UNIQUE:
 			if !check(ColumnOptionKey) {
-				return p.parseErrorf(ctx, "cant apply UNIQUE KEY")
+				return newParseError(ctx, t, "cant apply UNIQUE KEY")
 			}
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type == KEY {
@@ -807,12 +803,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			}
 		case KEY:
 			if !check(ColumnOptionKey) {
-				return p.parseErrorf(ctx, "cant apply KEY")
+				return newParseError(ctx, t, "cant apply KEY")
 			}
 			col.Key = true
 		case PRIMARY:
 			if !check(ColumnOptionKey) {
-				return p.parseErrorf(ctx, "cant apply PRIMARY KEY")
+				return newParseError(ctx, t, "cant apply PRIMARY KEY")
 			}
 			ctx.skipWhiteSpaces()
 			if t := ctx.peek(); t.Type == KEY {
@@ -821,7 +817,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			}
 		case COMMENT:
 			if !check(ColumnOptionComment) {
-				return p.parseErrorf(ctx, "cant apply COMMENT")
+				return newParseError(ctx, t, "cant apply COMMENT")
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
@@ -829,7 +825,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				col.Comment.Valid = true
 				col.Comment.Value = t.Value
 			default:
-				return p.parseErrorf(ctx, "should SINGLE_QUOTE_IDENT")
+				return newParseError(ctx, t, "should SINGLE_QUOTE_IDENT")
 			}
 		case COMMA:
 			ctx.rewind()
@@ -838,7 +834,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.rewind()
 			return nil
 		default:
-			return p.parseErrorf(ctx, "unexpected column options")
+			return newParseError(ctx, t, "unexpected column options")
 		}
 	}
 }
@@ -846,7 +842,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != KEY {
-		return p.parseErrorf(ctx, "should KEY")
+		return newParseError(ctx, t, "should KEY")
 	}
 	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
 		return err
@@ -918,7 +914,7 @@ func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, stmt *CreateTableInd
 func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != KEY {
-		return p.parseErrorf(ctx, "should KEY")
+		return newParseError(ctx, t, "should KEY")
 	}
 	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
 		return err
@@ -950,17 +946,17 @@ func (p *Parser) parseReferenceOption(ctx *parseCtx, opt *ReferenceOption) error
 	case SET:
 		ctx.skipWhiteSpaces()
 		if t := ctx.next(); t.Type != NULL {
-			return p.parseErrorf(ctx, "expected NULL")
+			return newParseError(ctx, t, "expected NULL")
 		}
 		*opt = ReferenceOptionSetNull
 	case NO:
 		ctx.skipWhiteSpaces()
 		if t := ctx.next(); t.Type != ACTION {
-			return p.parseErrorf(ctx, "expected ACTION")
+			return newParseError(ctx, t, "expected ACTION")
 		}
 		*opt = ReferenceOptionNoAction
 	default:
-		return p.parseErrorf(ctx, "expected RESTRICT, CASCADE, SET or NO")
+		return newParseError(ctx, t, "expected RESTRICT, CASCADE, SET or NO")
 	}
 	return nil
 }
@@ -970,7 +966,7 @@ func (p *Parser) parseColumnReference(ctx *parseCtx, stmt *CreateTableIndexState
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != REFERENCES {
-		return p.parseErrorf(ctx, "expected REFERENCES")
+		return newParseError(ctx, t, "expected REFERENCES")
 	}
 
 	ctx.skipWhiteSpaces()
@@ -978,7 +974,7 @@ func (p *Parser) parseColumnReference(ctx *parseCtx, stmt *CreateTableIndexState
 	case BACKTICK_IDENT, IDENT:
 		r.TableName = t.Value
 	default:
-		return p.parseErrorf(ctx, "should IDENT or BACKTICK_IDENT")
+		return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 	}
 
 	cols, err := p.parseColumnIndexColName(ctx, stmt)
@@ -999,7 +995,7 @@ func (p *Parser) parseColumnReference(ctx *parseCtx, stmt *CreateTableIndexState
 		case SIMPLE:
 			r.Match = ReferenceMatchSimple
 		default:
-			return p.parseErrorf(ctx, "should FULL, PARTIAL or SIMPLE")
+			return newParseError(ctx, t, "should FULL, PARTIAL or SIMPLE")
 		}
 		ctx.skipWhiteSpaces()
 	}
@@ -1026,7 +1022,7 @@ OUTER:
 			}
 			break OUTER
 		default:
-			return p.parseErrorf(ctx, "expected DELETE or UPDATE")
+			return newParseError(ctx, t, "expected DELETE or UPDATE")
 		}
 	}
 
@@ -1057,7 +1053,7 @@ func (p *Parser) parseColumnIndexTypeUsing(ctx *parseCtx, stmt *CreateTableIndex
 	case HASH:
 		stmt.Type = IndexTypeHash
 	default:
-		return p.parseErrorf(ctx, "should BTREE or HASH")
+		return newParseError(ctx, t, "should BTREE or HASH")
 	}
 	return nil
 }
@@ -1078,14 +1074,14 @@ func (p *Parser) parseColumnIndexColName(ctx *parseCtx, stmt *CreateTableIndexSt
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != LPAREN {
-		return nil, p.parseErrorf(ctx, "should (")
+		return nil, newParseError(ctx, t, "should (")
 	}
 
 	for {
 		ctx.skipWhiteSpaces()
 		t := ctx.next()
 		if !(t.Type == IDENT || t.Type == BACKTICK_IDENT) {
-			return nil, p.parseErrorf(ctx, "should IDENT or BACKTICK_IDENT")
+			return nil, newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 		}
 		strs = append(strs, t.Value)
 
@@ -1097,7 +1093,7 @@ func (p *Parser) parseColumnIndexColName(ctx *parseCtx, stmt *CreateTableIndexSt
 		case RPAREN:
 			return strs, nil
 		default:
-			return nil, p.parseErrorf(ctx, "should , or )")
+			return nil, newParseError(ctx, t, "should , or )")
 		}
 	}
 }
@@ -1123,7 +1119,7 @@ func (p *Parser) parseIdents(ctx *parseCtx, idents ...TokenType) ([]string, erro
 		ctx.skipWhiteSpaces()
 		t := ctx.next()
 		if t.Type != ident {
-			return nil, p.parseErrorf(ctx, "should %v", idents)
+			return nil, newParseError(ctx, t, "expected %v", idents)
 		}
 		strs = append(strs, t.Value)
 	}
@@ -1139,10 +1135,4 @@ func (p *Parser) eol(ctx *parseCtx) bool {
 	default:
 		return false
 	}
-}
-
-func (p *Parser) parseErrorf(ctx *parseCtx, format string, a ...interface{}) error {
-	pos1 := int(math.Max(float64(ctx.lexer.pos-ctx.errorContext), 0))
-	pos2 := int(math.Min(float64(ctx.lexer.pos+ctx.errorContext), float64(len(ctx.lexer.input))))
-	return fmt.Errorf("parse error:%s pos: %s%s%s", fmt.Sprintf(format, a...), ctx.lexer.input[pos1:ctx.lexer.pos], ctx.errorMarker, ctx.lexer.input[ctx.lexer.pos:pos2])
 }

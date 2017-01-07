@@ -193,3 +193,31 @@ func TestFile(t *testing.T) {
 		t.Log(stmt)
 	}
 }
+
+func TestParseError1(t *testing.T) {
+	const src = "CREATE TABLE foo (id int PRIMARY KEY);\nCREATE TABLE bar"
+	p := New()
+	_, err := p.ParseString(src)
+	if !assert.Error(t, err, "parse should fail") {
+		return
+	}
+
+	expected := "parse error: expected RPAREN at line 2 column 16 (at EOF)\n\"CREATE TABLE bar\" <---- AROUND HERE"
+	if !assert.Equal(t, expected, err.Error(), "error matches") {
+		return
+	}
+}
+
+func TestParseError2(t *testing.T) {
+	const src = "CREATE TABLE foo (id int PRIMARY KEY);\nCREATE TABLE bar (id int PRIMARY KEY baz TEXT)"
+	p := New()
+	_, err := p.ParseString(src)
+	if !assert.Error(t, err, "parse should fail") {
+		return
+	}
+
+	expected := "parse error: unexpected column options at line 2 column 37\n\"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
+	if !assert.Equal(t, expected, err.Error(), "error matches") {
+		return
+	}
+}

@@ -4,106 +4,90 @@ import (
 	"testing"
 	"time"
 
+	"github.com/stretchr/testify/assert"
+
 	"golang.org/x/net/context"
 )
 
-func TestRead(t *testing.T) {
+func TestLexToken(t *testing.T) {
 	type Spec struct {
-		input     string
-		str       string
-		TokenType TokenType
+		input string
+		token Token
 	}
 
 	specs := []Spec{
 		// number
 		{
-			input:     "123",
-			str:       "123",
-			TokenType: NUMBER,
+			input: "123",
+			token: Token{Value: "123", Type: NUMBER},
 		},
 		{
-			input:     ".2",
-			str:       ".2",
-			TokenType: NUMBER,
+			input: ".2",
+			token: Token{Value: ".2", Type: NUMBER},
 		},
 		{
-			input:     "3.4",
-			str:       "3.4",
-			TokenType: NUMBER,
+			input: "3.4",
+			token: Token{Value: "3.4", Type: NUMBER},
 		},
 		{
-			input:     "-5",
-			str:       "-5",
-			TokenType: NUMBER,
+			input: "-5",
+			token: Token{Value: "-5", Type: NUMBER},
 		},
 		{
-			input:     "-6.78",
-			str:       "-6.78",
-			TokenType: NUMBER,
+			input: "-6.78",
+			token: Token{Value: "-6.78", Type: NUMBER},
 		},
 		{
-			input:     "+9.10",
-			str:       "+9.10",
-			TokenType: NUMBER,
+			input: "+9.10",
+			token: Token{Value: "+9.10", Type: NUMBER},
 		},
 		{
-			input:     "1.2E3",
-			str:       "1.2E3",
-			TokenType: NUMBER,
+			input: "1.2E3",
+			token: Token{Value: "1.2E3", Type: NUMBER},
 		},
 		{
-			input:     "1.2E-3",
-			str:       "1.2E-3",
-			TokenType: NUMBER,
+			input: "1.2E-3",
+			token: Token{Value: "1.2E-3", Type: NUMBER},
 		},
 		{
-			input:     "-1.2E3",
-			str:       "-1.2E3",
-			TokenType: NUMBER,
+			input: "-1.2E3",
+			token: Token{Value: "-1.2E3", Type: NUMBER},
 		},
 		{
-			input:     "-1.2E-3",
-			str:       "-1.2E-3",
-			TokenType: NUMBER,
+			input: "-1.2E-3",
+			token: Token{Value: "-1.2E-3", Type: NUMBER},
 		},
 		// SINGLE_QUOTE_IDENT
 		{
-			input:     `'hoge'`,
-			str:       `'hoge'`,
-			TokenType: SINGLE_QUOTE_IDENT,
+			input: `'hoge'`,
+			token: Token{Value: `hoge`, Type: SINGLE_QUOTE_IDENT},
 		},
 		{
-			input:     `'ho''ge'`,
-			str:       `'ho'ge'`,
-			TokenType: SINGLE_QUOTE_IDENT,
+			input: `'ho''ge'`,
+			token: Token{Value: `ho'ge`, Type: SINGLE_QUOTE_IDENT},
 		},
 		// DOUBLE_QUOTE_IDENT
 		{
-			input:     `"hoge"`,
-			str:       `"hoge"`,
-			TokenType: DOUBLE_QUOTE_IDENT,
+			input: `"hoge"`,
+			token: Token{Value: `hoge`, Type: DOUBLE_QUOTE_IDENT},
 		},
 		{
-			input:     `"ho""ge"`,
-			str:       `"ho"ge"`,
-			TokenType: DOUBLE_QUOTE_IDENT,
+			input: `"ho""ge"`,
+			token: Token{Value: `ho"ge`, Type: DOUBLE_QUOTE_IDENT},
 		},
 		// BACKTICK_IDENT
 		{
-			input:     "`hoge`",
-			str:       "hoge",
-			TokenType: BACKTICK_IDENT,
+			input: "`hoge`",
+			token: Token{Value: "hoge", Type: BACKTICK_IDENT},
 		},
 		{
-			input:     "`ho``ge`",
-			str:       "ho`ge",
-			TokenType: BACKTICK_IDENT,
+			input: "`ho``ge`",
+			token: Token{Value: "ho`ge", Type: BACKTICK_IDENT},
 		},
 		// ESCAPED STRING BY BACKSLASH
 		{
-			input:     `'ho\'ge'`,
-			str:       `'ho'ge'`,
-			TokenType: SINGLE_QUOTE_IDENT,
+			input: `'ho\'ge'`,
+			token: Token{Value: `ho'ge`, Type: SINGLE_QUOTE_IDENT},
 		},
 	}
 
@@ -118,12 +102,11 @@ func TestRead(t *testing.T) {
 			t.Logf("%s", ctx.Err())
 			t.Fail()
 			return
-		case _t := <-ch:
-			if _t.Type != spec.TokenType {
-				t.Errorf("got %d expected %d spec:%v", _t, spec.TokenType, spec)
-			}
-			if _t.Value != spec.str {
-				t.Errorf("got %q expected %q spec:%v", _t.Value, spec.str, spec)
+		case tok := <-ch:
+			spec.token.Line = 1
+			spec.token.Col = 1
+			if !assert.Equal(t, spec.token, *tok, "tok matches") {
+				return
 			}
 		}
 	}
