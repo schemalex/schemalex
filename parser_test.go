@@ -240,8 +240,8 @@ func TestParseFileError(t *testing.T) {
 		return
 	}
 
-	pe, ok := err.(*ParseError)
-	if !assert.True(t, ok, "err is a *ParseError") {
+	pe, ok := err.(ParseError)
+	if !assert.True(t, ok, "err is a ParseError") {
 		return
 	}
 

@@ -79,7 +79,7 @@ func (p *Parser) ParseFile(fn string) (Statements, error) {
 
 	stmts, err := p.Parse(src)
 	if err != nil {
-		if pe, ok := err.(*ParseError); ok {
+		if pe, ok := err.(*parseError); ok {
 			pe.file = fn
 		}
 		return nil, err
@@ -91,6 +91,10 @@ func (p *Parser) ParseString(src string) (Statements, error) {
 	return p.Parse([]byte(src))
 }
 
+// Parse parses the given set of SQL statements and creates a Statements
+// structure.
+// If it encounters errors while parsing, the returned error will be a
+// ParseError type.
 func (p *Parser) Parse(src []byte) (Statements, error) {
 	cctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
@@ -111,7 +115,7 @@ LOOP:
 					// this is ignorable.
 					continue
 				}
-				if pe, ok := err.(*ParseError); ok {
+				if pe, ok := err.(ParseError); ok {
 					return nil, pe
 				}
 				return nil, errors.Wrap(err, `failed to parse create`)

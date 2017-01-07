@@ -12,7 +12,16 @@ import (
 //
 //    parse error: expected RPAREN at line 3 column 14
 //	      "CREATE TABLE foo " <---- AROUND HERE
-type ParseError struct {
+type ParseError interface {
+	error
+	File() string
+	Line() int
+	Col() int
+	Message() string
+	EOF() bool
+}
+
+type parseError struct {
 	file    string
 	context string
 	line    int
@@ -22,22 +31,22 @@ type ParseError struct {
 }
 
 // File returns the file name (if applicable) where the error was encountered
-func (e ParseError) File() string { return e.file }
+func (e parseError) File() string { return e.file }
 
 // Line returns the line number where the error was encountered
-func (e ParseError) Line() int { return e.line }
+func (e parseError) Line() int { return e.line }
 
 // Col returns the column number where the error was encountered
-func (e ParseError) Col() int { return e.col }
+func (e parseError) Col() int { return e.col }
 
 // EOF returns true if the error was encountered at EOF
-func (e ParseError) EOF() bool { return e.eof }
+func (e parseError) EOF() bool { return e.eof }
 
 // Message returns the actual error message
-func (e ParseError) Message() string { return e.message }
+func (e parseError) Message() string { return e.message }
 
 // Error returns the formatted string representation of this parse error.
-func (e ParseError) Error() string {
+func (e parseError) Error() string {
 	var buf bytes.Buffer
 	buf.WriteString("parse error: ")
 	buf.WriteString(e.message)
@@ -77,7 +86,7 @@ func newParseError(ctx *parseCtx, t *Token, msg string, args ...interface{}) err
 
 	// We're going to append a marker here
 
-	return &ParseError{
+	return &parseError{
 		context: fmt.Sprintf(`"%s" <---- AROUND HERE`, ctx.input[ctxbegin:t.Pos]),
 		line:    t.Line,
 		col:     t.Col,
