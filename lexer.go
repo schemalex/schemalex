@@ -110,8 +110,8 @@ OUTER:
 			l.emit(ctx, SPACE)
 			continue OUTER
 		case isLetter(r):
-			l.runIdent()
-			t, s := l.runIdent(), l.str()
+			t := l.runIdent()
+			s := l.str()
 			if typ, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
 				t = typ
 			}
