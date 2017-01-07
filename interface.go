@@ -27,7 +27,6 @@ type CreateTableOptionStatement struct {
 	Value string
 }
 
-
 // XXX need a comment
 type coloptNullState int
 
@@ -61,29 +60,29 @@ type CreateTableColumnStatement struct {
 }
 
 const (
-	ColumnOptionSize = 1 << iota
-	ColumnOptionDecimalSize
-	ColumnOptionDecimalOptionalSize
-	ColumnOptionUnsigned
-	ColumnOptionZerofill
-	ColumnOptionBinary
-	ColumnOptionCharacterSet
-	ColumnOptionCollate
-	ColumnOptionNull
-	ColumnOptionDefault
-	ColumnOptionAutoIncrement
-	ColumnOptionKey
-	ColumnOptionComment
+	coloptSize = 1 << iota
+	coloptDecimalSize
+	coloptDecimalOptionalSize
+	coloptUnsigned
+	coloptZerofill
+	coloptBinary
+	coloptCharacterSet
+	coloptCollate
+	coloptNull
+	coloptDefault
+	coloptAutoIncrement
+	coloptKey
+	coloptComment
 )
 
 const (
-	ColumnOptionFlagNone            = 0
-	ColumnOptionFlagDigit           = ColumnOptionSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagDecimal         = ColumnOptionDecimalSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagDecimalOptional = ColumnOptionDecimalOptionalSize | ColumnOptionUnsigned | ColumnOptionZerofill
-	ColumnOptionFlagTime            = ColumnOptionSize
-	ColumnOptionFlagChar            = ColumnOptionSize | ColumnOptionBinary | ColumnOptionCharacterSet | ColumnOptionCollate
-	ColumnOptionFlagBinary          = ColumnOptionSize
+	coloptFlagNone            = 0
+	coloptFlagDigit           = coloptSize | coloptUnsigned | coloptZerofill
+	coloptFlagDecimal         = coloptDecimalSize | coloptUnsigned | coloptZerofill
+	coloptFlagDecimalOptional = coloptDecimalOptionalSize | coloptUnsigned | coloptZerofill
+	coloptFlagTime            = coloptSize
+	coloptFlagChar            = coloptSize | coloptBinary | coloptCharacterSet | coloptCollate
+	coloptFlagBinary          = coloptSize
 )
 
 type Length struct {

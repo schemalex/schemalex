@@ -422,91 +422,91 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 				switch t := ctx.next(); t.Type {
 				case BIT:
 					colStmt.Type = ColumnTypeBit
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionSize)
+					err = p.parseColumnOption(ctx, &colStmt, coloptSize)
 				case TINYINT:
 					colStmt.Type = ColumnTypeTinyInt
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
 				case SMALLINT:
 					colStmt.Type = ColumnTypeSmallInt
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
 				case MEDIUMINT:
 					colStmt.Type = ColumnTypeMediumInt
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
 				case INT:
 					colStmt.Type = ColumnTypeInt
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
 				case INTEGER:
 					colStmt.Type = ColumnTypeInteger
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
 				case BIGINT:
 					colStmt.Type = ColumnTypeBigInt
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDigit)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
 				case REAL:
 					colStmt.Type = ColumnTypeReal
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimal)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimal)
 				case DOUBLE:
 					colStmt.Type = ColumnTypeDouble
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimal)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimal)
 				case FLOAT:
 					colStmt.Type = ColumnTypeFloat
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimal)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimal)
 				case DECIMAL:
 					colStmt.Type = ColumnTypeDecimal
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimalOptional)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimalOptional)
 				case NUMERIC:
 					colStmt.Type = ColumnTypeNumeric
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagDecimalOptional)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimalOptional)
 				case DATE:
 					colStmt.Type = ColumnTypeDate
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
 				case TIME:
 					colStmt.Type = ColumnTypeTime
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagTime)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagTime)
 				case TIMESTAMP:
 					colStmt.Type = ColumnTypeTimestamp
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagTime)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagTime)
 				case DATETIME:
 					colStmt.Type = ColumnTypeDateTime
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagTime)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagTime)
 				case YEAR:
 					colStmt.Type = ColumnTypeYear
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
 				case CHAR:
 					colStmt.Type = ColumnTypeChar
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
 				case VARCHAR:
 					colStmt.Type = ColumnTypeVarChar
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
 				case BINARY:
 					colStmt.Type = ColumnTypeBinary
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagBinary)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagBinary)
 				case VARBINARY:
 					colStmt.Type = ColumnTypeVarBinary
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagBinary)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagBinary)
 				case TINYBLOB:
 					colStmt.Type = ColumnTypeTinyBlob
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
 				case BLOB:
 					colStmt.Type = ColumnTypeBlob
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
 				case MEDIUMBLOB:
 					colStmt.Type = ColumnTypeMediumBlob
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
 				case LONGBLOB:
 					colStmt.Type = ColumnTypeLongBlob
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagNone)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
 				case TINYTEXT:
 					colStmt.Type = ColumnTypeTinyText
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
 				case TEXT:
 					colStmt.Type = ColumnTypeText
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
 				case MEDIUMTEXT:
 					colStmt.Type = ColumnTypeMediumText
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
 				case LONGTEXT:
 					colStmt.Type = ColumnTypeLongText
-					err = p.parseColumnOption(ctx, &colStmt, ColumnOptionFlagChar)
+					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
 				// case "ENUM":
 				// case "SET":
 				default:
@@ -681,7 +681,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 
 // parse for column
 func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatement, f int) error {
-	f = f | ColumnOptionNull | ColumnOptionDefault | ColumnOptionAutoIncrement | ColumnOptionKey | ColumnOptionComment
+	f = f | coloptNull | coloptDefault | coloptAutoIncrement | coloptKey | coloptComment
 	pos := 0
 	check := func(_f int) bool {
 		if pos > _f {
@@ -697,7 +697,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 		ctx.skipWhiteSpaces()
 		switch t := ctx.next(); t.Type {
 		case LPAREN:
-			if check(ColumnOptionSize) {
+			if check(coloptSize) {
 				ctx.skipWhiteSpaces()
 				t := ctx.next()
 				if t.Type != NUMBER {
@@ -712,7 +712,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				}
 				col.Length.Valid = true
 				col.Length.Length = tlen
-			} else if check(ColumnOptionDecimalSize) {
+			} else if check(coloptDecimalSize) {
 				strs, err := p.parseIdents(ctx, NUMBER, COMMA, NUMBER, RPAREN)
 				if err != nil {
 					return err
@@ -721,7 +721,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				col.Length.Length = strs[0]
 				col.Length.Decimals.Valid = true
 				col.Length.Decimals.Value = strs[2]
-			} else if check(ColumnOptionDecimalOptionalSize) {
+			} else if check(coloptDecimalOptionalSize) {
 				ctx.skipWhiteSpaces()
 				t := ctx.next()
 				if t.Type != NUMBER {
@@ -755,25 +755,25 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				col.Length.Decimals.Valid = true
 				col.Length.Decimals.Value = tscale
 			} else {
-				return newParseError(ctx, t, "cant apply ColumnOptionSize, ColumnOptionDecimalSize, ColumnOptionDecimalOptionalSize")
+				return newParseError(ctx, t, "cant apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
 			}
 		case UNSIGNED:
-			if !check(ColumnOptionUnsigned) {
+			if !check(coloptUnsigned) {
 				return newParseError(ctx, t, "cant apply UNSIGNED")
 			}
 			col.Unsgined = true
 		case ZEROFILL:
-			if !check(ColumnOptionZerofill) {
+			if !check(coloptZerofill) {
 				return newParseError(ctx, t, "cant apply ZEROFILL")
 			}
 			col.ZeroFill = true
 		case BINARY:
-			if !check(ColumnOptionBinary) {
+			if !check(coloptBinary) {
 				return newParseError(ctx, t, "cant apply BINARY")
 			}
 			col.Binary = true
 		case NOT:
-			if !check(ColumnOptionNull) {
+			if !check(coloptNull) {
 				return newParseError(ctx, t, "cant apply NOT NULL")
 			}
 			ctx.skipWhiteSpaces()
@@ -784,12 +784,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				return newParseError(ctx, t, "should NULL")
 			}
 		case NULL:
-			if !check(ColumnOptionNull) {
+			if !check(coloptNull) {
 				return newParseError(ctx, t, "cant apply NULL")
 			}
 			col.Null = coloptNullStateNull
 		case DEFAULT:
-			if !check(ColumnOptionDefault) {
+			if !check(coloptDefault) {
 				return newParseError(ctx, t, "cant apply DEFAULT")
 			}
 			ctx.skipWhiteSpaces()
@@ -801,12 +801,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				return newParseError(ctx, t, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
 		case AUTO_INCREMENT:
-			if !check(ColumnOptionAutoIncrement) {
+			if !check(coloptAutoIncrement) {
 				return newParseError(ctx, t, "cant apply AUTO_INCREMENT")
 			}
 			col.AutoIncrement = true
 		case UNIQUE:
-			if !check(ColumnOptionKey) {
+			if !check(coloptKey) {
 				return newParseError(ctx, t, "cant apply UNIQUE KEY")
 			}
 			ctx.skipWhiteSpaces()
@@ -815,12 +815,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				col.Unique = true
 			}
 		case KEY:
-			if !check(ColumnOptionKey) {
+			if !check(coloptKey) {
 				return newParseError(ctx, t, "cant apply KEY")
 			}
 			col.Key = true
 		case PRIMARY:
-			if !check(ColumnOptionKey) {
+			if !check(coloptKey) {
 				return newParseError(ctx, t, "cant apply PRIMARY KEY")
 			}
 			ctx.skipWhiteSpaces()
@@ -829,7 +829,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				col.Primary = true
 			}
 		case COMMENT:
-			if !check(ColumnOptionComment) {
+			if !check(coloptComment) {
 				return newParseError(ctx, t, "cant apply COMMENT")
 			}
 			ctx.skipWhiteSpaces()
