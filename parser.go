@@ -34,7 +34,9 @@ func newParseCtx(ctx context.Context) *parseCtx {
 
 var eofToken = Token{Type: EOF}
 
-// peek the next token. if already
+// peek the next token. this operation fills the peekTokens
+// buffer. `next()` is a combination of peek+advance.
+//
 // note: we do NOT check for peekCout > 2 for efficiency.
 // if you do that, you're f*cked.
 func (pctx *parseCtx) peek() *Token {
