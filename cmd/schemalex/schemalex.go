@@ -10,7 +10,7 @@ import (
 
 func main() {
 	if len(os.Args) != 3 {
-		log.Fatalf("should call schemalex <options> /path/to/before /path/to/after")
+		log.Fatalf("should call schemalex /path/to/before /path/to/after")
 	}
 
 	if err := _main(os.Args[1], os.Args[2]); err != nil {
