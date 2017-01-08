@@ -37,8 +37,8 @@ func TestDiff(t *testing.T) {
 		// add column
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `c` VARCHAR (20) NOT NULL DEFAULT 'xxx' );",
-			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'xxx';",
+			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `c` VARCHAR (20) NOT NULL DEFAULT 'xxx');",
+			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT \"xxx\";",
 		},
 		// change column
 		{

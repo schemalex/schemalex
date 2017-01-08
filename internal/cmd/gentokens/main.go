@@ -33,6 +33,10 @@ func _main() error {
 	buf.WriteString("\ntype Token struct {")
 	buf.WriteString("\nType TokenType")
 	buf.WriteString("\nValue string")
+	buf.WriteString("\nPos int")
+	buf.WriteString("\nLine int")
+	buf.WriteString("\nCol int")
+	buf.WriteString("\nEOF bool")
 	buf.WriteString("\n}")
 
 	buf.WriteString("\n\nfunc NewToken(t TokenType, v string) *Token {")

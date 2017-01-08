@@ -4,170 +4,306 @@ import (
 	"bytes"
 	"strings"
 	"unicode/utf8"
+
+	"golang.org/x/net/context"
+	"github.com/schemalex/schemalex/internal/errors"
 )
 
 const eof = rune(0)
 
-type lexer struct {
-	input []byte
+type lrune struct {
+	r rune
+	w int
+}
 
-	pos   int
-	start int
+type position struct {
+	pos  int // byte count
+	col  int
+	line int
+}
+
+type lexer struct {
+	out       chan *Token
+	input     []byte
+	peekCount int
+	peekRunes [3]lrune
+
+	start position // position where we last emitted
+	cur   position // current position including read-ahead
 	width int
 }
 
-func newLexer(input []byte) *lexer {
-	return &lexer{
-		input: input,
+func Lex(ctx context.Context, input []byte) chan *Token {
+	ch := make(chan *Token, 3)
+	l := newLexer(ch, input)
+	go l.Run(ctx)
+	return ch
+}
+
+func newLexer(out chan *Token, input []byte) *lexer {
+	var l lexer
+	l.out = out
+	l.input = input
+	l.start.line = 1
+	l.start.col = 1
+	l.cur.line = 1
+	l.cur.col = 1
+	l.peekCount = -1
+	return &l
+}
+
+func (l *lexer) emit(ctx context.Context, typ TokenType) {
+	var t Token
+	t.Line = l.start.line
+	t.Col = l.start.col
+	t.Type = typ
+	t.Pos = l.start.pos
+
+	if typ == EOF {
+		t.EOF = true
+		t.Pos = len(l.input)
+	} else {
+		t.Value = l.str()
+		switch typ {
+		case SINGLE_QUOTE_IDENT:
+			t.Value = unescapeQuotes(t.Value, '\'')
+		case DOUBLE_QUOTE_IDENT:
+			t.Value = unescapeQuotes(t.Value, '"')
+		case BACKTICK_IDENT:
+			t.Value = unescapeQuotes(t.Value, '`')
+		}
 	}
+
+	select {
+	case <-ctx.Done():
+	case l.out <- &t:
+	}
+
+	// when we emit, we must copy the value of cur to start
+	// but we also must adjust the position by the read-ahead offset
+	l.start = l.cur
+	l.start.pos = l.start.pos - (l.peekCount + 1)
 }
 
 func (l *lexer) str() string {
-	return string(l.input[l.start:l.pos])
+	return string(l.input[l.start.pos : l.cur.pos-(l.peekCount+1)])
 }
 
-func (l *lexer) read() *Token {
-	l.start = l.pos
+func (l *lexer) Run(ctx context.Context) {
+	defer close(l.out)
 
-	r := l.next()
+OUTER:
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		default:
+		}
 
-	switch {
-	case isSpace(r):
-		// read until space end
-		l.runSpace()
-		return &Token{Type: SPACE}
-	case isLetter(r):
-		l.backup()
-		t, s := l.runIdent(), l.str()
-		if _t, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
-			t = _t
-		}
-		return &Token{Type: t, Value: s}
-	case isDigit(r):
-		l.backup()
-		return l.runNumber()
-	}
+		r := l.peek()
 
-	switch r {
-	case eof:
-		return &Token{Type: EOF}
-	case '`':
-		return l.runQuote('`', BACKTICK_IDENT)
-	case '"':
-		// TODO: should smart
-		t := l.runQuote('"', DOUBLE_QUOTE_IDENT)
-		if t.Type != DOUBLE_QUOTE_IDENT {
-			return t
-		}
-		t.Value = `"` + t.Value + `"`
-		return t
-	case '\'':
-		// TODO: should smart
-		t := l.runQuote('\'', SINGLE_QUOTE_IDENT)
-		if t.Type != SINGLE_QUOTE_IDENT {
-			return t
-		}
-		t.Value = `'` + t.Value + `'`
-		return t
-	case '/':
-		if l.peek() == '*' {
-			return &Token{Type: l.runCComment()}
-		}
-		return &Token{Type: SLASH}
-	case '-':
-		r1 := l.peek()
-		if r1 == '-' {
-			l.next()
-			// TODO: https://dev.mysql.com/doc/refman/5.6/en/comments.html
-			// TODO: not only space. control character
-			if !isSpace(l.peek()) {
-				l.backup()
-				return &Token{Type: DASH}
+		// These require peek, and then consume
+		switch {
+		case isSpace(r):
+			// read until space end
+			l.runSpace()
+			l.emit(ctx, SPACE)
+			continue OUTER
+		case isLetter(r):
+			t := l.runIdent()
+			s := l.str()
+			if typ, ok := keywordIdentMap[strings.ToUpper(s)]; ok {
+				t = typ
 			}
+			l.emit(ctx, t)
+			continue OUTER
+		case isDigit(r):
+			l.runNumber()
+			l.emit(ctx, NUMBER)
+			continue OUTER
+		}
+
+		// once we got here, we can consume
+		l.advance()
+		switch r {
+		case eof:
+			l.emit(ctx, EOF)
+			return
+		case '`':
+			if err := l.runQuote('`'); err != nil {
+				l.emit(ctx, ILLEGAL)
+				return
+			}
+
+			l.emit(ctx, BACKTICK_IDENT)
+		case '"':
+			if err := l.runQuote('"'); err != nil {
+				l.emit(ctx, ILLEGAL)
+				return
+			}
+
+			l.emit(ctx, DOUBLE_QUOTE_IDENT)
+		case '\'':
+			if err := l.runQuote('\''); err != nil {
+				l.emit(ctx, ILLEGAL)
+				return
+			}
+
+			l.emit(ctx, SINGLE_QUOTE_IDENT)
+		case '/':
+			switch c := l.peek(); c {
+			case '*':
+				l.runCComment()
+				l.emit(ctx, COMMENT_IDENT)
+			default:
+				l.emit(ctx, SLASH)
+			}
+		case '-':
+			switch r1 := l.peek(); {
+			case r1 == '-':
+				l.advance()
+				// TODO: https://dev.mysql.com/doc/refman/5.6/en/comments.html
+				// TODO: not only space. control character
+				if !isSpace(l.peek()) {
+					l.emit(ctx, DASH)
+					continue OUTER
+				}
+				l.runToEOL()
+				l.emit(ctx, COMMENT_IDENT)
+			case isDigit(r1):
+				l.runNumber()
+				l.emit(ctx, NUMBER)
+			default:
+				l.emit(ctx, DASH)
+			}
+		case '#':
+			// https://dev.mysql.com/doc/refman/5.6/en/comments.html
 			l.runToEOL()
-			return &Token{Type: COMMENT_IDENT}
-		} else if isDigit(r1) {
-			return l.runNumber()
-		} else {
-			return &Token{Type: DASH}
+			l.emit(ctx, COMMENT_IDENT)
+		case '(':
+			l.emit(ctx, LPAREN)
+		case ')':
+			l.emit(ctx, RPAREN)
+		case ';':
+			l.emit(ctx, SEMICOLON)
+		case ',':
+			l.emit(ctx, COMMA)
+		case '.':
+			if isDigit(l.peek()) {
+				l.runNumber()
+				l.emit(ctx, NUMBER)
+			} else {
+				l.emit(ctx, DOT)
+			}
+		case '+':
+			if isDigit(l.peek()) {
+				l.runNumber()
+				l.emit(ctx, NUMBER)
+			} else {
+				l.emit(ctx, PLUS)
+			}
+		case '=':
+			l.emit(ctx, EQUAL)
+		default:
+			l.emit(ctx, ILLEGAL)
 		}
-	case '#':
-		// https://dev.mysql.com/doc/refman/5.6/en/comments.html
-		l.runToEOL()
-		return &Token{Type: COMMENT_IDENT}
-	case '(':
-		return &Token{Type: LPAREN}
-	case ')':
-		return &Token{Type: RPAREN}
-	case ';':
-		return &Token{Type: SEMICOLON}
-	case ',':
-		return &Token{Type: COMMA}
-	case '.':
-		if isDigit(l.peek()) {
-			return l.runNumber()
-		}
-		return &Token{Type: DOT}
-	case '+':
-		if isDigit(l.peek()) {
-			return l.runNumber()
-		}
-		return &Token{Type: PLUS}
-	case '=':
-		return &Token{Type: EQUAL}
-	default:
-		return &Token{Type: ILLEGAL}
 	}
 }
 
 func (l *lexer) next() rune {
-	if l.pos >= len(l.input) {
-		l.width = 0
-		return eof
-	}
-	r, w := utf8.DecodeRune(l.input[l.pos:])
-	l.width = w
-	l.pos += l.width
-
+	r := l.peek()
+	l.advance()
 	return r
 }
 
 func (l *lexer) peek() rune {
-	r := l.next()
-	l.backup()
+	if l.peekCount >= 0 {
+		return l.peekRunes[l.peekCount].r
+	}
+
+	if l.cur.pos >= len(l.input) {
+		l.width = 0
+		return eof
+	}
+
+	r, w := utf8.DecodeRune(l.input[l.cur.pos:])
+	l.peekCount++
+	l.peekRunes[l.peekCount].r = r
+	l.peekRunes[l.peekCount].w = w
+	l.cur.pos += w
+
 	return r
 }
 
-func (l *lexer) backup() {
-	l.pos -= l.width
+func (l *lexer) advance() {
+	// if the current rune is a new line, we line++
+	r := l.peek()
+	switch r {
+	case '\n':
+		l.cur.line++
+		l.cur.col = 0
+	case eof:
+	default:
+		l.cur.col++
+	}
+
+	l.peekCount--
 }
 
 func (l *lexer) runSpace() {
 	for isSpace(l.peek()) {
-		l.next()
+		l.advance()
 	}
 }
 
 func (l *lexer) runIdent() TokenType {
+OUTER:
 	for {
-		r := l.next()
-		if r == eof {
-			break
-		} else if isCharacter(r) {
-		} else {
-			l.backup()
-			break
+		r := l.peek()
+		switch {
+		case r == eof:
+			l.advance()
+			break OUTER
+		case isCharacter(r):
+			l.advance()
+		default:
+			break OUTER
 		}
 	}
 	return IDENT
 }
 
-func (l *lexer) runQuote(pair rune, t TokenType) *Token {
-	var b bytes.Buffer
+func unescapeQuotes(s string, quot rune) string {
+	var buf bytes.Buffer
+	max := utf8.RuneCountInString(s)
+	rdr := strings.NewReader(s)
+	for i := 0; i < max; i++ {
+		r, _, _ := rdr.ReadRune()
+
+		// assume first rune and last rune are quot
+		if i == 0 || i == max-1 {
+			continue
+		}
+
+		switch r {
+		case '\\', quot: // possible escape sequence
+			if r2, _, _ := rdr.ReadRune(); r2 == quot {
+				i++
+				r = quot
+			} else {
+				rdr.UnreadRune()
+			}
+		}
+		buf.WriteRune(r)
+	}
+	return buf.String()
+}
+
+func (l *lexer) runQuote(pair rune) error {
 	for {
 		r := l.next()
 		if r == eof {
-			return &Token{Type: ILLEGAL}
+			return errors.New(`unexpected eof`)
 		} else if r == '\\' {
 			if l.peek() == pair {
 				r = l.next()
@@ -177,27 +313,26 @@ func (l *lexer) runQuote(pair rune, t TokenType) *Token {
 				// it is escape
 				r = l.next()
 			} else {
-				return &Token{Type: t, Value: b.String()}
+				return nil
 			}
 		}
-		b.WriteRune(r)
 	}
 
-	return &Token{Type: ILLEGAL}
+	return errors.New(`unreacheable`)
 }
 
 // https://dev.mysql.com/doc/refman/5.6/en/comments.html
-func (l *lexer) runCComment() TokenType {
+func (l *lexer) runCComment() {
 	for {
 		r := l.next()
 		switch r {
 		case eof:
-			return EOF
+			return
 		case '*':
-			if l.next() == '/' {
-				return COMMENT_IDENT
+			if l.peek() == '/' {
+				l.advance()
+				return
 			}
-			l.backup()
 		}
 	}
 }
@@ -215,32 +350,28 @@ func (l *lexer) runToEOL() TokenType {
 // https://dev.mysql.com/doc/refman/5.6/en/number-literals.html
 func (l *lexer) runDigit() {
 	for {
-		r := l.next()
-		if !isDigit(r) {
-			l.backup()
+		if !isDigit(l.peek()) {
 			break
 		}
+		l.advance()
 	}
 }
 
-func (l *lexer) runNumber() *Token {
+func (l *lexer) runNumber() {
 	l.runDigit()
-
 	if l.peek() == '.' {
-		l.next()
+		l.advance()
 		l.runDigit()
 	}
 
 	switch l.peek() {
 	case 'E', 'e':
-		l.next()
+		l.advance()
 		if l.peek() == '-' {
-			l.next()
+			l.advance()
 		}
 		l.runDigit()
 	}
-
-	return &Token{Type: NUMBER, Value: l.str()}
 }
 
 func isSpace(r rune) bool {

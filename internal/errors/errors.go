@@ -46,6 +46,10 @@ func IsIgnorable(err error) bool {
 	return false
 }
 
+func New(s string) error {
+	return daverr.New(s)
+}
+
 func Wrap(err error, s string) error {
 	return daverr.Wrap(err, s)
 }

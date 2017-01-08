@@ -1,10 +1,14 @@
-hash: 653e5e93d2b773a793f9fb9a17855b4d081f35f1cbe1913e3c78bbeaae07e646
-updated: 2017-01-06T14:15:49.579928471+09:00
+hash: acd75c6bb27f02d764ba99c050695601a534267aba54c34ee1e5ae0a926c8de7
+updated: 2017-01-06T20:57:01.442243996+09:00
 imports:
 - name: github.com/deckarep/golang-set
   version: 0c62f01318f81fb34e5ea393d2ec62141e9715e9
 - name: github.com/pkg/errors
   version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
+- name: golang.org/x/net
+  version: 905989bd20b7c354fd28a61074eed1c8f49ebc89
+  subpackages:
+  - context
 testImports:
 - name: github.com/davecgh/go-spew
   version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9

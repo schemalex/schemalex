@@ -8,6 +8,10 @@ type TokenType int
 type Token struct {
 	Type  TokenType
 	Value string
+	Pos   int
+	Line  int
+	Col   int
+	EOF   bool
 }
 
 func NewToken(t TokenType, v string) *Token {

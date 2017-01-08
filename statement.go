@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"fmt"
 	"io"
+	"strconv"
 )
 
 type ider interface {
@@ -191,7 +192,7 @@ func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
 
 	if c.Default.Valid {
 		buf.WriteString(" DEFAULT ")
-		buf.WriteString(c.Default.Value)
+		buf.WriteString(strconv.Quote(c.Default.Value))
 	}
 
 	if c.AutoIncrement {
@@ -221,7 +222,7 @@ func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
 
 func (l *Length) String() string {
 	if l.Decimals.Valid {
-		return fmt.Sprintf("%s, %s", l.Length, l.Decimals)
+		return fmt.Sprintf("%s,%s", l.Length, l.Decimals.Value)
 	}
 	return l.Length
 }

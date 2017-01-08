@@ -1,7 +1,6 @@
 package main
 
 import (
-	"flag"
 	"log"
 	"os"
 
@@ -9,28 +8,17 @@ import (
 	"github.com/schemalex/schemalex/diff"
 )
 
-var (
-	errorMarker  = flag.String("error-marker", "___", "marker of parse error position")
-	errorContext = flag.Int("error-context", 20, "before, after context position of parse error")
-)
-
 func main() {
-	flag.Parse()
-	args := flag.Args()
-
-	if len(args) != 2 {
-		log.Fatalf("should call schemalex <options> /path/to/before /path/to/after")
+	if len(os.Args) != 3 {
+		log.Fatalf("should call schemalex /path/to/before /path/to/after")
 	}
 
-	if err := _main(args[0], args[1]); err != nil {
+	if err := _main(os.Args[1], os.Args[2]); err != nil {
 		log.Fatal(err)
 	}
 }
 
 func _main(before, after string) error {
 	p := schemalex.New()
-	p.ErrorMarker = *errorMarker
-	p.ErrorContext = *errorContext
-
 	return diff.Files(os.Stderr, before, after, diff.WithTransaction(true), diff.WithParser(p))
 }
