@@ -211,7 +211,7 @@ func (p *Parser) parseCreateDatabase(ctx *parseCtx) (model.Database, error) {
 	case IDENT, BACKTICK_IDENT:
 		database = model.NewDatabase(t.Value)
 	default:
-		return nil, newParseError(ctx, t, "expected IDENT, BACKTICK_IDENT or IF")
+		return nil, newParseError(ctx, t, "expected IDENT, BACKTICK_IDENT")
 	}
 
 	database.SetIfNotExists(notexists)
