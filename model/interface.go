@@ -3,8 +3,8 @@ package model
 import "io"
 
 type Stmt interface {
+	io.WriterTo
 	ID() string
-	WriteTo(io.Writer) (int64, error)
 }
 type Stmts []Stmt
 
@@ -214,12 +214,11 @@ type TableColumn interface {
 	SetUnsigned(bool)
 	IsZeroFill() bool
 	SetZeroFill(bool)
-
 }
 
 type defaultValue struct {
-	Valid bool
-	Value string
+	Valid  bool
+	Value  string
 	Quoted bool
 }
 

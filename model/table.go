@@ -113,9 +113,7 @@ func (t *table) WriteTo(dst io.Writer) (int64, error) {
 
 	colch := t.Columns()
 	idxch := t.Indexes()
-	fields := make([]interface {
-		WriteTo(io.Writer) (int64, error)
-	}, 0, len(colch)+len(idxch))
+	fields := make([]io.WriterTo, 0, len(colch)+len(idxch))
 	for col := range colch {
 		fields = append(fields, col)
 	}
