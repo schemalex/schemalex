@@ -191,7 +191,8 @@ type TableColumn interface {
 	Collation() string
 	HasDefault() bool
 	Default() string
-	SetDefault(string)
+	IsQuotedDefault() bool
+	SetDefault(string, bool)
 	HasComment() bool
 	Comment() string
 	SetComment(string)
@@ -216,6 +217,12 @@ type TableColumn interface {
 
 }
 
+type defaultValue struct {
+	Valid bool
+	Value string
+	Quoted bool
+}
+
 type tablecol struct {
 	name         string
 	typ          ColumnType
@@ -223,7 +230,7 @@ type tablecol struct {
 	nullstate    NullState
 	charset      maybeString
 	collation    maybeString
-	defaultValue maybeString
+	defaultValue defaultValue
 	comment      maybeString
 	autoincr     bool
 	binary       bool

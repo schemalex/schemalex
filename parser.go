@@ -1,7 +1,6 @@
 package schemalex
 
 import (
-	"fmt"
 	"io/ioutil"
 
 	"github.com/schemalex/schemalex/internal/errors"
@@ -242,37 +241,52 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 
 // Start parsing after `CREATE TABLE *** (`
 func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt model.Table) error {
-	var targetStmt interface{}
-
-	appendStmt := func() {
-		switch t := targetStmt.(type) {
-		case model.Index:
-			stmt.AddIndex(t)
-		case model.TableColumn:
-			stmt.AddColumn(t)
-		default:
-			panic(fmt.Sprintf("unexpected targetStmt: %#v", t))
-		}
-		targetStmt = nil
-	}
-
-	setStmt := func(t *Token, f func() (interface{}, error)) error {
-		if targetStmt != nil {
-			return newParseError(ctx, t, "previous column or index definition not terminated")
-		}
-		stmt, err := f()
-		if err != nil {
-			return err
-		}
-		targetStmt = stmt
-		return nil
-	}
-
 	for {
 		ctx.skipWhiteSpaces()
-		switch t := ctx.next(); t.Type {
+		switch t := ctx.peek(); t.Type {
+		case CONSTRAINT:
+			if err := p.parseTableConstraint(ctx, stmt); err != nil {
+				return err
+			}
+		case PRIMARY:
+			if err := p.parseTablePrimaryKey(ctx, stmt); err != nil {
+				return err
+			}
+		case UNIQUE:
+			if err := p.parseTableUniqueKey(ctx, stmt); err != nil {
+				return err
+			}
+		case INDEX, KEY:
+			// TODO. separate to KEY and INDEX
+			if err := p.parseTableIndex(ctx, stmt); err != nil {
+				return err
+			}
+		case FULLTEXT:
+			if err := p.parseTableFulltextIndex(ctx, stmt); err != nil {
+				return err
+			}
+		case SPATIAL:
+			if err := p.parseTableSpatialIndex(ctx, stmt); err != nil {
+				return err
+			}
+		case FOREIGN:
+			if err := p.parseTableForeignKey(ctx, stmt); err != nil {
+				return err
+			}
+		case CHECK: // TODO
+			return newParseError(ctx, t, "unsupported field: CHECK")
+		case IDENT, BACKTICK_IDENT:
+			if err := p.parseTableColumn(ctx, stmt); err != nil {
+				return err
+			}
+		default:
+			return newParseError(ctx, t, "unexpected create table field token: %s", t.Type)
+		}
+
+		ctx.skipWhiteSpaces()
+		switch t := ctx.peek(); t.Type {
 		case RPAREN:
-			appendStmt()
+			ctx.advance()
 			if err := p.parseCreateTableOptions(ctx, stmt); err != nil {
 				return err
 			}
@@ -282,142 +296,128 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt model.Table) error {
 			}
 			return nil
 		case COMMA:
-			if targetStmt == nil {
-				return newParseError(ctx, t, "unexpected COMMA")
-			}
-			appendStmt()
-		case CONSTRAINT:
-			err := setStmt(t, func() (interface{}, error) {
-				ctx.skipWhiteSpaces()
-
-				var sym string
-				switch t := ctx.peek(); t.Type {
-				case IDENT, BACKTICK_IDENT:
-					// TODO: should be smarter
-					// (lestrrat): I don't understand. How?
-					sym = t.Value
-					ctx.advance()
-					ctx.skipWhiteSpaces()
-				}
-
-				var index model.Index
-				switch t := ctx.next(); t.Type {
-				case PRIMARY:
-					index = model.NewIndex(model.IndexKindPrimaryKey)
-					if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
-						return nil, err
-					}
-				case UNIQUE:
-					index = model.NewIndex(model.IndexKindUnique)
-					if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
-						return nil, err
-					}
-				case FOREIGN:
-					index = model.NewIndex(model.IndexKindForeignKey)
-					if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
-						return nil, err
-					}
-				default:
-					return nil, newParseError(ctx, t, "not supported")
-				}
-
-				if len(sym) > 0 {
-					index.SetSymbol(sym)
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case PRIMARY:
-			err := setStmt(t, func() (interface{}, error) {
-				index := model.NewIndex(model.IndexKindPrimaryKey)
-				if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
-					return nil, err
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case UNIQUE:
-			err := setStmt(t, func() (interface{}, error) {
-				index := model.NewIndex(model.IndexKindUnique)
-				if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
-					return nil, err
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case INDEX:
-			fallthrough
-		case KEY:
-			err := setStmt(t, func() (interface{}, error) {
-				// TODO. separate to KEY and INDEX
-				index := model.NewIndex(model.IndexKindNormal)
-				if err := p.parseColumnIndexKey(ctx, index); err != nil {
-					return nil, err
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case FULLTEXT:
-			err := setStmt(t, func() (interface{}, error) {
-				index := model.NewIndex(model.IndexKindFullText)
-				if err := p.parseColumnIndexFullTextKey(ctx, index); err != nil {
-					return nil, err
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case SPARTIAL:
-			err := setStmt(t, func() (interface{}, error) {
-				index := model.NewIndex(model.IndexKindSpatial)
-				if err := p.parseColumnIndexFullTextKey(ctx, index); err != nil {
-					return nil, err
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case FOREIGN:
-			err := setStmt(t, func() (interface{}, error) {
-				index := model.NewIndex(model.IndexKindForeignKey)
-				if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
-					return nil, err
-				}
-				return index, nil
-			})
-			if err != nil {
-				return err
-			}
-		case CHECK: // TODO
-			return newParseError(ctx, t, "not support CHECK")
-		case IDENT, BACKTICK_IDENT:
-
-			err := setStmt(t, func() (interface{}, error) {
-				col := model.NewTableColumn(t.Value)
-				if err := p.parseTableColumnSpec(ctx, col); err != nil {
-					return nil, err
-				}
-
-				return col, nil
-			})
-
-			if err != nil {
-				return err
-			}
+			ctx.advance()
+			// Expecting another table field, keep looping
 		default:
-			return newParseError(ctx, t, "unexpected create table fields")
+			return newParseError(ctx, t, "expected RPAREN or COMMA")
 		}
 	}
+	return nil
+}
+
+func (p *Parser) parseTableConstraint(ctx *parseCtx, table model.Table) error {
+	if t := ctx.next(); t.Type != CONSTRAINT {
+		return newParseError(ctx, t, "expected CONSTRAINT")
+	}
+	ctx.skipWhiteSpaces()
+
+	var sym string
+	switch t := ctx.peek(); t.Type {
+	case IDENT, BACKTICK_IDENT:
+		// TODO: should be smarter
+		// (lestrrat): I don't understand. How?
+		sym = t.Value
+		ctx.advance()
+		ctx.skipWhiteSpaces()
+	}
+
+	var index model.Index
+	switch t := ctx.peek(); t.Type {
+	case PRIMARY:
+		index = model.NewIndex(model.IndexKindPrimaryKey)
+		if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
+			return err
+		}
+	case UNIQUE:
+		index = model.NewIndex(model.IndexKindUnique)
+		if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
+			return err
+		}
+	case FOREIGN:
+		index = model.NewIndex(model.IndexKindForeignKey)
+		if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
+			return err
+		}
+	default:
+		return newParseError(ctx, t, "not supported")
+	}
+
+	if len(sym) > 0 {
+		index.SetSymbol(sym)
+	}
+
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTablePrimaryKey(ctx *parseCtx, table model.Table) error {
+	index := model.NewIndex(model.IndexKindPrimaryKey)
+	if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
+		return err
+	}
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTableUniqueKey(ctx *parseCtx, table model.Table) error {
+	index := model.NewIndex(model.IndexKindUnique)
+	if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
+		return err
+	}
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTableIndex(ctx *parseCtx, table model.Table) error {
+	index := model.NewIndex(model.IndexKindNormal)
+	if err := p.parseColumnIndexKey(ctx, index); err != nil {
+		return err
+	}
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTableFulltextIndex(ctx *parseCtx, table model.Table) error {
+	index := model.NewIndex(model.IndexKindFullText)
+	if err := p.parseColumnIndexFullTextKey(ctx, index); err != nil {
+		return err
+	}
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTableSpatialIndex(ctx *parseCtx, table model.Table) error {
+	index := model.NewIndex(model.IndexKindSpatial)
+	if err := p.parseColumnIndexSpatialKey(ctx, index); err != nil {
+		return err
+	}
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTableForeignKey(ctx *parseCtx, table model.Table) error {
+	index := model.NewIndex(model.IndexKindForeignKey)
+	if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
+		return err
+	}
+	table.AddIndex(index)
+	return nil
+}
+
+func (p *Parser) parseTableColumn(ctx *parseCtx, table model.Table) error {
+	t := ctx.next()
+	switch t.Type {
+	case IDENT, BACKTICK_IDENT:
+	default:
+		return newParseError(ctx, t, "expcted IDENT or BACKTICK_IDENT")
+	}
+
+	col := model.NewTableColumn(t.Value)
+	if err := p.parseTableColumnSpec(ctx, col); err != nil {
+		return err
+	}
+	table.AddColumn(col)
+	return nil
 }
 
 func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) error {
@@ -516,7 +516,7 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	// case "ENUM":
 	// case "SET":
 	default:
-		return newParseError(ctx, t, "not supported type")
+		return newParseError(ctx, t, "unsupported type in column specification")
 	}
 
 	col.SetType(coltyp)
@@ -739,7 +739,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 
 				ctx.skipWhiteSpaces()
 				if t := ctx.next(); t.Type != RPAREN {
-					return newParseError(ctx, t, "expected RPARENT (decimal size)")
+					return newParseError(ctx, t, "expected RPAREN (decimal size)")
 				}
 				l := model.NewLength(tlen)
 				l.SetDecimal(tscale)
@@ -784,8 +784,10 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
-			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL:
-				col.SetDefault(t.Value)
+			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
+				col.SetDefault(t.Value, true)
+			case NUMBER, CURRENT_TIMESTAMP, NULL:
+				col.SetDefault(t.Value, false)
 			default:
 				return newParseError(ctx, t, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
@@ -842,9 +844,14 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 
 func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) error {
 	ctx.skipWhiteSpaces()
-	if t := ctx.next(); t.Type != KEY {
-		return newParseError(ctx, t, "should KEY")
+	if t := ctx.next(); t.Type != PRIMARY {
+		return newParseError(ctx, t, "expected PRIMARY")
 	}
+	ctx.skipWhiteSpaces()
+	if t := ctx.next(); t.Type != KEY {
+		return newParseError(ctx, t, "expected KEY")
+	}
+
 	if err := p.parseColumnIndexType(ctx, index); err != nil {
 		return err
 	}
@@ -857,6 +864,13 @@ func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) er
 }
 
 func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index model.Index) error {
+	ctx.skipWhiteSpaces()
+	switch t := ctx.next(); t.Type {
+	case UNIQUE:
+	default:
+		return newParseError(ctx, t, "expected UNIQUE")
+	}
+
 	ctx.skipWhiteSpaces()
 	switch t := ctx.peek(); t.Type {
 	case KEY, INDEX:
@@ -878,6 +892,13 @@ func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index model.Index) err
 }
 
 func (p *Parser) parseColumnIndexKey(ctx *parseCtx, index model.Index) error {
+	switch t := ctx.next(); t.Type {
+	case KEY, INDEX:
+		ctx.advance()
+	default:
+		return newParseError(ctx, t, "expected KEY or INDEX")
+	}
+
 	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
@@ -893,6 +914,40 @@ func (p *Parser) parseColumnIndexKey(ctx *parseCtx, index model.Index) error {
 }
 
 func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index model.Index) error {
+	ctx.skipWhiteSpaces()
+	if t := ctx.next(); t.Type != FULLTEXT {
+		return newParseError(ctx, t, "expected FULLTEXT")
+	}
+
+	// optional INDEX
+	ctx.skipWhiteSpaces()
+	if t := ctx.peek(); t.Type == INDEX {
+		ctx.advance()
+	}
+
+	if err := p.parseColumnIndexName(ctx, index); err != nil {
+		return err
+	}
+
+	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (p *Parser) parseColumnIndexSpatialKey(ctx *parseCtx, index model.Index) error {
+	ctx.skipWhiteSpaces()
+	if t := ctx.next(); t.Type != SPATIAL {
+		return newParseError(ctx, t, "expected SPATIAL")
+	}
+
+	// optional INDEX
+	ctx.skipWhiteSpaces()
+	if t := ctx.peek(); t.Type == INDEX {
+		ctx.advance()
+	}
+
 	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
@@ -906,8 +961,13 @@ func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index model.Index) e
 
 func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, index model.Index) error {
 	ctx.skipWhiteSpaces()
+	if t := ctx.next(); t.Type != FOREIGN {
+		return newParseError(ctx, t, "expected FOREGIN")
+	}
+
+	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != KEY {
-		return newParseError(ctx, t, "should KEY")
+		return newParseError(ctx, t, "expected KEY")
 	}
 	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
@@ -1064,7 +1124,7 @@ func (p *Parser) parseColumnIndexColName(ctx *parseCtx, container interface {
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != LPAREN {
-		return newParseError(ctx, t, "should (")
+		return newParseError(ctx, t, "expected RPAREN while parsing index column: %s", t.Type)
 	}
 
 OUTER:

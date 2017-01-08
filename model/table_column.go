@@ -73,6 +73,10 @@ func (t *tablecol) HasDefault() bool {
 	return t.defaultValue.Valid
 }
 
+func (t *tablecol) IsQuotedDefault() bool {
+	return t.defaultValue.Quoted
+}
+
 func (t *tablecol) HasLength() bool {
 	return t.length != nil
 }
@@ -134,9 +138,10 @@ func (t *tablecol) SetComment(v string) {
 	t.comment.Value = v
 }
 
-func (t *tablecol) SetDefault(v string) {
+func (t *tablecol) SetDefault(v string, quoted bool) {
 	t.defaultValue.Valid = true
 	t.defaultValue.Value = v
+	t.defaultValue.Quoted = quoted
 }
 
 func (t *tablecol) SetKey(v bool) {
@@ -223,7 +228,11 @@ func (t tablecol) WriteTo(dst io.Writer) (int64, error) {
 
 	if t.HasDefault() {
 		buf.WriteString(" DEFAULT ")
-		buf.WriteString(strconv.Quote(t.Default()))
+		if t.IsQuotedDefault() {
+			buf.WriteString(strconv.Quote(t.Default()))
+		} else {
+			buf.WriteString(t.Default())
+		}
 	}
 
 	if t.IsAutoIncrement() {

@@ -68,6 +68,27 @@ func TestParser(t *testing.T) {
 			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`c` VARCHAR NOT NULL\n)",
 		},
+		// trailing comma
+		{
+			Input: `create table hoge (
+a varchar(20) default "hoge",
+b varchar(20) default 'hoge',
+c int not null default 10,
+);
+`,
+			Error: true,
+		},
+		// various default types
+		{
+			Input: `create table hoge (
+a varchar(20) default "hoge",
+b varchar(20) default 'hoge',
+c int not null default 10
+);
+`,
+			Error: false,
+			Expect: "CREATE TABLE `hoge` (\n`a` VARCHAR (20) DEFAULT \"hoge\",\n`b` VARCHAR (20) DEFAULT \"hoge\",\n`c` INT NOT NULL DEFAULT 10\n)",
+		},
 		// with primary key
 		{
 			Input: `create table hoge (
@@ -88,6 +109,12 @@ id bigint unsigned not null auto_increment
 			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8",
 		},
+		// with key, index
+		{
+			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nKEY (`id`), INDEX (`c`)\n)",
+			Error:  false,
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nINDEX (`id`),\nINDEX (`c`)\n)",
+		},
 		// with unique key, primary key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nUNIQUE INDEX `uniq_id` (`id`, `c`),\n PRIMARY KEY (`id`)\n )",
@@ -99,6 +126,12 @@ id bigint unsigned not null auto_increment
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) )",
 			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
+		},
+		// with fulltext index
+		{
+			Input: "create table hoge (txt TEXT, fulltext ft_idx(txt))",
+			Error: false,
+			Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
 		},
 		// with simple reference foreign key
 		{
