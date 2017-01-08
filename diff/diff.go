@@ -8,7 +8,7 @@ import (
 	"github.com/deckarep/golang-set"
 	"github.com/pkg/errors"
 	"github.com/schemalex/schemalex"
-	"github.com/schemalex/schemalex/statement"
+	"github.com/schemalex/schemalex/model"
 )
 
 type Option interface {
@@ -48,13 +48,13 @@ type diffCtx struct {
 func newDiffCtx(from, to schemalex.Statements) *diffCtx {
 	fromSet := mapset.NewSet()
 	for _, stmt := range from {
-		if cs, ok := stmt.(statement.Table); ok {
+		if cs, ok := stmt.(model.Table); ok {
 			fromSet.Add(cs.Name())
 		}
 	}
 	toSet := mapset.NewSet()
 	for _, stmt := range to {
-		if cs, ok := stmt.(statement.Table); ok {
+		if cs, ok := stmt.(model.Table); ok {
 			toSet.Add(cs.Name())
 		}
 	}
@@ -202,11 +202,11 @@ type alterCtx struct {
 	toColumns   mapset.Set
 	fromIndexes mapset.Set
 	toIndexes   mapset.Set
-	from        statement.Table
-	to          statement.Table
+	from        model.Table
+	to          model.Table
 }
 
-func newAlterCtx(from, to statement.Table) *alterCtx {
+func newAlterCtx(from, to model.Table) *alterCtx {
 	fromColumns := mapset.NewSet()
 	for col := range from.Columns() {
 		fromColumns.Add(col.Name())
@@ -256,13 +256,13 @@ func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 		if !ok {
 			return 0, errors.Errorf(`table '%s' not found in old schema (alter table)`, name)
 		}
-		beforeStmt := stmt.(statement.Table)
+		beforeStmt := stmt.(model.Table)
 
 		stmt, ok = ctx.to.Lookup(name.(string))
 		if !ok {
 			return 0, errors.Errorf(`table '%s' not found in new schema (alter table)`, name)
 		}
-		afterStmt := stmt.(statement.Table)
+		afterStmt := stmt.(model.Table)
 
 		var pbuf bytes.Buffer
 		alterCtx := newAlterCtx(beforeStmt, afterStmt)

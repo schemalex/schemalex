@@ -1,4 +1,4 @@
-package statement
+package model
 
 import "io"
 
