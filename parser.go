@@ -292,7 +292,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt model.Table) error {
 			}
 			// partition option
 			if !p.eol(ctx) {
-				return newParseError(ctx, t, "should EOL")
+				return newParseError(ctx, t, "expected EOL")
 			}
 			return nil
 		case COMMA:
@@ -523,40 +523,50 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	return p.parseColumnOption(ctx, col, colopt)
 }
 
-func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt model.Table) error {
-
-	setOption := func(key string, types []TokenType) error {
+func (p *Parser) parseCreateTableOptionValue(ctx *parseCtx, table model.Table, name string, follow ...TokenType) error {
+	ctx.skipWhiteSpaces()
+	if t := ctx.peek(); t.Type == EQUAL {
+		ctx.advance()
 		ctx.skipWhiteSpaces()
-		if t := ctx.peek(); t.Type == EQUAL {
-			ctx.advance()
-			ctx.skipWhiteSpaces()
-		}
-		t := ctx.next()
-		for _, typ := range types {
-			if typ == t.Type {
-				stmt.AddOption(model.NewTableOption(key, t.Value))
-				return nil
-			}
-		}
-		return newParseError(ctx, t, "should %v", types)
 	}
 
+	t := ctx.next()
+	for _, typ := range follow {
+		if typ != t.Type {
+			continue
+		}
+		table.AddOption(model.NewTableOption(name, t.Value))
+		return nil
+	}
+	return newParseError(ctx, t, "expected %v", follow)
+}
+
+func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error {
 	for {
 		ctx.skipWhiteSpaces()
+		switch t := ctx.peek(); t.Type {
+		case EOF:
+			ctx.advance()
+			return nil
+		case SEMICOLON:
+			return nil
+		}
+
 		switch t := ctx.next(); t.Type {
 		case ENGINE:
-			if err := setOption("ENGINE", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "ENGINE", IDENT, BACKTICK_IDENT); err != nil {
 				return err
 			}
 		case AUTO_INCREMENT:
-			if err := setOption("AUTO_INCREMENT", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "AUTO_INCREMENT", NUMBER); err != nil {
 				return err
 			}
 		case AVG_ROW_LENGTH:
-			if err := setOption("AVG_ROW_LENGTH", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "AVG_ROW_LENGTH", NUMBER); err != nil {
 				return err
 			}
 		case DEFAULT:
+			var name string
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case CHARACTER:
@@ -564,50 +574,49 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt model.Table) error 
 				if t := ctx.next(); t.Type != SET {
 					return newParseError(ctx, t, "expected SET")
 				}
-				if err := setOption("DEFAULT CHARACTER SET", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
-					return err
-				}
+				name = "DEFAULT CHARACTER SET"
 			case COLLATE:
-				if err := setOption("DEFAULT COLLATE", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
-					return err
-				}
+				name = "DEFAULT COLLATE"
 			default:
 				return newParseError(ctx, t, "expected CHARACTER or COLLATE")
+			}
+			if err := p.parseCreateTableOptionValue(ctx, table, name, IDENT, BACKTICK_IDENT); err != nil {
+				return err
 			}
 		case CHARACTER:
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type != SET {
 				return newParseError(ctx, t, "expected SET")
 			}
-			if err := setOption("DEFAULT CHARACTER SET", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "DEFAULT CHARACTER SET", IDENT, BACKTICK_IDENT); err != nil {
 				return err
 			}
 		case COLLATE:
-			if err := setOption("DEFAULT COLLATE", []TokenType{IDENT, BACKTICK_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "DEFAULT COLLATE", IDENT, BACKTICK_IDENT); err != nil {
 				return err
 			}
 		case CHECKSUM:
-			if err := setOption("CHECKSUM", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "CHECKSUM", NUMBER); err != nil {
 				return err
 			}
 		case COMMENT:
-			if err := setOption("COMMENT", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "COMMENT", SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT); err != nil {
 				return err
 			}
 		case CONNECTION:
-			if err := setOption("CONNECTION", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "CONNECTION", SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT); err != nil {
 				return err
 			}
 		case DATA:
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type != DIRECTORY {
-				return newParseError(ctx, t, "should DIRECTORY")
+				return newParseError(ctx, t, "expected DIRECTORY")
 			}
-			if err := setOption("DATA DIRECTORY", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "DATA DIRECTORY", SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT); err != nil {
 				return err
 			}
 		case DELAY_KEY_WRITE:
-			if err := setOption("DELAY_KEY_WRITE", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "DATA_KEY_WRITE", NUMBER); err != nil {
 				return err
 			}
 		case INDEX:
@@ -615,58 +624,53 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt model.Table) error 
 			if t := ctx.next(); t.Type != DIRECTORY {
 				return newParseError(ctx, t, "should DIRECTORY")
 			}
-			if err := setOption("INDEX DIRECTORY", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "INDEX DIRECTORY", SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT); err != nil {
 				return err
 			}
 		case INSERT_METHOD:
-			if err := setOption("INSERT_METHOD", []TokenType{IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "INSERT_METHOD", IDENT); err != nil {
 				return err
 			}
 		case KEY_BLOCK_SIZE:
-			if err := setOption("KEY_BLOCK_SIZE", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "KEY_BLOCK_SIZE",NUMBER); err != nil {
 				return err
 			}
 		case MAX_ROWS:
-			if err := setOption("MAX_ROWS", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "MAX_ROWS",NUMBER); err != nil {
 				return err
 			}
 		case MIN_ROWS:
-			if err := setOption("MIN_ROWS", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "MIN_ROWS",NUMBER); err != nil {
 				return err
 			}
 		case PACK_KEYS:
-			if err := setOption("PACK_KEYS", []TokenType{NUMBER, IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "PACK_KEYS",NUMBER, IDENT); err != nil {
 				return err
 			}
 		case PASSWORD:
-			if err := setOption("PASSWORD", []TokenType{SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "PASSWORD", SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT); err != nil {
 				return err
 			}
 		case ROW_FORMAT:
-			if err := setOption("ROW_FORMAT", []TokenType{DEFAULT, DYNAMIC, FIXED, COMPRESSED, REDUNDANT, COMPACT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "ROW_FORMAT", DEFAULT, DYNAMIC, FIXED, COMPRESSED, REDUNDANT, COMPACT); err != nil {
 				return err
 			}
 		case STATS_AUTO_RECALC:
-			if err := setOption("STATS_AUTO_RECALC", []TokenType{NUMBER, DEFAULT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "STATS_AUTO_RECALC",NUMBER, DEFAULT); err != nil {
 				return err
 			}
 		case STATS_PERSISTENT:
-			if err := setOption("STATS_PERSISTENT", []TokenType{NUMBER, DEFAULT}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "STATS_PERSISTENT",NUMBER, DEFAULT); err != nil {
 				return err
 			}
 		case STATS_SAMPLE_PAGES:
-			if err := setOption("STATS_SAMPLE_PAGES", []TokenType{NUMBER}); err != nil {
+			if err := p.parseCreateTableOptionValue(ctx, table, "STATS_SAMPLE_PAGES",NUMBER); err != nil {
 				return err
 			}
 		case TABLESPACE:
-			return newParseError(ctx, t, "not support TABLESPACE")
+			return newParseError(ctx, t, "unsupported option TABLESPACE")
 		case UNION:
-			return newParseError(ctx, t, "not support UNION")
-		case EOF:
-			return nil
-		case SEMICOLON:
-			ctx.rewind()
-			return nil
+			return newParseError(ctx, t, "unsupported option UNION")
 		default:
 			return newParseError(ctx, t, "unexpected table options")
 		}
