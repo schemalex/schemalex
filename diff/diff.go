@@ -6,8 +6,8 @@ import (
 	"reflect"
 
 	"github.com/deckarep/golang-set"
-	"github.com/pkg/errors"
 	"github.com/schemalex/schemalex"
+	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/model"
 )
 
@@ -41,21 +41,21 @@ func WithTransaction(b bool) Option {
 type diffCtx struct {
 	fromSet mapset.Set
 	toSet   mapset.Set
-	from    schemalex.Statements
-	to      schemalex.Statements
+	from    model.Stmts
+	to      model.Stmts
 }
 
-func newDiffCtx(from, to schemalex.Statements) *diffCtx {
+func newDiffCtx(from, to model.Stmts) *diffCtx {
 	fromSet := mapset.NewSet()
 	for _, stmt := range from {
 		if cs, ok := stmt.(model.Table); ok {
-			fromSet.Add(cs.Name())
+			fromSet.Add(cs.ID())
 		}
 	}
 	toSet := mapset.NewSet()
 	for _, stmt := range to {
 		if cs, ok := stmt.(model.Table); ok {
-			toSet.Add(cs.Name())
+			toSet.Add(cs.ID())
 		}
 	}
 
@@ -67,7 +67,7 @@ func newDiffCtx(from, to schemalex.Statements) *diffCtx {
 	}
 }
 
-func Statements(dst io.Writer, from, to schemalex.Statements, options ...Option) error {
+func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
 	var txn bool
 	for _, o := range options {
 		switch o.Name() {
@@ -161,13 +161,23 @@ func Files(dst io.Writer, from, to string, options ...Option) error {
 
 func dropTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
-	names := ctx.fromSet.Difference(ctx.toSet)
-	for i, name := range names.ToSlice() {
+	ids := ctx.fromSet.Difference(ctx.toSet)
+	for i, id := range ids.ToSlice() {
 		if i > 0 {
 			buf.WriteByte('\n')
 		}
+
+		stmt, ok := ctx.from.Lookup(id.(string))
+		if !ok {
+			return 0, errors.Errorf(`failed to lookup table %s`, id)
+		}
+
+		table, ok := stmt.(model.Table)
+		if !ok {
+			return 0, errors.Errorf(`lookup failed: %s is not a model.Table`, id)
+		}
 		buf.WriteString("DROP TABLE `")
-		buf.WriteString(name.(string))
+		buf.WriteString(table.Name())
 		buf.WriteString("`;")
 	}
 
@@ -209,22 +219,22 @@ type alterCtx struct {
 func newAlterCtx(from, to model.Table) *alterCtx {
 	fromColumns := mapset.NewSet()
 	for col := range from.Columns() {
-		fromColumns.Add(col.Name())
+		fromColumns.Add(col.ID())
 	}
 
 	toColumns := mapset.NewSet()
 	for col := range to.Columns() {
-		toColumns.Add(col.Name())
+		toColumns.Add(col.ID())
 	}
 
 	fromIndexes := mapset.NewSet()
 	for idx := range from.Indexes() {
-		fromIndexes.Add(idx.String())
+		fromIndexes.Add(idx.ID())
 	}
 
 	toIndexes := mapset.NewSet()
 	for idx := range to.Indexes() {
-		toIndexes.Add(idx.String())
+		toIndexes.Add(idx.ID())
 	}
 
 	return &alterCtx{
@@ -246,21 +256,21 @@ func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 		addTableIndexes,
 	}
 
-	names := ctx.toSet.Intersect(ctx.fromSet)
+	ids := ctx.toSet.Intersect(ctx.fromSet)
 	var buf bytes.Buffer
-	for _, name := range names.ToSlice() {
-		var stmt schemalex.Stmt
+	for _, id := range ids.ToSlice() {
+		var stmt model.Stmt
 		var ok bool
 
-		stmt, ok = ctx.from.Lookup(name.(string))
+		stmt, ok = ctx.from.Lookup(id.(string))
 		if !ok {
-			return 0, errors.Errorf(`table '%s' not found in old schema (alter table)`, name)
+			return 0, errors.Errorf(`table '%s' not found in old schema (alter table)`, id)
 		}
 		beforeStmt := stmt.(model.Table)
 
-		stmt, ok = ctx.to.Lookup(name.(string))
+		stmt, ok = ctx.to.Lookup(id.(string))
 		if !ok {
-			return 0, errors.Errorf(`table '%s' not found in new schema (alter table)`, name)
+			return 0, errors.Errorf(`table '%s' not found in new schema (alter table)`, id)
 		}
 		afterStmt := stmt.(model.Table)
 
@@ -293,7 +303,12 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP COLUMN `")
-		buf.WriteString(columnName.(string))
+		col, ok := ctx.from.LookupColumn(columnName.(string))
+		if !ok {
+			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
+		}
+
+		buf.WriteString(col.Name())
 		buf.WriteString("`;")
 	}
 

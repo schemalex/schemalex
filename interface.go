@@ -1,13 +1,5 @@
 package schemalex
 
-import "io"
-
-type Stmt interface {
-	WriteTo(io.Writer) (int64, error)
-}
-
-type Statements []Stmt
-
 const (
 	coloptSize = 1 << iota
 	coloptDecimalSize

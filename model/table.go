@@ -7,73 +7,32 @@ import (
 	"github.com/schemalex/schemalex/internal/util"
 )
 
-type Table interface {
-	Name() string
-	IsTemporary() bool
-	SetTemporary(bool)
-	IsIfNotExists() bool
-	SetIfNotExists(bool)
-
-	AddColumn(TableColumn)
-	Columns() chan TableColumn
-	AddIndex(Index)
-	Indexes() chan Index
-	AddOption(TableOption)
-	Options() chan TableOption
-
-	LookupColumn(string) (TableColumn, bool)
-	LookupIndex(string) (Index, bool)
-	WriteTo(io.Writer) (int64, error)
-}
-
-type TableOption interface {
-	Key() string
-	Value() string
-
-	WriteTo(io.Writer) (int64, error)
-}
-
-type table struct {
-	name        string
-	temporary   bool
-	ifnotexists bool
-	columns     []TableColumn
-	indexes     []Index
-	options     []TableOption
-}
-
-type tableopt struct {
-	key   string
-	value string
-}
-
 func NewTable(name string) Table {
 	return &table{
 		name: name,
 	}
 }
 
+func (t *table) ID() string {
+	return "table#" + t.name
+}
+
 func (t *table) LookupColumn(name string) (TableColumn, bool) {
 	for col := range t.Columns() {
-		if col.Name() == name {
+		if col.ID() == name {
 			return col, true
 		}
 	}
 	return nil, false
 }
 
-func (t *table) LookupIndex(name string) (Index, bool) {
+func (t *table) LookupIndex(id string) (Index, bool) {
 	for idx := range t.Indexes() {
-		// TODO: This is wacky. fix how we match an index
-		if idx.String() == name {
+		if idx.ID() == id {
 			return idx, true
 		}
 	}
 	return nil, false
-}
-
-func (t *table) ID() string {
-	return t.name
 }
 
 func (t *table) AddColumn(v TableColumn) {
@@ -197,11 +156,12 @@ func (t *table) WriteTo(dst io.Writer) (int64, error) {
 
 func NewTableOption(k, v string) TableOption {
 	return &tableopt{
-		key: k,
+		key:   k,
 		value: v,
 	}
 }
 
+func (t *tableopt) ID() string    { return "tableopt#" + t.key }
 func (t *tableopt) Key() string   { return t.key }
 func (t *tableopt) Value() string { return t.value }
 

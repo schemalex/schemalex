@@ -8,84 +8,6 @@ import (
 	"github.com/schemalex/schemalex/internal/util"
 )
 
-type NullState int
-
-const (
-	NullStateNone NullState = iota
-	NullStateNull
-	NullStateNotNull
-)
-
-type Length interface {
-	HasDecimal() bool
-	Decimal() string
-	SetDecimal(string)
-	Length() string
-}
-
-type length struct {
-	decimals maybeString
-	length   string
-}
-
-type TableColumn interface {
-	Name() string
-	Type() ColumnType
-	SetType(ColumnType)
-
-	HasLength() bool
-	Length() Length
-	SetLength(Length)
-	HasCharacterSet() bool
-	CharacterSet() string
-	HasCollation() bool
-	Collation() string
-	HasDefault() bool
-	Default() string
-	SetDefault(string)
-	HasComment() bool
-	Comment() string
-	SetComment(string)
-
-	NullState() NullState
-	SetNullState(NullState)
-
-	IsAutoIncrement() bool
-	SetAutoIncrement(bool)
-	IsBinary() bool
-	SetBinary(bool)
-	IsKey() bool
-	SetKey(bool)
-	IsPrimary() bool
-	SetPrimary(bool)
-	IsUnique() bool
-	SetUnique(bool)
-	IsUnsigned() bool
-	SetUnsigned(bool)
-	IsZeroFill() bool
-	SetZeroFill(bool)
-
-	WriteTo(io.Writer) (int64, error)
-}
-
-type tablecol struct {
-	name         string
-	typ          ColumnType
-	length       Length
-	nullstate    NullState
-	charset      maybeString
-	collation    maybeString
-	defaultValue maybeString
-	comment      maybeString
-	autoincr     bool
-	binary       bool
-	key          bool
-	primary      bool
-	unique       bool
-	unsigned     bool
-	zerofill     bool
-}
-
 func NewLength(v string) Length {
 	return &length{
 		length: v,
@@ -113,6 +35,10 @@ func NewTableColumn(name string) TableColumn {
 	return &tablecol{
 		name: name,
 	}
+}
+
+func (t *tablecol) ID() string {
+	return "tablecol#" + t.name
 }
 
 func (t *tablecol) CharacterSet() string {

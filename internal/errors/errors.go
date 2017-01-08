@@ -50,6 +50,10 @@ func New(s string) error {
 	return daverr.New(s)
 }
 
+func Errorf(s string, args ...interface{}) error {
+	return daverr.Errorf(s, args...)
+}
+
 func Wrap(err error, s string) error {
 	return daverr.Wrap(err, s)
 }

@@ -7,17 +7,6 @@ import (
 	"github.com/schemalex/schemalex/internal/util"
 )
 
-type Database interface {
-	Name() string
-	IsIfNotExists() bool
-	SetIfNotExists(bool)
-}
-
-type database struct {
-	name        string
-	ifnotexists bool
-}
-
 func NewDatabase(n string) Database {
 	return &database{
 		name: n,
@@ -25,7 +14,7 @@ func NewDatabase(n string) Database {
 }
 
 func (d *database) ID() string {
-	return d.name
+	return "database#" + d.name
 }
 
 func (d *database) Name() string {

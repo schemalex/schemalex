@@ -13,6 +13,10 @@ func NewIndex(kind IndexKind) Index {
 	}
 }
 
+func (stmt *index) ID() string {
+	return stmt.String()
+}
+
 func (stmt *index) AddColumns(l ...string) {
 	stmt.columns = append(stmt.columns, l...)
 }

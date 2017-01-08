@@ -73,7 +73,7 @@ func (pctx *parseCtx) next() *Token {
 	return t
 }
 
-func (p *Parser) ParseFile(fn string) (Statements, error) {
+func (p *Parser) ParseFile(fn string) (model.Stmts, error) {
 	src, err := ioutil.ReadFile(fn)
 	if err != nil {
 		return nil, errors.Wrapf(err, `failed to open file %s`, fn)
@@ -89,15 +89,15 @@ func (p *Parser) ParseFile(fn string) (Statements, error) {
 	return stmts, nil
 }
 
-func (p *Parser) ParseString(src string) (Statements, error) {
+func (p *Parser) ParseString(src string) (model.Stmts, error) {
 	return p.Parse([]byte(src))
 }
 
-// Parse parses the given set of SQL statements and creates a Statements
+// Parse parses the given set of SQL statements and creates a model.Stmts
 // structure.
 // If it encounters errors while parsing, the returned error will be a
 // ParseError type.
-func (p *Parser) Parse(src []byte) (Statements, error) {
+func (p *Parser) Parse(src []byte) (model.Stmts, error) {
 	cctx, cancel := context.WithCancel(context.TODO())
 	defer cancel()
 
@@ -105,7 +105,7 @@ func (p *Parser) Parse(src []byte) (Statements, error) {
 	ctx.input = src
 	ctx.lexsrc = Lex(cctx, src)
 
-	var stmts []Stmt
+	var stmts model.Stmts
 LOOP:
 	for {
 		ctx.skipWhiteSpaces()
@@ -144,7 +144,7 @@ LOOP:
 	return stmts, nil
 }
 
-func (p *Parser) parseCreate(ctx *parseCtx) (Stmt, error) {
+func (p *Parser) parseCreate(ctx *parseCtx) (model.Stmt, error) {
 	if t := ctx.next(); t.Type != CREATE {
 		return nil, errors.New(`expected CREATE`)
 	}
