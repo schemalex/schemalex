@@ -31,11 +31,6 @@ type CreateTableOptionStatement struct {
 	Value string
 }
 
-type MaybeString struct {
-	Valid bool
-	Value string
-}
-
 const (
 	coloptSize = 1 << iota
 	coloptDecimalSize
