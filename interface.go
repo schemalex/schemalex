@@ -21,7 +21,7 @@ type CreateTableStatement struct {
 	Name       string
 	Temporary  bool
 	IfNotExist bool
-	Columns    []*CreateTableColumnStatement
+	Columns    []statement.TableColumn
 	Indexes    []statement.Index
 	Options    []*CreateTableOptionStatement
 }
@@ -31,36 +31,9 @@ type CreateTableOptionStatement struct {
 	Value string
 }
 
-// XXX need a comment
-type coloptNullState int
-
-const (
-	coloptNullStateNone coloptNullState = iota
-	coloptNullStateNull
-	coloptNullStateNotNull
-)
-
 type MaybeString struct {
 	Valid bool
 	Value string
-}
-
-type CreateTableColumnStatement struct {
-	Name          string
-	Type          ColumnType
-	Length        Length
-	Unsgined      bool
-	ZeroFill      bool
-	Binary        bool
-	CharacterSet  MaybeString
-	Collate       MaybeString
-	Null          coloptNullState
-	Default       MaybeString
-	AutoIncrement bool
-	Unique        bool
-	Primary       bool
-	Key           bool
-	Comment       MaybeString
 }
 
 const (
@@ -89,8 +62,3 @@ const (
 	coloptFlagBinary          = coloptSize
 )
 
-type Length struct {
-	Decimals MaybeString
-	Length   string
-	Valid    bool
-}

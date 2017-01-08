@@ -260,7 +260,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 		switch t := targetStmt.(type) {
 		case statement.Index:
 			stmt.Indexes = append(stmt.Indexes, t)
-		case *CreateTableColumnStatement:
+		case statement.TableColumn:
 			stmt.Columns = append(stmt.Columns, t)
 		default:
 			panic(fmt.Sprintf("unexpected targetStmt: %#v", t))
@@ -415,110 +415,12 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 		case IDENT, BACKTICK_IDENT:
 
 			err := setStmt(t, func() (interface{}, error) {
-				colStmt := CreateTableColumnStatement{}
-				colStmt.Name = t.Value
-
-				var err error
-				ctx.skipWhiteSpaces()
-				switch t := ctx.next(); t.Type {
-				case BIT:
-					colStmt.Type = ColumnTypeBit
-					err = p.parseColumnOption(ctx, &colStmt, coloptSize)
-				case TINYINT:
-					colStmt.Type = ColumnTypeTinyInt
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
-				case SMALLINT:
-					colStmt.Type = ColumnTypeSmallInt
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
-				case MEDIUMINT:
-					colStmt.Type = ColumnTypeMediumInt
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
-				case INT:
-					colStmt.Type = ColumnTypeInt
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
-				case INTEGER:
-					colStmt.Type = ColumnTypeInteger
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
-				case BIGINT:
-					colStmt.Type = ColumnTypeBigInt
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDigit)
-				case REAL:
-					colStmt.Type = ColumnTypeReal
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimal)
-				case DOUBLE:
-					colStmt.Type = ColumnTypeDouble
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimal)
-				case FLOAT:
-					colStmt.Type = ColumnTypeFloat
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimal)
-				case DECIMAL:
-					colStmt.Type = ColumnTypeDecimal
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimalOptional)
-				case NUMERIC:
-					colStmt.Type = ColumnTypeNumeric
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagDecimalOptional)
-				case DATE:
-					colStmt.Type = ColumnTypeDate
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
-				case TIME:
-					colStmt.Type = ColumnTypeTime
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagTime)
-				case TIMESTAMP:
-					colStmt.Type = ColumnTypeTimestamp
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagTime)
-				case DATETIME:
-					colStmt.Type = ColumnTypeDateTime
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagTime)
-				case YEAR:
-					colStmt.Type = ColumnTypeYear
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
-				case CHAR:
-					colStmt.Type = ColumnTypeChar
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
-				case VARCHAR:
-					colStmt.Type = ColumnTypeVarChar
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
-				case BINARY:
-					colStmt.Type = ColumnTypeBinary
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagBinary)
-				case VARBINARY:
-					colStmt.Type = ColumnTypeVarBinary
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagBinary)
-				case TINYBLOB:
-					colStmt.Type = ColumnTypeTinyBlob
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
-				case BLOB:
-					colStmt.Type = ColumnTypeBlob
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
-				case MEDIUMBLOB:
-					colStmt.Type = ColumnTypeMediumBlob
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
-				case LONGBLOB:
-					colStmt.Type = ColumnTypeLongBlob
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagNone)
-				case TINYTEXT:
-					colStmt.Type = ColumnTypeTinyText
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
-				case TEXT:
-					colStmt.Type = ColumnTypeText
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
-				case MEDIUMTEXT:
-					colStmt.Type = ColumnTypeMediumText
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
-				case LONGTEXT:
-					colStmt.Type = ColumnTypeLongText
-					err = p.parseColumnOption(ctx, &colStmt, coloptFlagChar)
-				// case "ENUM":
-				// case "SET":
-				default:
-					return nil, newParseError(ctx, t, "not supported type")
-				}
-
-				if err != nil {
+				col := statement.NewTableColumn(t.Value)
+				if err := p.parseTableColumnSpec(ctx, col); err != nil {
 					return nil, err
 				}
 
-				return &colStmt, nil
+				return col, nil
 			})
 
 			if err != nil {
@@ -528,6 +430,109 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 			return newParseError(ctx, t, "unexpected create table fields")
 		}
 	}
+}
+
+func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col statement.TableColumn) error {
+	var coltyp statement.ColumnType
+	var colopt int
+
+	ctx.skipWhiteSpaces()
+	switch t := ctx.next(); t.Type {
+	case BIT:
+		coltyp = statement.ColumnTypeBit
+		colopt = coloptSize
+	case TINYINT:
+		coltyp = statement.ColumnTypeTinyInt
+		colopt = coloptFlagDigit
+	case SMALLINT:
+		coltyp = statement.ColumnTypeSmallInt
+		colopt = coloptFlagDigit
+	case MEDIUMINT:
+		coltyp = statement.ColumnTypeMediumInt
+		colopt = coloptFlagDigit
+	case INT:
+		coltyp = statement.ColumnTypeInt
+		colopt = coloptFlagDigit
+	case INTEGER:
+		coltyp = statement.ColumnTypeInteger
+		colopt = coloptFlagDigit
+	case BIGINT:
+		coltyp = statement.ColumnTypeBigInt
+		colopt = coloptFlagDigit
+	case REAL:
+		coltyp = statement.ColumnTypeReal
+		colopt = coloptFlagDecimal
+	case DOUBLE:
+		coltyp = statement.ColumnTypeDouble
+		colopt = coloptFlagDecimal
+	case FLOAT:
+		coltyp = statement.ColumnTypeFloat
+		colopt = coloptFlagDecimal
+	case DECIMAL:
+		coltyp = statement.ColumnTypeDecimal
+		colopt = coloptFlagDecimalOptional
+	case NUMERIC:
+		coltyp = statement.ColumnTypeNumeric
+		colopt = coloptFlagDecimalOptional
+	case DATE:
+		coltyp = statement.ColumnTypeDate
+		colopt = coloptFlagNone
+	case TIME:
+		coltyp = statement.ColumnTypeTime
+		colopt = coloptFlagTime
+	case TIMESTAMP:
+		coltyp = statement.ColumnTypeTimestamp
+		colopt = coloptFlagTime
+	case DATETIME:
+		coltyp = statement.ColumnTypeDateTime
+		colopt = coloptFlagTime
+	case YEAR:
+		coltyp = statement.ColumnTypeYear
+		colopt = coloptFlagNone
+	case CHAR:
+		coltyp = statement.ColumnTypeChar
+		colopt = coloptFlagChar
+	case VARCHAR:
+		coltyp = statement.ColumnTypeVarChar
+		colopt = coloptFlagChar
+	case BINARY:
+		coltyp = statement.ColumnTypeBinary
+		colopt = coloptFlagBinary
+	case VARBINARY:
+		coltyp = statement.ColumnTypeVarBinary
+		colopt = coloptFlagBinary
+	case TINYBLOB:
+		coltyp = statement.ColumnTypeTinyBlob
+		colopt = coloptFlagNone
+	case BLOB:
+		coltyp = statement.ColumnTypeBlob
+		colopt = coloptFlagNone
+	case MEDIUMBLOB:
+		coltyp = statement.ColumnTypeMediumBlob
+		colopt = coloptFlagNone
+	case LONGBLOB:
+		coltyp = statement.ColumnTypeLongBlob
+		colopt = coloptFlagNone
+	case TINYTEXT:
+		coltyp = statement.ColumnTypeTinyText
+		colopt = coloptFlagChar
+	case TEXT:
+		coltyp = statement.ColumnTypeText
+		colopt = coloptFlagChar
+	case MEDIUMTEXT:
+		coltyp = statement.ColumnTypeMediumText
+		colopt = coloptFlagChar
+	case LONGTEXT:
+		coltyp = statement.ColumnTypeLongText
+		colopt = coloptFlagChar
+	// case "ENUM":
+	// case "SET":
+	default:
+		return newParseError(ctx, t, "not supported type")
+	}
+
+	col.SetType(coltyp)
+	return p.parseColumnOption(ctx, col, colopt)
 }
 
 func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStatement) error {
@@ -681,7 +686,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 }
 
 // parse for column
-func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatement, f int) error {
+func (p *Parser) parseColumnOption(ctx *parseCtx, col statement.TableColumn, f int) error {
 	f = f | coloptNull | coloptDefault | coloptAutoIncrement | coloptKey | coloptComment
 	pos := 0
 	check := func(_f int) bool {
@@ -711,17 +716,15 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				if t.Type != RPAREN {
 					return newParseError(ctx, t, "expected RPAREN (column size)")
 				}
-				col.Length.Valid = true
-				col.Length.Length = tlen
+				col.SetLength(statement.NewLength(tlen))
 			} else if check(coloptDecimalSize) {
 				strs, err := p.parseIdents(ctx, NUMBER, COMMA, NUMBER, RPAREN)
 				if err != nil {
 					return err
 				}
-				col.Length.Valid = true
-				col.Length.Length = strs[0]
-				col.Length.Decimals.Valid = true
-				col.Length.Decimals.Value = strs[2]
+				l := statement.NewLength(strs[0])
+				l.SetDecimal(strs[2])
+				col.SetLength(l)
 			} else if check(coloptDecimalOptionalSize) {
 				ctx.skipWhiteSpaces()
 				t := ctx.next()
@@ -733,8 +736,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				ctx.skipWhiteSpaces()
 				t = ctx.next()
 				if t.Type == RPAREN {
-					col.Length.Valid = true
-					col.Length.Length = tlen
+					col.SetLength(statement.NewLength(tlen))
 					continue
 				} else if t.Type != COMMA {
 					return newParseError(ctx, t, "expected COMMA (decimal size)")
@@ -751,10 +753,9 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 				if t := ctx.next(); t.Type != RPAREN {
 					return newParseError(ctx, t, "expected RPARENT (decimal size)")
 				}
-				col.Length.Valid = true
-				col.Length.Length = tlen
-				col.Length.Decimals.Valid = true
-				col.Length.Decimals.Value = tscale
+				l := statement.NewLength(tlen)
+				l.SetDecimal(tscale)
+				col.SetLength(l)
 			} else {
 				return newParseError(ctx, t, "cant apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
 			}
@@ -762,17 +763,17 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			if !check(coloptUnsigned) {
 				return newParseError(ctx, t, "cant apply UNSIGNED")
 			}
-			col.Unsgined = true
+			col.SetUnsigned(true)
 		case ZEROFILL:
 			if !check(coloptZerofill) {
 				return newParseError(ctx, t, "cant apply ZEROFILL")
 			}
-			col.ZeroFill = true
+			col.SetZeroFill(true)
 		case BINARY:
 			if !check(coloptBinary) {
 				return newParseError(ctx, t, "cant apply BINARY")
 			}
-			col.Binary = true
+			col.SetBinary(true)
 		case NOT:
 			if !check(coloptNull) {
 				return newParseError(ctx, t, "cant apply NOT NULL")
@@ -780,7 +781,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case NULL:
-				col.Null = coloptNullStateNotNull
+				col.SetNullState(statement.NullStateNotNull)
 			default:
 				return newParseError(ctx, t, "should NULL")
 			}
@@ -788,7 +789,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			if !check(coloptNull) {
 				return newParseError(ctx, t, "cant apply NULL")
 			}
-			col.Null = coloptNullStateNull
+			col.SetNullState(statement.NullStateNull)
 		case DEFAULT:
 			if !check(coloptDefault) {
 				return newParseError(ctx, t, "cant apply DEFAULT")
@@ -796,8 +797,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL:
-				col.Default.Valid = true
-				col.Default.Value = t.Value
+				col.SetDefault(t.Value)
 			default:
 				return newParseError(ctx, t, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
@@ -805,7 +805,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			if !check(coloptAutoIncrement) {
 				return newParseError(ctx, t, "cant apply AUTO_INCREMENT")
 			}
-			col.AutoIncrement = true
+			col.SetAutoIncrement(true)
 		case UNIQUE:
 			if !check(coloptKey) {
 				return newParseError(ctx, t, "cant apply UNIQUE KEY")
@@ -813,13 +813,13 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type == KEY {
 				ctx.advance()
-				col.Unique = true
+				col.SetUnique(true)
 			}
 		case KEY:
 			if !check(coloptKey) {
 				return newParseError(ctx, t, "cant apply KEY")
 			}
-			col.Key = true
+			col.SetKey(true)
 		case PRIMARY:
 			if !check(coloptKey) {
 				return newParseError(ctx, t, "cant apply PRIMARY KEY")
@@ -827,7 +827,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.skipWhiteSpaces()
 			if t := ctx.peek(); t.Type == KEY {
 				ctx.advance()
-				col.Primary = true
+				col.SetPrimary(true)
 			}
 		case COMMENT:
 			if !check(coloptComment) {
@@ -836,8 +836,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case SINGLE_QUOTE_IDENT:
-				col.Comment.Valid = true
-				col.Comment.Value = t.Value
+				col.SetComment(t.Value)
 			default:
 				return newParseError(ctx, t, "should SINGLE_QUOTE_IDENT")
 			}
@@ -883,7 +882,7 @@ func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index statement.Index)
 		return err
 	}
 
-	if  err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColName(ctx, index); err != nil {
 		return err
 	}
 
@@ -940,7 +939,7 @@ func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, index statement.Index
 	return nil
 }
 
-func (p *Parser) parseReferenceOption(ctx *parseCtx, set  func(statement.ReferenceOption)) error {
+func (p *Parser) parseReferenceOption(ctx *parseCtx, set func(statement.ReferenceOption)) error {
 	ctx.skipWhiteSpaces()
 	switch t := ctx.next(); t.Type {
 	case RESTRICT:
@@ -1070,7 +1069,9 @@ func (p *Parser) parseColumnIndexType(ctx *parseCtx, index statement.Index) erro
 }
 
 // TODO rename method name
-func (p *Parser) parseColumnIndexColName(ctx *parseCtx, container interface { AddColumns(...string) }) error {
+func (p *Parser) parseColumnIndexColName(ctx *parseCtx, container interface {
+	AddColumns(...string)
+}) error {
 	var cols []string
 
 	ctx.skipWhiteSpaces()

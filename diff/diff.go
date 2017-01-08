@@ -208,12 +208,12 @@ type alterCtx struct {
 func newAlterCtx(from, to *schemalex.CreateTableStatement) *alterCtx {
 	fromColumns := mapset.NewSet()
 	for _, col := range from.Columns {
-		fromColumns.Add(col.Name)
+		fromColumns.Add(col.Name())
 	}
 
 	toColumns := mapset.NewSet()
 	for _, col := range to.Columns {
-		toColumns.Add(col.Name)
+		toColumns.Add(col.Name())
 	}
 
 	fromIndexes := mapset.NewSet()
@@ -348,7 +348,7 @@ func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name)
 		buf.WriteString("` CHANGE COLUMN `")
-		buf.WriteString(afterColumnStmt.Name)
+		buf.WriteString(afterColumnStmt.Name())
 		buf.WriteString("` ")
 		if _, err := afterColumnStmt.WriteTo(&buf); err != nil {
 			return 0, err

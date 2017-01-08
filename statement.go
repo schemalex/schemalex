@@ -2,9 +2,7 @@ package schemalex
 
 import (
 	"bytes"
-	"fmt"
 	"io"
-	"strconv"
 
 	"github.com/schemalex/schemalex/internal/util"
 	"github.com/schemalex/schemalex/statement"
@@ -60,9 +58,9 @@ func (c *CreateTableStatement) ID() string {
 	return c.Name
 }
 
-func (c *CreateTableStatement) LookupColumn(name string) (*CreateTableColumnStatement, bool) {
+func (c *CreateTableStatement) LookupColumn(name string) (statement.TableColumn, bool) {
 	for _, col := range c.Columns {
-		if col.Name == name {
+		if col.Name() == name {
 			return col, true
 		}
 	}
@@ -139,94 +137,4 @@ func (c *CreateTableOptionStatement) WriteTo(dst io.Writer) (int64, error) {
 	buf.WriteString(c.Value)
 
 	return buf.WriteTo(dst)
-}
-
-func (c coloptNullState) String() string {
-	switch c {
-	case coloptNullStateNone:
-		return ""
-	case coloptNullStateNull:
-		return "NULL"
-	case coloptNullStateNotNull:
-		return "NOT NULL"
-	default:
-		panic("not reach")
-	}
-}
-
-func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
-	var buf bytes.Buffer
-
-	buf.WriteString(util.Backquote(c.Name))
-	buf.WriteByte(' ')
-	buf.WriteString(c.Type.String())
-
-	if c.Length.Valid {
-		buf.WriteString(" (")
-		buf.WriteString(c.Length.String())
-		buf.WriteByte(')')
-	}
-
-	if c.Unsgined {
-		buf.WriteString(" UNSIGNED")
-	}
-
-	if c.ZeroFill {
-		buf.WriteString(" ZEROFILL")
-	}
-
-	if c.Binary {
-		buf.WriteString(" BINARY")
-	}
-
-	if c.CharacterSet.Valid {
-		buf.WriteString(" CHARACTER SET ")
-		buf.WriteString(util.Backquote(c.CharacterSet.Value))
-	}
-
-	if c.Collate.Valid {
-		buf.WriteString(" COLLATE ")
-		buf.WriteString(util.Backquote(c.Collate.Value))
-	}
-
-	if str := c.Null.String(); str != "" {
-		buf.WriteByte(' ')
-		buf.WriteString(str)
-	}
-
-	if c.Default.Valid {
-		buf.WriteString(" DEFAULT ")
-		buf.WriteString(strconv.Quote(c.Default.Value))
-	}
-
-	if c.AutoIncrement {
-		buf.WriteString(" AUTO_INCREMENT")
-	}
-
-	if c.Unique {
-		buf.WriteString(" UNIQUE KEY")
-	}
-
-	if c.Primary {
-		buf.WriteString(" PRIMARY KEY")
-	}
-
-	if c.Key {
-		buf.WriteString(" KEY")
-	}
-
-	if c.Comment.Valid {
-		buf.WriteString(" '")
-		buf.WriteString(c.Comment.Value)
-		buf.WriteByte('\'')
-	}
-
-	return buf.WriteTo(dst)
-}
-
-func (l *Length) String() string {
-	if l.Decimals.Valid {
-		return fmt.Sprintf("%s,%s", l.Length, l.Decimals.Value)
-	}
-	return l.Length
 }
