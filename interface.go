@@ -1,6 +1,10 @@
 package schemalex
 
-import "io"
+import (
+	"io"
+
+	"github.com/schemalex/schemalex/statement"
+)
 
 type Stmt interface {
 	WriteTo(io.Writer) (int64, error)
@@ -18,7 +22,7 @@ type CreateTableStatement struct {
 	Temporary  bool
 	IfNotExist bool
 	Columns    []*CreateTableColumnStatement
-	Indexes    []*CreateTableIndexStatement
+	Indexes    []statement.Index
 	Options    []*CreateTableOptionStatement
 }
 
@@ -90,59 +94,3 @@ type Length struct {
 	Length   string
 	Valid    bool
 }
-
-type CreateTableIndexStatement struct {
-	Symbol   MaybeString
-	Kind     IndexKind
-	Name     MaybeString
-	Type     IndexType
-	ColNames []string
-	// TODO Options.
-	Reference *Reference
-}
-
-type IndexKind int
-
-const (
-	IndexKindPrimaryKey IndexKind = iota
-	IndexKindNormal
-	IndexKindUnique
-	IndexKindFullText
-	IndexKindSpartial
-	IndexKindForeignKey
-)
-
-type IndexType int
-
-const (
-	IndexTypeNone IndexType = iota
-	IndexTypeBtree
-	IndexTypeHash
-)
-
-type Reference struct {
-	TableName string
-	ColNames  []string
-	Match     ReferenceMatch
-	OnDelete  ReferenceOption
-	OnUpdate  ReferenceOption
-}
-
-type ReferenceMatch int
-
-const (
-	ReferenceMatchNone ReferenceMatch = iota
-	ReferenceMatchFull
-	ReferenceMatchPartial
-	ReferenceMatchSimple
-)
-
-type ReferenceOption int
-
-const (
-	ReferenceOptionNone ReferenceOption = iota
-	ReferenceOptionRestrict
-	ReferenceOptionCascade
-	ReferenceOptionSetNull
-	ReferenceOptionNoAction
-)

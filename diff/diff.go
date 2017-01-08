@@ -368,7 +368,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 			return 0, errors.Errorf(`index '%s' not found in old schema (drop index)`, index)
 		}
 
-		if indexStmt.Kind == schemalex.IndexKindPrimaryKey {
+		if indexStmt.IsPrimaryKey() {
 			if buf.Len() > 0 {
 				buf.WriteByte('\n')
 			}
@@ -378,7 +378,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 			continue
 		}
 
-		if !indexStmt.Name.Valid {
+		if !indexStmt.HasName() {
 			return 0, errors.Errorf("can not drop index without name: %s", indexStmt.String())
 		}
 
@@ -388,7 +388,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name)
 		buf.WriteString("` DROP INDEX `")
-		buf.WriteString(indexStmt.Name.Value)
+		buf.WriteString(indexStmt.Name())
 		buf.WriteString("`;")
 	}
 

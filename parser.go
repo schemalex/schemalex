@@ -5,6 +5,7 @@ import (
 	"io/ioutil"
 
 	"github.com/schemalex/schemalex/internal/errors"
+	"github.com/schemalex/schemalex/statement"
 	"golang.org/x/net/context"
 )
 
@@ -257,7 +258,7 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 
 	appendStmt := func() {
 		switch t := targetStmt.(type) {
-		case *CreateTableIndexStatement:
+		case statement.Index:
 			stmt.Indexes = append(stmt.Indexes, t)
 		case *CreateTableColumnStatement:
 			stmt.Columns = append(stmt.Columns, t)
@@ -299,62 +300,65 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 			appendStmt()
 		case CONSTRAINT:
 			err := setStmt(t, func() (interface{}, error) {
-				var indexStmt CreateTableIndexStatement
 				ctx.skipWhiteSpaces()
+
+				var sym string
 				switch t := ctx.peek(); t.Type {
 				case IDENT, BACKTICK_IDENT:
-					// TODO: should smart
-					copyStr := t.Value
-					indexStmt.Symbol.Valid = true
-					indexStmt.Symbol.Value = copyStr
+					// TODO: should be smarter
+					// (lestrrat): I don't understand. How?
+					sym = t.Value
 					ctx.advance()
 					ctx.skipWhiteSpaces()
 				}
 
+				var index statement.Index
 				switch t := ctx.next(); t.Type {
 				case PRIMARY:
-					indexStmt.Kind = IndexKindPrimaryKey
-					if err := p.parseColumnIndexPrimaryKey(ctx, &indexStmt); err != nil {
+					index = statement.NewIndex(statement.IndexKindPrimaryKey)
+					if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
 						return nil, err
 					}
 				case UNIQUE:
-					indexStmt.Kind = IndexKindUnique
-					if err := p.parseColumnIndexUniqueKey(ctx, &indexStmt); err != nil {
+					index = statement.NewIndex(statement.IndexKindUnique)
+					if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
 						return nil, err
 					}
 				case FOREIGN:
-					indexStmt.Kind = IndexKindForeignKey
-					if err := p.parseColumnIndexForeignKey(ctx, &indexStmt); err != nil {
+					index = statement.NewIndex(statement.IndexKindForeignKey)
+					if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
 						return nil, err
 					}
 				default:
 					return nil, newParseError(ctx, t, "not supported")
 				}
-				return &indexStmt, nil
+
+				if len(sym) > 0 {
+					index.SetSymbol(sym)
+				}
+				return index, nil
 			})
 			if err != nil {
 				return err
 			}
 		case PRIMARY:
 			err := setStmt(t, func() (interface{}, error) {
-				var indexStmt CreateTableIndexStatement
-				indexStmt.Kind = IndexKindPrimaryKey
-				if err := p.parseColumnIndexPrimaryKey(ctx, &indexStmt); err != nil {
+				index := statement.NewIndex(statement.IndexKindPrimaryKey)
+				if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
 					return nil, err
 				}
-				return &indexStmt, nil
+				return index, nil
 			})
 			if err != nil {
 				return err
 			}
 		case UNIQUE:
 			err := setStmt(t, func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
-				indexStmt.Kind = IndexKindUnique
-				if err := p.parseColumnIndexUniqueKey(ctx, &indexStmt); err != nil {
+				index := statement.NewIndex(statement.IndexKindUnique)
+				if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
 					return nil, err
 				}
-				return &indexStmt, nil
+				return index, nil
 			})
 			if err != nil {
 				return err
@@ -363,48 +367,45 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatemen
 			fallthrough
 		case KEY:
 			err := setStmt(t, func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
-				indexStmt.Kind = IndexKindNormal // TODO. separate to KEY and INDEX
-				if err := p.parseColumnIndexKey(ctx, &indexStmt); err != nil {
+				// TODO. separate to KEY and INDEX
+				index := statement.NewIndex(statement.IndexKindNormal)
+				if err := p.parseColumnIndexKey(ctx, index); err != nil {
 					return nil, err
 				}
-				return &indexStmt, nil
+				return index, nil
 			})
 			if err != nil {
 				return err
 			}
 		case FULLTEXT:
 			err := setStmt(t, func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
-				indexStmt.Kind = IndexKindFullText
-				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
+				index := statement.NewIndex(statement.IndexKindFullText)
+				if err := p.parseColumnIndexFullTextKey(ctx, index); err != nil {
 					return nil, err
 				}
-				return &indexStmt, nil
+				return index, nil
 			})
 			if err != nil {
 				return err
 			}
 		case SPARTIAL:
 			err := setStmt(t, func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
-				indexStmt.Kind = IndexKindSpartial
-				if err := p.parseColumnIndexFullTextKey(ctx, &indexStmt); err != nil {
+				index := statement.NewIndex(statement.IndexKindSpatial)
+				if err := p.parseColumnIndexFullTextKey(ctx, index); err != nil {
 					return nil, err
 				}
-				return &indexStmt, nil
+				return index, nil
 			})
 			if err != nil {
 				return err
 			}
 		case FOREIGN:
 			err := setStmt(t, func() (interface{}, error) {
-				indexStmt := CreateTableIndexStatement{}
-				indexStmt.Kind = IndexKindForeignKey
-				if err := p.parseColumnIndexForeignKey(ctx, &indexStmt); err != nil {
+				index := statement.NewIndex(statement.IndexKindForeignKey)
+				if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
 					return nil, err
 				}
-				return &indexStmt, nil
+				return index, nil
 			})
 			if err != nil {
 				return err
@@ -852,96 +853,86 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col *CreateTableColumnStatemen
 	}
 }
 
-func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index statement.Index) error {
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != KEY {
 		return newParseError(ctx, t, "should KEY")
 	}
-	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
+	if err := p.parseColumnIndexType(ctx, index); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(ctx, stmt)
-	if err != nil {
+	if err := p.parseColumnIndexColName(ctx, index); err != nil {
 		return err
 	}
-	stmt.ColNames = append(stmt.ColNames, cols...)
 
 	return nil
 }
 
-func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index statement.Index) error {
 	ctx.skipWhiteSpaces()
 	switch t := ctx.peek(); t.Type {
 	case KEY, INDEX:
 		ctx.advance()
 	}
 
-	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
+	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
+	if err := p.parseColumnIndexType(ctx, index); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(ctx, stmt)
-	if err != nil {
+	if  err := p.parseColumnIndexColName(ctx, index); err != nil {
 		return err
 	}
-	stmt.ColNames = append(stmt.ColNames, cols...)
 
 	return nil
 }
 
-func (p *Parser) parseColumnIndexKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
-	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
+func (p *Parser) parseColumnIndexKey(ctx *parseCtx, index statement.Index) error {
+	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
-	if err := p.parseColumnIndexType(ctx, stmt); err != nil {
+	if err := p.parseColumnIndexType(ctx, index); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(ctx, stmt)
-	if err != nil {
+	if err := p.parseColumnIndexColName(ctx, index); err != nil {
 		return err
 	}
-	stmt.ColNames = append(stmt.ColNames, cols...)
 
 	return nil
 }
 
-func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
-	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
+func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index statement.Index) error {
+	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(ctx, stmt)
-	if err != nil {
+	if err := p.parseColumnIndexColName(ctx, index); err != nil {
 		return err
 	}
-	stmt.ColNames = append(stmt.ColNames, cols...)
 
 	return nil
 }
 
-func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, index statement.Index) error {
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != KEY {
 		return newParseError(ctx, t, "should KEY")
 	}
-	if err := p.parseColumnIndexName(ctx, stmt); err != nil {
+	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
 
-	cols, err := p.parseColumnIndexColName(ctx, stmt)
-	if err != nil {
+	if err := p.parseColumnIndexColName(ctx, index); err != nil {
 		return err
 	}
-	stmt.ColNames = append(stmt.ColNames, cols...)
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.peek(); t.Type == REFERENCES {
-		if err := p.parseColumnReference(ctx, stmt); err != nil {
+		if err := p.parseColumnReference(ctx, index); err != nil {
 			return err
 		}
 	}
@@ -949,52 +940,50 @@ func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, stmt *CreateTableInde
 	return nil
 }
 
-func (p *Parser) parseReferenceOption(ctx *parseCtx, opt *ReferenceOption) error {
+func (p *Parser) parseReferenceOption(ctx *parseCtx, set  func(statement.ReferenceOption)) error {
 	ctx.skipWhiteSpaces()
 	switch t := ctx.next(); t.Type {
 	case RESTRICT:
-		*opt = ReferenceOptionRestrict
+		set(statement.ReferenceOptionRestrict)
 	case CASCADE:
-		*opt = ReferenceOptionCascade
+		set(statement.ReferenceOptionCascade)
 	case SET:
 		ctx.skipWhiteSpaces()
 		if t := ctx.next(); t.Type != NULL {
 			return newParseError(ctx, t, "expected NULL")
 		}
-		*opt = ReferenceOptionSetNull
+		set(statement.ReferenceOptionSetNull)
 	case NO:
 		ctx.skipWhiteSpaces()
 		if t := ctx.next(); t.Type != ACTION {
 			return newParseError(ctx, t, "expected ACTION")
 		}
-		*opt = ReferenceOptionNoAction
+		set(statement.ReferenceOptionNoAction)
 	default:
 		return newParseError(ctx, t, "expected RESTRICT, CASCADE, SET or NO")
 	}
 	return nil
 }
 
-func (p *Parser) parseColumnReference(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
-	var r Reference
-
+func (p *Parser) parseColumnReference(ctx *parseCtx, index statement.Index) error {
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != REFERENCES {
 		return newParseError(ctx, t, "expected REFERENCES")
 	}
 
+	r := statement.NewReference()
+
 	ctx.skipWhiteSpaces()
 	switch t := ctx.next(); t.Type {
 	case BACKTICK_IDENT, IDENT:
-		r.TableName = t.Value
+		r.SetTableName(t.Value)
 	default:
 		return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 	}
 
-	cols, err := p.parseColumnIndexColName(ctx, stmt)
-	if err != nil {
+	if err := p.parseColumnIndexColName(ctx, r); err != nil {
 		return err
 	}
-	r.ColNames = append(r.ColNames, cols...)
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.peek(); t.Type == MATCH {
@@ -1002,11 +991,11 @@ func (p *Parser) parseColumnReference(ctx *parseCtx, stmt *CreateTableIndexState
 		ctx.skipWhiteSpaces()
 		switch t = ctx.next(); t.Type {
 		case FULL:
-			r.Match = ReferenceMatchFull
+			r.SetMatch(statement.ReferenceMatchFull)
 		case PARTIAL:
-			r.Match = ReferenceMatchPartial
+			r.SetMatch(statement.ReferenceMatchPartial)
 		case SIMPLE:
-			r.Match = ReferenceMatchSimple
+			r.SetMatch(statement.ReferenceMatchSimple)
 		default:
 			return newParseError(ctx, t, "should FULL, PARTIAL or SIMPLE")
 		}
@@ -1026,11 +1015,11 @@ OUTER:
 
 		switch t := ctx.next(); t.Type {
 		case DELETE:
-			if err := p.parseReferenceOption(ctx, &r.OnDelete); err != nil {
+			if err := p.parseReferenceOption(ctx, r.SetOnDelete); err != nil {
 				return errors.Wrap(err, `failed to parse ON DELETE`)
 			}
 		case UPDATE:
-			if err := p.parseReferenceOption(ctx, &r.OnUpdate); err != nil {
+			if err := p.parseReferenceOption(ctx, r.SetOnUpdate); err != nil {
 				return errors.Wrap(err, `failed to parse ON UPDATE`)
 			}
 			break OUTER
@@ -1039,22 +1028,21 @@ OUTER:
 		}
 	}
 
-	stmt.Reference = &r
+	index.SetReference(r)
 	return nil
 }
 
-func (p *Parser) parseColumnIndexName(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnIndexName(ctx *parseCtx, index statement.Index) error {
 	ctx.skipWhiteSpaces()
 	switch t := ctx.peek(); t.Type {
 	case BACKTICK_IDENT, IDENT:
 		ctx.advance()
-		stmt.Name.Valid = true
-		stmt.Name.Value = t.Value
+		index.SetName(t.Value)
 	}
 	return nil
 }
 
-func (p *Parser) parseColumnIndexTypeUsing(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnIndexTypeUsing(ctx *parseCtx, index statement.Index) error {
 	if t := ctx.next(); t.Type != USING {
 		return errors.New(`expected USING`)
 	}
@@ -1062,41 +1050,42 @@ func (p *Parser) parseColumnIndexTypeUsing(ctx *parseCtx, stmt *CreateTableIndex
 	ctx.skipWhiteSpaces()
 	switch t := ctx.next(); t.Type {
 	case BTREE:
-		stmt.Type = IndexTypeBtree
+		index.SetType(statement.IndexTypeBtree)
 	case HASH:
-		stmt.Type = IndexTypeHash
+		index.SetType(statement.IndexTypeHash)
 	default:
 		return newParseError(ctx, t, "should BTREE or HASH")
 	}
 	return nil
 }
 
-func (p *Parser) parseColumnIndexType(ctx *parseCtx, stmt *CreateTableIndexStatement) error {
+func (p *Parser) parseColumnIndexType(ctx *parseCtx, index statement.Index) error {
 	ctx.skipWhiteSpaces()
 	if t := ctx.peek(); t.Type == USING {
-		return p.parseColumnIndexTypeUsing(ctx, stmt)
+		return p.parseColumnIndexTypeUsing(ctx, index)
 	}
 
-	stmt.Type = IndexTypeNone
+	index.SetType(statement.IndexTypeNone)
 	return nil
 }
 
 // TODO rename method name
-func (p *Parser) parseColumnIndexColName(ctx *parseCtx, stmt *CreateTableIndexStatement) ([]string, error) {
-	var strs []string
+func (p *Parser) parseColumnIndexColName(ctx *parseCtx, container interface { AddColumns(...string) }) error {
+	var cols []string
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != LPAREN {
-		return nil, newParseError(ctx, t, "should (")
+		return newParseError(ctx, t, "should (")
 	}
 
+OUTER:
 	for {
 		ctx.skipWhiteSpaces()
 		t := ctx.next()
 		if !(t.Type == IDENT || t.Type == BACKTICK_IDENT) {
-			return nil, newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
+			return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 		}
-		strs = append(strs, t.Value)
+		cols = append(cols, t.Value)
 
 		ctx.skipWhiteSpaces()
 		switch t = ctx.next(); t.Type {
@@ -1104,11 +1093,14 @@ func (p *Parser) parseColumnIndexColName(ctx *parseCtx, stmt *CreateTableIndexSt
 			// search next
 			continue
 		case RPAREN:
-			return strs, nil
+			break OUTER
 		default:
-			return nil, newParseError(ctx, t, "should , or )")
+			return newParseError(ctx, t, "should , or )")
 		}
 	}
+
+	container.AddColumns(cols...)
+	return nil
 }
 
 // Skips over whitespaces. Once this method returns, you can be

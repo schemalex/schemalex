@@ -5,6 +5,9 @@ import (
 	"fmt"
 	"io"
 	"strconv"
+
+	"github.com/schemalex/schemalex/internal/util"
+	"github.com/schemalex/schemalex/statement"
 )
 
 type ider interface {
@@ -47,7 +50,7 @@ func (c *CreateDatabaseStatement) WriteTo(dst io.Writer) (int64, error) {
 		buf.WriteString(" IF NOT EXISTS")
 	}
 	buf.WriteByte(' ')
-	buf.WriteString(Backquote(c.Name))
+	buf.WriteString(util.Backquote(c.Name))
 	buf.WriteByte(';')
 
 	return buf.WriteTo(dst)
@@ -66,8 +69,9 @@ func (c *CreateTableStatement) LookupColumn(name string) (*CreateTableColumnStat
 	return nil, false
 }
 
-func (c *CreateTableStatement) LookupIndex(name string) (*CreateTableIndexStatement, bool) {
+func (c *CreateTableStatement) LookupIndex(name string) (statement.Index, bool) {
 	for _, idx := range c.Indexes {
+		// TODO: This is wacky. fix how we match an index
 		if idx.String() == name {
 			return idx, true
 		}
@@ -89,7 +93,7 @@ func (c *CreateTableStatement) WriteTo(dst io.Writer) (int64, error) {
 	}
 
 	b.WriteByte(' ')
-	b.WriteString(Backquote(c.Name))
+	b.WriteString(util.Backquote(c.Name))
 	b.WriteString(" (")
 
 	fields := make([]Stmt, 0, len(c.Columns)+len(c.Indexes))
@@ -153,7 +157,7 @@ func (c coloptNullState) String() string {
 func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 
-	buf.WriteString(Backquote(c.Name))
+	buf.WriteString(util.Backquote(c.Name))
 	buf.WriteByte(' ')
 	buf.WriteString(c.Type.String())
 
@@ -177,12 +181,12 @@ func (c CreateTableColumnStatement) WriteTo(dst io.Writer) (int64, error) {
 
 	if c.CharacterSet.Valid {
 		buf.WriteString(" CHARACTER SET ")
-		buf.WriteString(Backquote(c.CharacterSet.Value))
+		buf.WriteString(util.Backquote(c.CharacterSet.Value))
 	}
 
 	if c.Collate.Valid {
 		buf.WriteString(" COLLATE ")
-		buf.WriteString(Backquote(c.Collate.Value))
+		buf.WriteString(util.Backquote(c.Collate.Value))
 	}
 
 	if str := c.Null.String(); str != "" {
@@ -225,144 +229,4 @@ func (l *Length) String() string {
 		return fmt.Sprintf("%s,%s", l.Length, l.Decimals.Value)
 	}
 	return l.Length
-}
-
-func (c CreateTableIndexStatement) String() string {
-	var buf bytes.Buffer
-	c.WriteTo(&buf)
-	return buf.String()
-}
-
-func (c CreateTableIndexStatement) WriteTo(dst io.Writer) (int64, error) {
-	var buf bytes.Buffer
-
-	if c.Symbol.Valid {
-		buf.WriteString("CONSTRAINT ")
-		buf.WriteString(Backquote(c.Symbol.Value))
-		buf.WriteByte(' ')
-	}
-
-	buf.WriteString(c.Kind.String())
-
-	if c.Name.Valid {
-		buf.WriteByte(' ')
-		buf.WriteString(Backquote(c.Name.Value))
-	}
-
-	if str := c.Type.String(); str != "" {
-		buf.WriteByte(' ')
-		buf.WriteString(str)
-	}
-
-	buf.WriteString(" (")
-	for i, colName := range c.ColNames {
-		buf.WriteString(Backquote(colName))
-		if i < len(c.ColNames)-1 {
-			buf.WriteString(", ")
-		}
-	}
-	buf.WriteByte(')')
-
-	if c.Reference != nil {
-		buf.WriteByte(' ')
-		buf.WriteString(c.Reference.String())
-	}
-
-	return buf.WriteTo(dst)
-}
-
-func (i IndexKind) String() string {
-	switch i {
-	case IndexKindPrimaryKey:
-		return "PRIMARY KEY"
-	case IndexKindNormal:
-		return "INDEX"
-	case IndexKindUnique:
-		return "UNIQUE INDEX"
-	case IndexKindFullText:
-		return "FULLTEXT INDEX"
-	case IndexKindSpartial:
-		return "SPARTIAL INDEX"
-	case IndexKindForeignKey:
-		return "FOREIGN KEY"
-	default:
-		panic("not reach")
-	}
-}
-
-func (i IndexType) String() string {
-	switch i {
-	case IndexTypeNone:
-		return ""
-	case IndexTypeBtree:
-		return "USING BTREE"
-	case IndexTypeHash:
-		return "USING HASH"
-	default:
-		panic("not reach")
-	}
-}
-
-func (r *Reference) String() string {
-	var buf bytes.Buffer
-
-	buf.WriteString("REFERENCES ")
-	buf.WriteString(Backquote(r.TableName))
-	buf.WriteString(" (")
-	for i, colName := range r.ColNames {
-		buf.WriteString(Backquote(colName))
-		if i < len(r.ColNames)-1 {
-			buf.WriteString(", ")
-		}
-	}
-	buf.WriteByte(')')
-
-	if str := r.Match.String(); str != "" {
-		buf.WriteByte(' ')
-		buf.WriteString(str)
-	}
-
-	if r.OnDelete != ReferenceOptionNone {
-		buf.WriteString(" ON DELETE ")
-		buf.WriteString(r.OnDelete.String())
-	}
-
-	if r.OnUpdate != ReferenceOptionNone {
-		buf.WriteString(" ON UPDATE ")
-		buf.WriteString(r.OnUpdate.String())
-	}
-
-	return buf.String()
-}
-
-func (r ReferenceMatch) String() string {
-	switch r {
-	case ReferenceMatchNone:
-		return ""
-	case ReferenceMatchFull:
-		return "MATCH FULL"
-	case ReferenceMatchPartial:
-		return "MATCH PARTIAL"
-	case ReferenceMatchSimple:
-		return "MATCH SIMPLE"
-	default:
-		panic("not reach")
-	}
-}
-
-func (r ReferenceOption) String() string {
-	switch r {
-	case ReferenceOptionNone:
-		return ""
-	case ReferenceOptionRestrict:
-		return "RESTRICT"
-	case ReferenceOptionCascade:
-		return "CASCADE"
-	case ReferenceOptionSetNull:
-		return "SET NULL"
-	case ReferenceOptionNoAction:
-		return "NO ACTION"
-	default:
-		panic("not reach")
-	}
 }
