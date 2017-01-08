@@ -85,7 +85,7 @@ func _main() error {
 		return err
 	}
 
-	f, err := os.Create("statement/columns.go")
+	f, err := os.Create("model/columns.go")
 	if err != nil {
 		return err
 	}
