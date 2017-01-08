@@ -164,47 +164,35 @@ func (p *Parser) parseCreate(ctx *parseCtx) (Stmt, error) {
 
 // https://dev.mysql.com/doc/refman/5.5/en/create-database.html
 // TODO: charset, collation
-func (p *Parser) parseCreateDatabase(ctx *parseCtx) (*CreateDatabaseStatement, error) {
+func (p *Parser) parseCreateDatabase(ctx *parseCtx) (statement.Database, error) {
 	if t := ctx.next(); t.Type != DATABASE {
 		return nil, errors.New(`expected DATABASE`)
 	}
 
-	var stmt CreateDatabaseStatement
-	var t *Token
-	setname := func() error {
-		switch t.Type {
-		case IDENT, BACKTICK_IDENT:
-			stmt.Name = t.Value
-		default:
-			return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
-		}
-		if p.eol(ctx) {
-			return nil
-		}
-		return newParseError(ctx, t, "should EOL")
-	}
-
 	ctx.skipWhiteSpaces()
-	switch t = ctx.next(); t.Type {
-	case IDENT, BACKTICK_IDENT:
-		if err := setname(); err != nil {
-			return nil, err
-		}
-		return &stmt, nil
-	case IF:
+
+	var notexists bool
+	if ctx.peek().Type == IF {
+		ctx.advance()
 		if _, err := p.parseIdents(ctx, NOT, EXISTS); err != nil {
 			return nil, err
 		}
-		ctx.skipWhiteSpaces()
-		t = ctx.next()
-		stmt.IfNotExist = true
-		if err := setname(); err != nil {
-			return nil, err
-		}
-		return &stmt, nil
-	default:
-		return nil, newParseError(ctx, t, "should IDENT, BACKTICK_IDENT or IF")
+		notexists = true
 	}
+
+	ctx.skipWhiteSpaces()
+
+	var database statement.Database
+	switch t := ctx.next(); t.Type {
+	case IDENT, BACKTICK_IDENT:
+		database = statement.NewDatabase(t.Value)
+	default:
+		return nil, newParseError(ctx, t, "expected IDENT, BACKTICK_IDENT or IF")
+	}
+
+	database.SetIfNotExists(notexists)
+	p.eol(ctx)
+	return database, nil
 }
 
 // http://dev.mysql.com/doc/refman/5.6/en/create-table.html

@@ -8,11 +8,6 @@ type Stmt interface {
 
 type Statements []Stmt
 
-type CreateDatabaseStatement struct {
-	Name       string
-	IfNotExist bool
-}
-
 const (
 	coloptSize = 1 << iota
 	coloptDecimalSize
