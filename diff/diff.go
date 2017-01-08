@@ -187,12 +187,12 @@ func dropTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 func createTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 
-	names := ctx.toSet.Difference(ctx.fromSet)
-	for _, name := range names.ToSlice() {
+	ids := ctx.toSet.Difference(ctx.fromSet)
+	for _, id := range ids.ToSlice() {
 		// Lookup the corresponding statement, and add its SQL
-		stmt, ok := ctx.to.Lookup(name.(string))
+		stmt, ok := ctx.to.Lookup(id.(string))
 		if !ok {
-			continue
+			return 0, errors.Errorf(`failed to lookup table %s`, id)
 		}
 
 		if buf.Len() > 0 {
