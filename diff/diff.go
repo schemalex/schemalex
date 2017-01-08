@@ -6,8 +6,9 @@ import (
 	"reflect"
 
 	"github.com/deckarep/golang-set"
-	"github.com/schemalex/schemalex"
 	"github.com/pkg/errors"
+	"github.com/schemalex/schemalex"
+	"github.com/schemalex/schemalex/statement"
 )
 
 type Option interface {
@@ -47,14 +48,14 @@ type diffCtx struct {
 func newDiffCtx(from, to schemalex.Statements) *diffCtx {
 	fromSet := mapset.NewSet()
 	for _, stmt := range from {
-		if cs, ok := stmt.(*schemalex.CreateTableStatement); ok {
-			fromSet.Add(cs.Name)
+		if cs, ok := stmt.(statement.Table); ok {
+			fromSet.Add(cs.Name())
 		}
 	}
 	toSet := mapset.NewSet()
 	for _, stmt := range to {
-		if cs, ok := stmt.(*schemalex.CreateTableStatement); ok {
-			toSet.Add(cs.Name)
+		if cs, ok := stmt.(statement.Table); ok {
+			toSet.Add(cs.Name())
 		}
 	}
 
@@ -94,7 +95,7 @@ func Statements(dst io.Writer, from, to schemalex.Statements, options ...Option)
 		if err != nil {
 			return errors.Wrap(err, `failed to produce diff`)
 		}
-		if txn && n > 0 || !txn && buf.Len() > 0 && n > 0{
+		if txn && n > 0 || !txn && buf.Len() > 0 && n > 0 {
 			buf.WriteString("\n\n")
 		}
 		pbuf.WriteTo(&buf)
@@ -201,28 +202,28 @@ type alterCtx struct {
 	toColumns   mapset.Set
 	fromIndexes mapset.Set
 	toIndexes   mapset.Set
-	from        *schemalex.CreateTableStatement
-	to          *schemalex.CreateTableStatement
+	from        statement.Table
+	to          statement.Table
 }
 
-func newAlterCtx(from, to *schemalex.CreateTableStatement) *alterCtx {
+func newAlterCtx(from, to statement.Table) *alterCtx {
 	fromColumns := mapset.NewSet()
-	for _, col := range from.Columns {
+	for col := range from.Columns() {
 		fromColumns.Add(col.Name())
 	}
 
 	toColumns := mapset.NewSet()
-	for _, col := range to.Columns {
+	for col := range to.Columns() {
 		toColumns.Add(col.Name())
 	}
 
 	fromIndexes := mapset.NewSet()
-	for _, idx := range from.Indexes {
+	for idx := range from.Indexes() {
 		fromIndexes.Add(idx.String())
 	}
 
 	toIndexes := mapset.NewSet()
-	for _, idx := range to.Indexes {
+	for idx := range to.Indexes() {
 		toIndexes.Add(idx.String())
 	}
 
@@ -255,13 +256,13 @@ func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 		if !ok {
 			return 0, errors.Errorf(`table '%s' not found in old schema (alter table)`, name)
 		}
-		beforeStmt := stmt.(*schemalex.CreateTableStatement)
+		beforeStmt := stmt.(statement.Table)
 
 		stmt, ok = ctx.to.Lookup(name.(string))
 		if !ok {
 			return 0, errors.Errorf(`table '%s' not found in new schema (alter table)`, name)
 		}
-		afterStmt := stmt.(*schemalex.CreateTableStatement)
+		afterStmt := stmt.(statement.Table)
 
 		var pbuf bytes.Buffer
 		alterCtx := newAlterCtx(beforeStmt, afterStmt)
@@ -290,7 +291,7 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 			buf.WriteByte('\n')
 		}
 		buf.WriteString("ALTER TABLE `")
-		buf.WriteString(ctx.from.Name)
+		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP COLUMN `")
 		buf.WriteString(columnName.(string))
 		buf.WriteString("`;")
@@ -313,7 +314,7 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 			buf.WriteByte('\n')
 		}
 		buf.WriteString("ALTER TABLE `")
-		buf.WriteString(ctx.from.Name)
+		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD COLUMN ")
 		if _, err := stmt.WriteTo(&buf); err != nil {
 			return 0, err
@@ -346,7 +347,7 @@ func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 			buf.WriteByte('\n')
 		}
 		buf.WriteString("ALTER TABLE `")
-		buf.WriteString(ctx.from.Name)
+		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` CHANGE COLUMN `")
 		buf.WriteString(afterColumnStmt.Name())
 		buf.WriteString("` ")
@@ -373,7 +374,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 				buf.WriteByte('\n')
 			}
 			buf.WriteString("ALTER TABLE `")
-			buf.WriteString(ctx.from.Name)
+			buf.WriteString(ctx.from.Name())
 			buf.WriteString("` DROP INDEX PRIMARY KEY;")
 			continue
 		}
@@ -386,7 +387,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 			buf.WriteByte('\n')
 		}
 		buf.WriteString("ALTER TABLE `")
-		buf.WriteString(ctx.from.Name)
+		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP INDEX `")
 		buf.WriteString(indexStmt.Name())
 		buf.WriteString("`;")
@@ -407,7 +408,7 @@ func addTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 			buf.WriteByte('\n')
 		}
 		buf.WriteString("ALTER TABLE `")
-		buf.WriteString(ctx.from.Name)
+		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD ")
 		buf.WriteString(indexStmt.String())
 		buf.WriteByte(';')

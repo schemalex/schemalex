@@ -208,27 +208,28 @@ func (p *Parser) parseCreateDatabase(ctx *parseCtx) (*CreateDatabaseStatement, e
 }
 
 // http://dev.mysql.com/doc/refman/5.6/en/create-table.html
-func (p *Parser) parseCreateTable(ctx *parseCtx) (*CreateTableStatement, error) {
+func (p *Parser) parseCreateTable(ctx *parseCtx) (statement.Table, error) {
 	if t := ctx.next(); t.Type != TABLE {
 		return nil, errors.New(`expected TABLE`)
 	}
 
-	var stmt CreateTableStatement
+	var table statement.Table
 
 	ctx.skipWhiteSpaces()
+	var temporary bool
 	if t := ctx.peek(); t.Type == TEMPORARY {
 		ctx.advance()
 		ctx.skipWhiteSpaces()
-		stmt.Temporary = true
+		temporary = true
 	}
 
 	switch t := ctx.next(); t.Type {
 	case IDENT, BACKTICK_IDENT:
-		stmt.Name = t.Value
+		table = statement.NewTable(t.Value)
 	default:
 		return nil, newParseError(ctx, t, "expected IDENT or BACKTICK_IDENT")
-		//		return nil, newParseError(ctx, t, "expected IDENT or BACKTICK_IDENT")
 	}
+	table.SetTemporary(temporary)
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.peek(); t.Type == IF {
@@ -237,7 +238,7 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (*CreateTableStatement, error) 
 			return nil, newParseError(ctx, t, "should NOT EXISTS")
 		}
 		ctx.skipWhiteSpaces()
-		stmt.IfNotExist = true
+		table.SetIfNotExists(true)
 	}
 
 	if t := ctx.next(); t.Type != LPAREN {
@@ -245,23 +246,23 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (*CreateTableStatement, error) 
 		//		return nil, newParseError(ctx, t, "expected RPAREN")
 	}
 
-	if err := p.parseCreateTableFields(ctx, &stmt); err != nil {
+	if err := p.parseCreateTableFields(ctx, table); err != nil {
 		return nil, err
 	}
 
-	return &stmt, nil
+	return table, nil
 }
 
 // Start parsing after `CREATE TABLE *** (`
-func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt *CreateTableStatement) error {
+func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt statement.Table) error {
 	var targetStmt interface{}
 
 	appendStmt := func() {
 		switch t := targetStmt.(type) {
 		case statement.Index:
-			stmt.Indexes = append(stmt.Indexes, t)
+			stmt.AddIndex(t)
 		case statement.TableColumn:
-			stmt.Columns = append(stmt.Columns, t)
+			stmt.AddColumn(t)
 		default:
 			panic(fmt.Sprintf("unexpected targetStmt: %#v", t))
 		}
@@ -535,7 +536,7 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col statement.TableColumn) 
 	return p.parseColumnOption(ctx, col, colopt)
 }
 
-func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStatement) error {
+func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt statement.Table) error {
 
 	setOption := func(key string, types []TokenType) error {
 		ctx.skipWhiteSpaces()
@@ -546,7 +547,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, stmt *CreateTableStateme
 		t := ctx.next()
 		for _, typ := range types {
 			if typ == t.Type {
-				stmt.Options = append(stmt.Options, &CreateTableOptionStatement{key, t.Value})
+				stmt.AddOption(statement.NewTableOption(key, t.Value))
 				return nil
 			}
 		}

@@ -1,10 +1,6 @@
 package schemalex
 
-import (
-	"io"
-
-	"github.com/schemalex/schemalex/statement"
-)
+import "io"
 
 type Stmt interface {
 	WriteTo(io.Writer) (int64, error)
@@ -15,20 +11,6 @@ type Statements []Stmt
 type CreateDatabaseStatement struct {
 	Name       string
 	IfNotExist bool
-}
-
-type CreateTableStatement struct {
-	Name       string
-	Temporary  bool
-	IfNotExist bool
-	Columns    []statement.TableColumn
-	Indexes    []statement.Index
-	Options    []*CreateTableOptionStatement
-}
-
-type CreateTableOptionStatement struct {
-	Key   string
-	Value string
 }
 
 const (
@@ -56,4 +38,3 @@ const (
 	coloptFlagChar            = coloptSize | coloptBinary | coloptCharacterSet | coloptCollate
 	coloptFlagBinary          = coloptSize
 )
-
