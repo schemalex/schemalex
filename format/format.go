@@ -2,7 +2,6 @@ package format
 
 import (
 	"bytes"
-	"fmt"
 	"io"
 	"strconv"
 
@@ -21,7 +20,6 @@ func SQL(dst io.Writer, v interface{}) error {
 		return FormatDatabase(dst, v.(model.Database))
 	case model.Stmts:
 		for _, s := range v.(model.Stmts) {
-	fmt.Printf("%#v\n", s)
 			if err := SQL(dst, s); err != nil {
 				return err
 			}
@@ -43,7 +41,6 @@ func SQL(dst io.Writer, v interface{}) error {
 }
 
 func FormatDatabase(dst io.Writer, d model.Database) error {
-fmt.Printf("FormatDatabase called for %#v\n", d)
 	var buf bytes.Buffer
 	buf.WriteString("CREATE DATABASE")
 	if d.IsIfNotExists() {
