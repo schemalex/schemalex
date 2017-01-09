@@ -148,7 +148,7 @@ func _main() error {
 		{Ident: "SET"},
 		{Ident: "SIMPLE"},
 		{Ident: "SMALLINT"},
-		{Ident: "SPARTIAL"},
+		{Ident: "SPATIAL"},
 		{Ident: "STATS_AUTO_RECALC"},
 		{Ident: "STATS_PERSISTENT"},
 		{Ident: "STATS_SAMPLE_PAGES"},
@@ -186,6 +186,21 @@ func _main() error {
 	for _, tok := range tokens[20:] {
 		buf.WriteString("\n" + strconv.Quote(tok.Ident) + ": " + tok.Ident + ",")
 	}
+	buf.WriteString("\n}")
+
+	buf.WriteString("\n\nfunc (t TokenType) String() string {")
+	buf.WriteString("\nswitch t {")
+	buf.WriteString("\ncase ILLEGAL:")
+	buf.WriteString("\nreturn \"ILLEGAL\"")
+	for _, tok := range tokens {
+		buf.WriteString("\ncase ")
+		buf.WriteString(tok.Ident)
+		buf.WriteByte(':')
+		buf.WriteString("\nreturn ")
+		buf.WriteString(strconv.Quote(tok.Ident))
+	}
+	buf.WriteString("\n}")
+	buf.WriteString("\nreturn \"(invalid)\"")
 	buf.WriteString("\n}")
 
 	formatted, err := format.Source(buf.Bytes())
