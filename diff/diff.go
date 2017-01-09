@@ -1,3 +1,5 @@
+// Package diff contains functions to generate SQL statements to
+// migrate an old schema to the new schema
 package diff
 
 import (
@@ -12,6 +14,8 @@ import (
 	"github.com/schemalex/schemalex/model"
 )
 
+// Option is a generic interface for objects that passes
+// optional parameters to the various diff functions in this package
 type Option interface {
 	Name() string
 	Value() interface{}
@@ -25,6 +29,9 @@ type option struct {
 func (o option) Name() string       { return o.name }
 func (o option) Value() interface{} { return o.value }
 
+// WithParser specifies the parser instance to use when parsing
+// the statements given to the diffing functions. If unspecified,
+// a default parser will be used
 func WithParser(p *schemalex.Parser) Option {
 	return &option{
 		name:  "parser",
@@ -32,6 +39,8 @@ func WithParser(p *schemalex.Parser) Option {
 	}
 }
 
+// WithTransaction specifies if statements to control transactions
+// should be included in the diff.
 func WithTransaction(b bool) Option {
 	return &option{
 		name:  "transaction",
@@ -68,6 +77,9 @@ func newDiffCtx(from, to model.Stmts) *diffCtx {
 	}
 }
 
+// Statements compares two model.Stmts and generates a series
+// of statements to migrate from the old one to the new one,
+// writing the result to `dst`
 func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
 	var txn bool
 	for _, o := range options {
@@ -111,6 +123,9 @@ func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
 	return nil
 }
 
+// Strings compares two strings and generates a series
+// of statements to migrate from the old one to the new one,
+// writing the result to `dst`
 func Strings(dst io.Writer, from, to string, options ...Option) error {
 	var p *schemalex.Parser
 	for _, o := range options {
@@ -136,6 +151,9 @@ func Strings(dst io.Writer, from, to string, options ...Option) error {
 	return Statements(dst, stmts1, stmts2, options...)
 }
 
+// Files compares contents of two files and generates a series
+// of statements to migrate from the old one to the new one,
+// writing the result to `dst`
 func Files(dst io.Writer, from, to string, options ...Option) error {
 	var p *schemalex.Parser
 	for _, o := range options {
