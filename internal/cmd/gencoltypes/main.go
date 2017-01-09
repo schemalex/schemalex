@@ -64,6 +64,7 @@ func _main() error {
 			buf.WriteString(" ColumnType = iota")
 		}
 	}
+	buf.WriteString("\n\nColumnTypeMax")
 	buf.WriteString("\n)")
 	buf.WriteString("\n\nfunc (c ColumnType) String() string {")
 	buf.WriteString("\nswitch c {")
@@ -75,7 +76,7 @@ func _main() error {
 		buf.WriteString(strconv.Quote(strings.ToUpper(typ)))
 	}
 	buf.WriteString("\ndefault:")
-	buf.WriteString("\npanic(\"unknown column type\")")
+	buf.WriteString("\nreturn \"(invalid)\"")
 	buf.WriteString("\n}")
 	buf.WriteString("\n}")
 

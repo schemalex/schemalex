@@ -7,6 +7,7 @@ import (
 
 	"github.com/deckarep/golang-set"
 	"github.com/schemalex/schemalex"
+	"github.com/schemalex/schemalex/format"
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/model"
 )
@@ -198,8 +199,8 @@ func createTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 		if buf.Len() > 0 {
 			buf.WriteByte('\n')
 		}
-		_, err := stmt.WriteTo(&buf)
-		if err != nil {
+
+		if err := format.SQL(&buf, stmt); err != nil {
 			return 0, err
 		}
 		buf.WriteByte(';')
@@ -331,7 +332,7 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD COLUMN ")
-		if _, err := stmt.WriteTo(&buf); err != nil {
+		if err := format.SQL(&buf, stmt); err != nil {
 			return 0, err
 		}
 		buf.WriteByte(';')
@@ -366,7 +367,7 @@ func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("` CHANGE COLUMN `")
 		buf.WriteString(afterColumnStmt.Name())
 		buf.WriteString("` ")
-		if _, err := afterColumnStmt.WriteTo(&buf); err != nil {
+		if err := format.SQL(&buf, afterColumnStmt); err != nil {
 			return 0, err
 		}
 		buf.WriteByte(';')
@@ -395,7 +396,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		}
 
 		if !indexStmt.HasName() {
-			return 0, errors.Errorf("can not drop index without name: %s", indexStmt.String())
+			return 0, errors.Errorf("can not drop index without name: %s", indexStmt.ID())
 		}
 
 		if buf.Len() > 0 {
@@ -425,7 +426,9 @@ func addTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD ")
-		buf.WriteString(indexStmt.String())
+		if err := format.SQL(&buf, indexStmt); err != nil {
+			return 0, err
+		}
 		buf.WriteByte(';')
 	}
 

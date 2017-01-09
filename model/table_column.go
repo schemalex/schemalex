@@ -1,13 +1,5 @@
 package model
 
-import (
-	"bytes"
-	"io"
-	"strconv"
-
-	"github.com/schemalex/schemalex/internal/util"
-)
-
 func NewLength(v string) Length {
 	return &length{
 		length: v,
@@ -174,86 +166,4 @@ func (t *tablecol) SetUnsigned(v bool) {
 
 func (t *tablecol) SetZeroFill(v bool) {
 	t.zerofill = v
-}
-
-func (t tablecol) WriteTo(dst io.Writer) (int64, error) {
-	var buf bytes.Buffer
-
-	buf.WriteString(util.Backquote(t.Name()))
-	buf.WriteByte(' ')
-	buf.WriteString(t.Type().String())
-
-	if t.HasLength() {
-		buf.WriteString(" (")
-		l := t.Length()
-		buf.WriteString(l.Length())
-		if l.HasDecimal() {
-			buf.WriteByte(',')
-			buf.WriteString(l.Decimal())
-		}
-		buf.WriteByte(')')
-	}
-
-	if t.IsUnsigned() {
-		buf.WriteString(" UNSIGNED")
-	}
-
-	if t.IsZeroFill() {
-		buf.WriteString(" ZEROFILL")
-	}
-
-	if t.IsBinary() {
-		buf.WriteString(" BINARY")
-	}
-
-	if t.HasCharacterSet() {
-		buf.WriteString(" CHARACTER SET ")
-		buf.WriteString(util.Backquote(t.CharacterSet()))
-	}
-
-	if t.HasCollation() {
-		buf.WriteString(" COLLATE ")
-		buf.WriteString(util.Backquote(t.Collation()))
-	}
-
-	if n := t.NullState(); n != NullStateNone {
-		buf.WriteByte(' ')
-		switch n {
-		case NullStateNull:
-			buf.WriteString("NULL")
-		case NullStateNotNull:
-			buf.WriteString("NOT NULL")
-		}
-	}
-
-	if t.HasDefault() {
-		buf.WriteString(" DEFAULT ")
-		if t.IsQuotedDefault() {
-			buf.WriteString(strconv.Quote(t.Default()))
-		} else {
-			buf.WriteString(t.Default())
-		}
-	}
-
-	if t.IsAutoIncrement() {
-		buf.WriteString(" AUTO_INCREMENT")
-	}
-
-	if t.IsUnique() {
-		buf.WriteString(" UNIQUE KEY")
-	}
-
-	if t.IsPrimary() {
-		buf.WriteString(" PRIMARY KEY")
-	} else if t.IsKey() {
-		buf.WriteString(" KEY")
-	}
-
-	if t.HasComment() {
-		buf.WriteString(" '")
-		buf.WriteString(t.Comment())
-		buf.WriteByte('\'')
-	}
-
-	return buf.WriteTo(dst)
 }

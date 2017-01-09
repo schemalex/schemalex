@@ -1,10 +1,9 @@
 package model
 
 import (
-	"bytes"
+	"crypto/sha256"
+	"fmt"
 	"io"
-
-	"github.com/schemalex/schemalex/internal/util"
 )
 
 func NewIndex(kind IndexKind) Index {
@@ -14,7 +13,16 @@ func NewIndex(kind IndexKind) Index {
 }
 
 func (stmt *index) ID() string {
-	return stmt.String()
+	// This is tricky. and index may or may not have a name. It would
+	// have been so much easier if we did, but we don't, so we'll fake
+	// something
+	name := "index"
+	if stmt.HasName() {
+		name = name + "#" + stmt.Name()
+	}
+	h := sha256.New()
+	io.WriteString(h, fmt.Sprintf("%v", stmt))
+	return fmt.Sprintf("%s#%x", name, h.Sum(nil))
 }
 
 func (stmt *index) AddColumns(l ...string) {
@@ -98,84 +106,4 @@ func (stmt *index) IsSpatial() bool {
 
 func (stmt *index) IsForeginKey() bool {
 	return stmt.kind == IndexKindForeignKey
-}
-
-func (i IndexKind) String() string {
-	switch i {
-	case IndexKindPrimaryKey:
-		return "PRIMARY KEY"
-	case IndexKindNormal:
-		return "INDEX"
-	case IndexKindUnique:
-		return "UNIQUE INDEX"
-	case IndexKindFullText:
-		return "FULLTEXT INDEX"
-	case IndexKindSpatial:
-		return "SPARTIAL INDEX"
-	case IndexKindForeignKey:
-		return "FOREIGN KEY"
-	default:
-		return "(invalid)"
-	}
-}
-
-func (stmt *index) String() string {
-	var buf bytes.Buffer
-	stmt.WriteTo(&buf)
-	return buf.String()
-}
-
-func (stmt *index) WriteTo(dst io.Writer) (int64, error) {
-	var buf bytes.Buffer
-
-	if stmt.HasSymbol() {
-		buf.WriteString("CONSTRAINT ")
-		buf.WriteString(util.Backquote(stmt.Symbol()))
-		buf.WriteByte(' ')
-	}
-
-	buf.WriteString(stmt.kind.String())
-
-	if stmt.HasName() {
-		buf.WriteByte(' ')
-		buf.WriteString(util.Backquote(stmt.Name()))
-	}
-
-	if str := stmt.typ.String(); str != "" {
-		buf.WriteByte(' ')
-		buf.WriteString(str)
-	}
-
-	buf.WriteString(" (")
-	ch := stmt.Columns()
-	lch := len(ch)
-	var i int
-	for col := range ch {
-		buf.WriteString(util.Backquote(col))
-		if i < lch-1 {
-			buf.WriteString(", ")
-		}
-		i++
-	}
-	buf.WriteByte(')')
-
-	if ref := stmt.Reference(); ref != nil {
-		buf.WriteByte(' ')
-		buf.WriteString(ref.String())
-	}
-
-	return buf.WriteTo(dst)
-}
-
-func (i IndexType) String() string {
-	switch i {
-	case IndexTypeNone:
-		return ""
-	case IndexTypeBtree:
-		return "USING BTREE"
-	case IndexTypeHash:
-		return "USING HASH"
-	default:
-		return "(invalid)"
-	}
 }

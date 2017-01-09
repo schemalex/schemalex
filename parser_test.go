@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/schemalex/schemalex/format"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -86,7 +87,7 @@ b varchar(20) default 'hoge',
 c int not null default 10
 );
 `,
-			Error: false,
+			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`a` VARCHAR (20) DEFAULT \"hoge\",\n`b` VARCHAR (20) DEFAULT \"hoge\",\n`c` INT NOT NULL DEFAULT 10\n)",
 		},
 		// with primary key
@@ -129,8 +130,8 @@ id bigint unsigned not null auto_increment
 		},
 		// with fulltext index
 		{
-			Input: "create table hoge (txt TEXT, fulltext ft_idx(txt))",
-			Error: false,
+			Input:  "create table hoge (txt TEXT, fulltext ft_idx(txt))",
+			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
 		},
 		// with simple reference foreign key
@@ -200,7 +201,9 @@ id bigint unsigned not null auto_increment
 			}
 
 			var buf bytes.Buffer
-			stmts.WriteTo(&buf)
+			if !assert.NoError(t, format.SQL(&buf, stmts), `format.SQL should succeed`) {
+				return
+			}
 
 			if !assert.Equal(t, spec.Expect, buf.String(), "should match") {
 				return

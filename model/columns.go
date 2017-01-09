@@ -35,6 +35,8 @@ const (
 	ColumnTypeText
 	ColumnTypeMediumText
 	ColumnTypeLongText
+
+	ColumnTypeMax
 )
 
 func (c ColumnType) String() string {
@@ -98,6 +100,6 @@ func (c ColumnType) String() string {
 	case ColumnTypeLongText:
 		return "LONGTEXT"
 	default:
-		panic("unknown column type")
+		return "(invalid)"
 	}
 }
