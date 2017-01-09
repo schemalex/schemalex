@@ -104,5 +104,5 @@ release-files: release-windows-386 release-windows-amd64 release-linux-386 relea
 release-github-token: github_token
 	@echo "file `github_token` is required"
 
-release-upload: release-files
+release-upload: release-files release-github-token
 	ghr -u $(GITHUB_USERNAME) -t $(shell cat github_token) --draft --replace $(VERSION) $(RELEASE_DIR)
