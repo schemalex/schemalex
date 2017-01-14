@@ -1,5 +1,7 @@
 package model
 
+// NewLength creates a new Length which describes the
+// length of a column
 func NewLength(v string) Length {
 	return &length{
 		length: v,
@@ -23,6 +25,7 @@ func (l *length) Length() string {
 	return l.length
 }
 
+// NewTableColumn creates a new TableColumn with the given name
 func NewTableColumn(name string) TableColumn {
 	return &tablecol{
 		name: name,

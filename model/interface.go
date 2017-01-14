@@ -5,7 +5,7 @@ type Stmt interface {
 	ID() string
 }
 
-// Stmt describes a list of statements
+// Stmts describes a list of statements
 type Stmts []Stmt
 
 type maybeString struct {
@@ -20,6 +20,7 @@ type ColumnContainer interface {
 	Columns() chan string
 }
 
+// Index describes an index on a table.
 type Index interface {
 	Stmt
 	ColumnContainer
@@ -43,8 +44,10 @@ type Index interface {
 	IsForeginKey() bool
 }
 
+// IndexKind describes the kind (purpose) of an index
 type IndexKind int
 
+// List of possible IndexKind.
 const (
 	IndexKindInvalid IndexKind = iota
 	IndexKindPrimaryKey
@@ -55,8 +58,10 @@ const (
 	IndexKindForeignKey
 )
 
+// IndexType describes the type (algorithm) used by the index.
 type IndexType int
 
+// List of possible index types
 const (
 	IndexTypeNone IndexType = iota
 	IndexTypeBtree
@@ -73,6 +78,7 @@ type index struct {
 	reference Reference
 }
 
+// Reference describes a possible reference from one table to another
 type Reference interface {
 	ColumnContainer
 
@@ -97,8 +103,10 @@ type reference struct {
 	onUpdate  ReferenceOption
 }
 
+// ReferenceMatch describes the mathing method of a reference
 type ReferenceMatch int
 
+// List of possible ReferenceMatch values
 const (
 	ReferenceMatchNone ReferenceMatch = iota
 	ReferenceMatchFull
@@ -106,8 +114,11 @@ const (
 	ReferenceMatchSimple
 )
 
+// ReferenceOption describes the actions that could be taken when
+// a table/column referered by the reference has been deleted
 type ReferenceOption int
 
+// List of possible ReferenceOption values
 const (
 	ReferenceOptionNone ReferenceOption = iota
 	ReferenceOptionRestrict
@@ -116,6 +127,7 @@ const (
 	ReferenceOptionNoAction
 )
 
+// Table describes a table model
 type Table interface {
 	Stmt
 
@@ -136,6 +148,7 @@ type Table interface {
 	LookupIndex(string) (Index, bool)
 }
 
+// TableOption describes a possible table option, such as `ENGINE=InnoDB`
 type TableOption interface {
 	Stmt
 	Key() string
@@ -156,14 +169,19 @@ type tableopt struct {
 	value string
 }
 
+// NullState describes the possible NULL constraint of a column
 type NullState int
 
+// List of possible NullStates. NullStateNone specifies that there is
+// no NULL constraint. NullStateNull explicitly specifies that the column
+// may be NULL. NullStateNotNull specifies that the column may not be NULL
 const (
 	NullStateNone NullState = iota
 	NullStateNull
 	NullStateNotNull
 )
 
+// Length describes the possible length constraint of a column
 type Length interface {
 	HasDecimal() bool
 	Decimal() string
@@ -176,6 +194,8 @@ type length struct {
 	length   string
 }
 
+// TableColumn describes a model object that describes a column
+// definition of a table
 type TableColumn interface {
 	Stmt
 
