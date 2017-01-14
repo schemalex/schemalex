@@ -1,8 +1,11 @@
 package model
 
+// Stmt is the interface to define a statement
 type Stmt interface {
 	ID() string
 }
+
+// Stmt describes a list of statements
 type Stmts []Stmt
 
 type maybeString struct {
@@ -10,6 +13,8 @@ type maybeString struct {
 	Value string
 }
 
+// ColumnContainer is the interface for objects that can contain
+// column names
 type ColumnContainer interface {
 	AddColumns(...string)
 	Columns() chan string
@@ -236,6 +241,7 @@ type tablecol struct {
 	zerofill     bool
 }
 
+// Database represents a database definition
 type Database interface {
 	// This is a dummy method to differentiate between Table/Database interfaces.
 	// without this, the Database interface is a subset of Table interface,

@@ -15,9 +15,9 @@ import (
 func SQL(dst io.Writer, v interface{}) error {
 	switch v.(type) {
 	case model.ColumnType:
-		return FormatColumnType(dst, v.(model.ColumnType))
+		return formatColumnType(dst, v.(model.ColumnType))
 	case model.Database:
-		return FormatDatabase(dst, v.(model.Database))
+		return formatDatabase(dst, v.(model.Database))
 	case model.Stmts:
 		for _, s := range v.(model.Stmts) {
 			if err := SQL(dst, s); err != nil {
@@ -26,21 +26,21 @@ func SQL(dst io.Writer, v interface{}) error {
 		}
 		return nil
 	case model.Table:
-		return FormatTable(dst, v.(model.Table))
+		return formatTable(dst, v.(model.Table))
 	case model.TableColumn:
-		return FormatTableColumn(dst, v.(model.TableColumn))
+		return formatTableColumn(dst, v.(model.TableColumn))
 	case model.TableOption:
-		return FormatTableOption(dst, v.(model.TableOption))
+		return formatTableOption(dst, v.(model.TableOption))
 	case model.Index:
-		return FormatIndex(dst, v.(model.Index))
+		return formatIndex(dst, v.(model.Index))
 	case model.Reference:
-		return FormatReference(dst, v.(model.Reference))
+		return formatReference(dst, v.(model.Reference))
 	default:
 		return errors.New("unsupported model type")
 	}
 }
 
-func FormatDatabase(dst io.Writer, d model.Database) error {
+func formatDatabase(dst io.Writer, d model.Database) error {
 	var buf bytes.Buffer
 	buf.WriteString("CREATE DATABASE")
 	if d.IsIfNotExists() {
@@ -56,7 +56,7 @@ func FormatDatabase(dst io.Writer, d model.Database) error {
 	return nil
 }
 
-func FormatTableOption(dst io.Writer, option model.TableOption) error {
+func formatTableOption(dst io.Writer, option model.TableOption) error {
 	var buf bytes.Buffer
 	buf.WriteString(option.Key())
 	buf.WriteString(" = ")
@@ -68,7 +68,7 @@ func FormatTableOption(dst io.Writer, option model.TableOption) error {
 	return nil
 }
 
-func FormatTable(dst io.Writer, table model.Table) error {
+func formatTable(dst io.Writer, table model.Table) error {
 	var buf bytes.Buffer
 
 	buf.WriteString("CREATE")
@@ -93,7 +93,7 @@ func FormatTable(dst io.Writer, table model.Table) error {
 	var i int
 	for col := range colch {
 		buf.WriteByte('\n')
-		if err := FormatTableColumn(&buf, col); err != nil {
+		if err := formatTableColumn(&buf, col); err != nil {
 			return err
 		}
 		if i < colchmax-1 || idxchmax > 0 {
@@ -105,7 +105,7 @@ func FormatTable(dst io.Writer, table model.Table) error {
 	i = 0
 	for idx := range idxch {
 		buf.WriteByte('\n')
-		if err := FormatIndex(&buf, idx); err != nil {
+		if err := formatIndex(&buf, idx); err != nil {
 			return err
 		}
 		if i < idxchmax-1 {
@@ -121,7 +121,7 @@ func FormatTable(dst io.Writer, table model.Table) error {
 		buf.WriteByte(' ')
 		var i int
 		for option := range optch {
-			if err := FormatTableOption(&buf, option); err != nil {
+			if err := formatTableOption(&buf, option); err != nil {
 				return err
 			}
 
@@ -138,7 +138,7 @@ func FormatTable(dst io.Writer, table model.Table) error {
 	return nil
 }
 
-func FormatColumnType(dst io.Writer, col model.ColumnType) error {
+func formatColumnType(dst io.Writer, col model.ColumnType) error {
 	if col <= model.ColumnTypeInvalid || col >= model.ColumnTypeMax {
 		return errors.New(`invalid column type`)
 	}
@@ -149,13 +149,13 @@ func FormatColumnType(dst io.Writer, col model.ColumnType) error {
 	return nil
 }
 
-func FormatTableColumn(dst io.Writer, col model.TableColumn) error {
+func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 	var buf bytes.Buffer
 
 	buf.WriteString(util.Backquote(col.Name()))
 	buf.WriteByte(' ')
 
-	if err := FormatColumnType(&buf, col.Type()); err != nil {
+	if err := formatColumnType(&buf, col.Type()); err != nil {
 		return err
 	}
 
@@ -237,7 +237,7 @@ func FormatTableColumn(dst io.Writer, col model.TableColumn) error {
 	return nil
 }
 
-func FormatIndex(dst io.Writer, index model.Index) error {
+func formatIndex(dst io.Writer, index model.Index) error {
 	var buf bytes.Buffer
 
 	if index.HasSymbol() {
@@ -292,7 +292,7 @@ func FormatIndex(dst io.Writer, index model.Index) error {
 
 	if ref := index.Reference(); ref != nil {
 		buf.WriteByte(' ')
-		if err := FormatReference(&buf, ref); err != nil {
+		if err := formatReference(&buf, ref); err != nil {
 			return err
 		}
 	}
@@ -303,7 +303,7 @@ func FormatIndex(dst io.Writer, index model.Index) error {
 	return nil
 }
 
-func FormatReference(dst io.Writer, r model.Reference) error {
+func formatReference(dst io.Writer, r model.Reference) error {
 	var buf bytes.Buffer
 
 	buf.WriteString("REFERENCES ")

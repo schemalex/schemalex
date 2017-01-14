@@ -7,61 +7,62 @@ import (
 	"github.com/schemalex/schemalex/internal/util"
 )
 
+// NewReference creates a reference constraint
 func NewReference() Reference {
 	return &reference{}
 }
 
-func (stmt *reference) AddColumns(l ...string) {
-	stmt.columns = append(stmt.columns, l...)
+func (r *reference) AddColumns(l ...string) {
+	r.columns = append(r.columns, l...)
 }
 
-func (stmt *reference) Columns() chan string {
-	c := make(chan string, len(stmt.columns))
-	for _, col := range stmt.columns {
+func (r *reference) Columns() chan string {
+	c := make(chan string, len(r.columns))
+	for _, col := range r.columns {
 		c <- col
 	}
 	close(c)
 	return c
 }
 
-func (stmt *reference) TableName() string {
-	return stmt.tableName
+func (r *reference) TableName() string {
+	return r.tableName
 }
 
-func (stmt *reference) MatchFull() bool {
-	return stmt.match == ReferenceMatchFull
+func (r *reference) MatchFull() bool {
+	return r.match == ReferenceMatchFull
 }
 
-func (stmt *reference) MatchSimple() bool {
-	return stmt.match == ReferenceMatchSimple
+func (r *reference) MatchSimple() bool {
+	return r.match == ReferenceMatchSimple
 }
 
-func (stmt *reference) MatchPartial() bool {
-	return stmt.match == ReferenceMatchPartial
+func (r *reference) MatchPartial() bool {
+	return r.match == ReferenceMatchPartial
 }
 
-func (stmt *reference) OnDelete() ReferenceOption {
-	return stmt.onDelete
+func (r *reference) OnDelete() ReferenceOption {
+	return r.onDelete
 }
 
-func (stmt *reference) OnUpdate() ReferenceOption {
-	return stmt.onUpdate
+func (r *reference) OnUpdate() ReferenceOption {
+	return r.onUpdate
 }
 
-func (stmt *reference) SetMatch(v ReferenceMatch) {
-	stmt.match = v
+func (r *reference) SetMatch(v ReferenceMatch) {
+	r.match = v
 }
 
-func (stmt *reference) SetOnDelete(v ReferenceOption) {
-	stmt.onDelete = v
+func (r *reference) SetOnDelete(v ReferenceOption) {
+	r.onDelete = v
 }
 
-func (stmt *reference) SetOnUpdate(v ReferenceOption) {
-	stmt.onUpdate = v
+func (r *reference) SetOnUpdate(v ReferenceOption) {
+	r.onUpdate = v
 }
 
-func (stmt *reference) SetTableName(v string) {
-	stmt.tableName = v
+func (r *reference) SetTableName(v string) {
+	r.tableName = v
 }
 
 func (r reference) String() string {

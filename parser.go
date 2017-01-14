@@ -1191,9 +1191,9 @@ OUTER:
 // non-space token
 func (pctx *parseCtx) skipWhiteSpaces() {
 	for {
-		switch t := ctx.peek(); t.Type {
+		switch t := pctx.peek(); t.Type {
 		case SPACE, COMMENT_IDENT:
-			ctx.advance()
+			pctx.advance()
 			continue
 		default:
 			return
