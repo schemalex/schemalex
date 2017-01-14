@@ -4,11 +4,11 @@ import "testing"
 
 func TestInterfaces(t *testing.T) {
 	{
-		var stmt Index = &index{}
-		_ = stmt
+		var stmt Index
+		stmt = &index{}
 	}
 	{
-		var stmt TableColumn = &tablecol{}
-		_ = stmt
+		var stmt TableColumn
+		stmt= &tablecol{}
 	}
 }

@@ -2,8 +2,10 @@
 
 package model
 
+// ColumnType describes the possible types that a column may take
 type ColumnType int
 
+// List of possible ColumnType values
 const (
 	ColumnTypeInvalid ColumnType = iota
 	ColumnTypeBit
