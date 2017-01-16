@@ -2,6 +2,7 @@
 
 package schemalex
 
+// TokenType describes the possible types of tokens that schemalex understands
 type TokenType int
 
 // Token represents a token
@@ -14,10 +15,12 @@ type Token struct {
 	EOF   bool
 }
 
+// NewToken creates a new token of type `t`, with value `v`
 func NewToken(t TokenType, v string) *Token {
 	return &Token{Type: t, Value: v}
 }
 
+// List of possible tokens
 const (
 	ILLEGAL TokenType = iota
 	EOF

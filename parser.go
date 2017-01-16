@@ -97,6 +97,9 @@ func (pctx *parseCtx) next() *Token {
 	return t
 }
 
+// ParseFile parses a file containing SQL statements and creates
+// a mode.Stmts structure.
+// See Parse for details.
 func (p *Parser) ParseFile(fn string) (model.Stmts, error) {
 	src, err := ioutil.ReadFile(fn)
 	if err != nil {
@@ -113,12 +116,15 @@ func (p *Parser) ParseFile(fn string) (model.Stmts, error) {
 	return stmts, nil
 }
 
+// ParseString parses a string containing SQL statements and creates
+// a mode.Stmts structure.
+// See Parse for details.
 func (p *Parser) ParseString(src string) (model.Stmts, error) {
 	return p.Parse([]byte(src))
 }
 
-// Parse parses the given set of SQL statements and creates a model.Stmts
-// structure.
+// Parse parses the given set of SQL statements and creates a
+// model.Stmts structure.
 // If it encounters errors while parsing, the returned error will be a
 // ParseError type.
 func (p *Parser) Parse(src []byte) (model.Stmts, error) {
@@ -127,7 +133,7 @@ func (p *Parser) Parse(src []byte) (model.Stmts, error) {
 
 	ctx := newParseCtx(cctx)
 	ctx.input = src
-	ctx.lexsrc = Lex(cctx, src)
+	ctx.lexsrc = lex(cctx, src)
 
 	var stmts model.Stmts
 LOOP:
@@ -327,7 +333,6 @@ func (p *Parser) parseCreateTableFields(ctx *parseCtx, stmt model.Table) error {
 			return newParseError(ctx, t, "expected RPAREN or COMMA")
 		}
 	}
-	return nil
 }
 
 func (p *Parser) parseTableConstraint(ctx *parseCtx, table model.Table) error {
@@ -1184,11 +1189,11 @@ OUTER:
 // Skips over whitespaces. Once this method returns, you can be
 // certain that next call to ctx.next()/peek() will result in a
 // non-space token
-func (ctx *parseCtx) skipWhiteSpaces() {
+func (pctx *parseCtx) skipWhiteSpaces() {
 	for {
-		switch t := ctx.peek(); t.Type {
+		switch t := pctx.peek(); t.Type {
 		case SPACE, COMMENT_IDENT:
-			ctx.advance()
+			pctx.advance()
 			continue
 		default:
 			return

@@ -6,6 +6,7 @@ import (
 	"io"
 )
 
+// NewIndex creates a new index with the given index kind.
 func NewIndex(kind IndexKind) Index {
 	return &index{
 		kind: kind,

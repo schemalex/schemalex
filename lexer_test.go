@@ -96,7 +96,7 @@ func TestLexToken(t *testing.T) {
 		ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 		defer cancel()
 
-		ch := Lex(ctx, []byte(spec.input))
+		ch := lex(ctx, []byte(spec.input))
 		select {
 		case <-ctx.Done():
 			t.Logf("%s", ctx.Err())

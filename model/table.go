@@ -1,5 +1,6 @@
 package model
 
+// NewTable create a new table with the given name
 func NewTable(name string) Table {
 	return &table{
 		name: name,
@@ -87,6 +88,7 @@ func (t *table) Options() chan TableOption {
 	return ch
 }
 
+// NewTableOption creates a new table option with the given name and value
 func NewTableOption(k, v string) TableOption {
 	return &tableopt{
 		key:   k,

@@ -5,8 +5,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
-	"golang.org/x/net/context"
 	"github.com/schemalex/schemalex/internal/errors"
+	"golang.org/x/net/context"
 )
 
 const eof = rune(0)
@@ -33,7 +33,7 @@ type lexer struct {
 	width int
 }
 
-func Lex(ctx context.Context, input []byte) chan *Token {
+func lex(ctx context.Context, input []byte) chan *Token {
 	ch := make(chan *Token, 3)
 	l := newLexer(ch, input)
 	go l.Run(ctx)
@@ -317,8 +317,6 @@ func (l *lexer) runQuote(pair rune) error {
 			}
 		}
 	}
-
-	return errors.New(`unreacheable`)
 }
 
 // https://dev.mysql.com/doc/refman/5.6/en/comments.html

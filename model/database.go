@@ -1,5 +1,6 @@
 package model
 
+// NewDatabase creates a new database mode with th given name
 func NewDatabase(n string) Database {
 	return &database{
 		name: n,
