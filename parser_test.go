@@ -184,6 +184,10 @@ id bigint unsigned not null auto_increment
 			Input:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, CONSTRAINT `symbol` UNIQUE KEY `uniq_id` USING BTREE (`id`) )",
 			Expect: "CREATE TABLE `fuga` (\n`id` INTEGER NOT NULL AUTO_INCREMENT,\nCONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)\n)",
 		},
+		{
+			Input: "DROP TABLE IF EXISTS `konboi_bug`",
+			Expect: "",
+		},
 	}
 
 	p := New()
