@@ -159,8 +159,11 @@ LOOP:
 			// We don't do anything about these
 		S1:
 			for {
-				if p.eol(ctx) {
+				switch t := ctx.peek(); t.Type {
+				case EOF, SEMICOLON:
 					break S1
+				default:
+					ctx.advance()
 				}
 			}
 		case EOF:
@@ -1214,9 +1217,10 @@ func (p *Parser) parseIdents(ctx *parseCtx, idents ...TokenType) ([]string, erro
 	return strs, nil
 }
 
+// TODO: revisit what exactly this eol is meant to do
 func (p *Parser) eol(ctx *parseCtx) bool {
 	ctx.skipWhiteSpaces()
-	switch t := ctx.peek(); t.Type {
+	switch t := ctx.next(); t.Type {
 	case EOF, SEMICOLON:
 		ctx.advance()
 		return true
