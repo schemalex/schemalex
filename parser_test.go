@@ -185,8 +185,8 @@ id bigint unsigned not null auto_increment
 			Expect: "CREATE TABLE `fuga` (\n`id` INTEGER NOT NULL AUTO_INCREMENT,\nCONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)\n)",
 		},
 		{
-			Input: "DROP TABLE IF EXISTS `konboi_bug`",
-			Expect: "",
+			Input: "DROP TABLE IF EXISTS `konboi_bug`; CREATE TABLE foo(`id` INT)",
+			Expect: "CREATE TABLE `foo` (\n`id` INT\n)",
 		},
 	}
 
