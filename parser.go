@@ -160,7 +160,10 @@ LOOP:
 		S1:
 			for {
 				switch t := ctx.peek(); t.Type {
-				case EOF, SEMICOLON:
+				case SEMICOLON:
+					ctx.advance()
+					fallthrough
+				case EOF:
 					break S1
 				default:
 					ctx.advance()
