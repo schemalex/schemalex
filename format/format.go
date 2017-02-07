@@ -226,7 +226,7 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 	}
 
 	if col.HasComment() {
-		buf.WriteString(" '")
+		buf.WriteString(" COMMENT '")
 		buf.WriteString(col.Comment())
 		buf.WriteByte('\'')
 	}
