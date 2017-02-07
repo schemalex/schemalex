@@ -46,6 +46,12 @@ func TestDiff(t *testing.T) {
 			After:  "CREATE TABLE `fuga` ( `id` BIGINT NOT NULL );",
 			Expect: "ALTER TABLE `fuga` CHANGE COLUMN `id` `id` BIGINT NOT NULL;",
 		},
+		// change column with comment
+		{
+			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
+			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL COMMENT 'fuga is good' );",
+			Expect: "ALTER TABLE `fuga` CHANGE COLUMN `id` `id` INTEGER NOT NULL COMMENT 'fuga is good';",
+		},
 		// drop primary key
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (`id`) );",
