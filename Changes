@@ -1,8 +1,11 @@
 Changes
 =======
 
-0.0.2 - 26 Jan 2017
+v0.0.3 - 07 Feb 2017
+    * table column hasComment then COMMENT not incleded (#20)
+
+v0.0.2 - 26 Jan 2017
     * Fix ignoring drop table statement (#14)
 
-0.0.1 - 09 Jan 2017
+v0.0.1 - 09 Jan 2017
     * First binary release
