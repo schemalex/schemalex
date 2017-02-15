@@ -25,8 +25,8 @@ func TestDiff(t *testing.T) {
 		// create table
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			After:  "CREATE TABLE `hoge` ( `id` INTEGER NOT NULL ) ENGINE=InnoDB; CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			Expect: "CREATE TABLE `hoge` (\n`id` INTEGER NOT NULL\n) ENGINE = InnoDB;",
+			After:  "CREATE TABLE `hoge` ( `id` INTEGER NOT NULL ) ENGINE=InnoDB DEFAULT CHARACTER SET utf8mb4 COMMENT 'table comment'; CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
+			Expect: "CREATE TABLE `hoge` (\n`id` INTEGER NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4, COMMENT = 'table comment';",
 		},
 		// drop column
 		{
