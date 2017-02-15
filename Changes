@@ -1,6 +1,9 @@
 Changes
 =======
 
+v0.0.4 - 15 Feb 2017
+    * Fix enclosing value of some creatre table options in single quote (#22)
+
 v0.0.3 - 07 Feb 2017
     * table column hasComment then COMMENT not incleded (#20)
 
