@@ -88,7 +88,7 @@ func (t *table) Options() chan TableOption {
 	return ch
 }
 
-// NewTableOption creates a new table option with the given name and value and quarts
+// NewTableOption creates a new table option with the given name, value, and a flag indicating if quoting is necessary
 func NewTableOption(k, v string, q bool) TableOption {
 	return &tableopt{
 		key:        k,
