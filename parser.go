@@ -571,7 +571,12 @@ func (p *Parser) parseCreateTableOptionValue(ctx *parseCtx, table model.Table, n
 		if typ != t.Type {
 			continue
 		}
-		table.AddOption(model.NewTableOption(name, t.Value, t.Type == SINGLE_QUOTE_IDENT || t.Type == DOUBLE_QUOTE_IDENT))
+		var quotes bool
+		switch t.Type {
+		case SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
+			quotes = true
+		}
+		table.AddOption(model.NewTableOption(name, t.Value, quotes))
 		return nil
 	}
 	return newParseError(ctx, t, "expected %v", follow)
