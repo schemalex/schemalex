@@ -60,12 +60,11 @@ func formatTableOption(dst io.Writer, option model.TableOption) error {
 	var buf bytes.Buffer
 	buf.WriteString(option.Key())
 	buf.WriteString(" = ")
-	switch option.Key() {
-	case "COMMENT", "CONNECTION", "DATA DIRECTOR", "INDEX DIRECTORY", "PASSWORD":
+	if option.NeedQuotes() {
 		buf.WriteByte('\'')
 		buf.WriteString(option.Value())
 		buf.WriteByte('\'')
-	default:
+	} else {
 		buf.WriteString(option.Value())
 	}
 

@@ -88,14 +88,16 @@ func (t *table) Options() chan TableOption {
 	return ch
 }
 
-// NewTableOption creates a new table option with the given name and value
-func NewTableOption(k, v string) TableOption {
+// NewTableOption creates a new table option with the given name and value and quarts
+func NewTableOption(k, v string, q bool) TableOption {
 	return &tableopt{
-		key:   k,
-		value: v,
+		key:        k,
+		value:      v,
+		needQuotes: q,
 	}
 }
 
-func (t *tableopt) ID() string    { return "tableopt#" + t.key }
-func (t *tableopt) Key() string   { return t.key }
-func (t *tableopt) Value() string { return t.value }
+func (t *tableopt) ID() string       { return "tableopt#" + t.key }
+func (t *tableopt) Key() string      { return t.key }
+func (t *tableopt) Value() string    { return t.value }
+func (t *tableopt) NeedQuotes() bool { return t.needQuotes }

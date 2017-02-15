@@ -19,7 +19,7 @@ func TestFormat(t *testing.T) {
 	col.SetType(model.ColumnTypeInt)
 	table.AddColumn(col)
 
-	opt := model.NewTableOption("ENGINE", "InnoDB")
+	opt := model.NewTableOption("ENGINE", "InnoDB", false)
 	table.AddOption(opt)
 
 	index := model.NewIndex(model.IndexKindPrimaryKey)
