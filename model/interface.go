@@ -153,6 +153,7 @@ type TableOption interface {
 	Stmt
 	Key() string
 	Value() string
+	NeedQuotes() bool
 }
 
 type table struct {
@@ -165,8 +166,9 @@ type table struct {
 }
 
 type tableopt struct {
-	key   string
-	value string
+	key        string
+	value      string
+	needQuotes bool
 }
 
 // NullState describes the possible NULL constraint of a column

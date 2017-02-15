@@ -105,10 +105,10 @@ primary key (id, c)
 		{
 			Input: `create table hoge (
 id bigint unsigned not null auto_increment
-) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8;
+) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8 COMMENT = 'hoge comment';
 `,
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
 		},
 		// with key, index
 		{
@@ -185,7 +185,7 @@ id bigint unsigned not null auto_increment
 			Expect: "CREATE TABLE `fuga` (\n`id` INTEGER NOT NULL AUTO_INCREMENT,\nCONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)\n)",
 		},
 		{
-			Input: "DROP TABLE IF EXISTS `konboi_bug`; CREATE TABLE foo(`id` INT)",
+			Input:  "DROP TABLE IF EXISTS `konboi_bug`; CREATE TABLE foo(`id` INT)",
 			Expect: "CREATE TABLE `foo` (\n`id` INT\n)",
 		},
 	}
