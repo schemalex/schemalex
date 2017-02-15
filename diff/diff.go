@@ -268,10 +268,10 @@ func newAlterCtx(from, to model.Table) *alterCtx {
 
 func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 	procs := []func(*alterCtx, io.Writer) (int64, error){
+		dropTableIndexes,
 		dropTableColumns,
 		addTableColumns,
 		alterTableColumns,
-		dropTableIndexes,
 		addTableIndexes,
 	}
 
