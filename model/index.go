@@ -3,26 +3,36 @@ package model
 import (
 	"crypto/sha256"
 	"fmt"
-	"io"
 )
 
 // NewIndex creates a new index with the given index kind.
-func NewIndex(kind IndexKind) Index {
+func NewIndex(kind IndexKind, table string) Index {
 	return &index{
-		kind: kind,
+		kind:  kind,
+		table: table,
 	}
 }
 
 func (stmt *index) ID() string {
 	// This is tricky. and index may or may not have a name. It would
 	// have been so much easier if we did, but we don't, so we'll fake
-	// something
+	// something.
+	//
+	// In case we don't have a name, we need to know the table, the kind,
+	// the type, // the column(s), and the reference(s).
 	name := "index"
 	if stmt.HasName() {
 		name = name + "#" + stmt.Name()
 	}
 	h := sha256.New()
-	io.WriteString(h, fmt.Sprintf("%v, %v, %v, %v, %v, %v", stmt.symbol, stmt.kind, stmt.name, stmt.typ, stmt.columns, stmt.reference))
+	fmt.Fprintf(h,
+		"%s.%s.%s.%v.%s",
+		stmt.table,
+		stmt.kind,
+		stmt.typ,
+		stmt.columns,
+		stmt.reference,
+	)
 	return fmt.Sprintf("%s#%x", name, h.Sum(nil))
 }
 

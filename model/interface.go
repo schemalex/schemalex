@@ -73,6 +73,7 @@ type index struct {
 	kind    IndexKind
 	name    maybeString
 	typ     IndexType
+	table   string
 	columns []string
 	// TODO Options.
 	reference Reference
