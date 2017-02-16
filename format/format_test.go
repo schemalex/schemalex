@@ -22,7 +22,7 @@ func TestFormat(t *testing.T) {
 	opt := model.NewTableOption("ENGINE", "InnoDB", false)
 	table.AddOption(opt)
 
-	index := model.NewIndex(model.IndexKindPrimaryKey)
+	index := model.NewIndex(model.IndexKindPrimaryKey, table.ID())
 	index.SetName("hoge_pk")
 	index.AddColumns("fuga")
 	table.AddIndex(index)

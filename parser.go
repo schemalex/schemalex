@@ -360,17 +360,17 @@ func (p *Parser) parseTableConstraint(ctx *parseCtx, table model.Table) error {
 	var index model.Index
 	switch t := ctx.peek(); t.Type {
 	case PRIMARY:
-		index = model.NewIndex(model.IndexKindPrimaryKey)
+		index = model.NewIndex(model.IndexKindPrimaryKey, table.ID())
 		if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
 			return err
 		}
 	case UNIQUE:
-		index = model.NewIndex(model.IndexKindUnique)
+		index = model.NewIndex(model.IndexKindUnique, table.ID())
 		if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
 			return err
 		}
 	case FOREIGN:
-		index = model.NewIndex(model.IndexKindForeignKey)
+		index = model.NewIndex(model.IndexKindForeignKey, table.ID())
 		if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
 			return err
 		}
@@ -387,7 +387,7 @@ func (p *Parser) parseTableConstraint(ctx *parseCtx, table model.Table) error {
 }
 
 func (p *Parser) parseTablePrimaryKey(ctx *parseCtx, table model.Table) error {
-	index := model.NewIndex(model.IndexKindPrimaryKey)
+	index := model.NewIndex(model.IndexKindPrimaryKey, table.ID())
 	if err := p.parseColumnIndexPrimaryKey(ctx, index); err != nil {
 		return err
 	}
@@ -396,7 +396,7 @@ func (p *Parser) parseTablePrimaryKey(ctx *parseCtx, table model.Table) error {
 }
 
 func (p *Parser) parseTableUniqueKey(ctx *parseCtx, table model.Table) error {
-	index := model.NewIndex(model.IndexKindUnique)
+	index := model.NewIndex(model.IndexKindUnique, table.ID())
 	if err := p.parseColumnIndexUniqueKey(ctx, index); err != nil {
 		return err
 	}
@@ -405,7 +405,7 @@ func (p *Parser) parseTableUniqueKey(ctx *parseCtx, table model.Table) error {
 }
 
 func (p *Parser) parseTableIndex(ctx *parseCtx, table model.Table) error {
-	index := model.NewIndex(model.IndexKindNormal)
+	index := model.NewIndex(model.IndexKindNormal, table.ID())
 	if err := p.parseColumnIndexKey(ctx, index); err != nil {
 		return err
 	}
@@ -414,7 +414,7 @@ func (p *Parser) parseTableIndex(ctx *parseCtx, table model.Table) error {
 }
 
 func (p *Parser) parseTableFulltextIndex(ctx *parseCtx, table model.Table) error {
-	index := model.NewIndex(model.IndexKindFullText)
+	index := model.NewIndex(model.IndexKindFullText, table.ID())
 	if err := p.parseColumnIndexFullTextKey(ctx, index); err != nil {
 		return err
 	}
@@ -423,7 +423,7 @@ func (p *Parser) parseTableFulltextIndex(ctx *parseCtx, table model.Table) error
 }
 
 func (p *Parser) parseTableSpatialIndex(ctx *parseCtx, table model.Table) error {
-	index := model.NewIndex(model.IndexKindSpatial)
+	index := model.NewIndex(model.IndexKindSpatial, table.ID())
 	if err := p.parseColumnIndexSpatialKey(ctx, index); err != nil {
 		return err
 	}
@@ -432,7 +432,7 @@ func (p *Parser) parseTableSpatialIndex(ctx *parseCtx, table model.Table) error 
 }
 
 func (p *Parser) parseTableForeignKey(ctx *parseCtx, table model.Table) error {
-	index := model.NewIndex(model.IndexKindForeignKey)
+	index := model.NewIndex(model.IndexKindForeignKey, table.ID())
 	if err := p.parseColumnIndexForeignKey(ctx, index); err != nil {
 		return err
 	}
