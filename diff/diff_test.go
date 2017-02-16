@@ -82,6 +82,12 @@ func TestDiff(t *testing.T) {
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, CONSTRAINT `symbol` UNIQUE KEY `uniq_id` USING BTREE (`id`) );",
 			Expect: "",
 		},
+		// not change FOREIGN KEY
+		{
+			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, FOREIGN KEY fk (fid) REFERENCES f (id) );",
+			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, FOREIGN KEY fk (fid) REFERENCES f (id) );",
+			Expect: "",
+		},
 		// multi modify
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `aid` INTEGER NOT NULL, `bid` INTEGER NOT NULL, INDEX `ab` (`aid`, `bid`) );",
