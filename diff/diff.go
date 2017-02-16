@@ -422,7 +422,11 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		}
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
-		buf.WriteString("` DROP INDEX `")
+		if indexStmt.IsForeginKey() {
+			buf.WriteString("` DROP FOREIGN KEY `")
+		} else {
+			buf.WriteString("` DROP INDEX `")
+		}
 		buf.WriteString(indexStmt.Name())
 		buf.WriteString("`;")
 	}
