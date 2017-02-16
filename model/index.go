@@ -22,7 +22,7 @@ func (stmt *index) ID() string {
 		name = name + "#" + stmt.Name()
 	}
 	h := sha256.New()
-	io.WriteString(h, fmt.Sprintf("%v", stmt))
+	io.WriteString(h, fmt.Sprintf("%v, %v, %v, %v, %v, %v", stmt.symbol, stmt.kind, stmt.name, stmt.typ, stmt.columns, stmt.reference))
 	return fmt.Sprintf("%s#%x", name, h.Sum(nil))
 }
 
