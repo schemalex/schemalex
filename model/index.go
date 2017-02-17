@@ -26,8 +26,9 @@ func (stmt *index) ID() string {
 	}
 	h := sha256.New()
 	fmt.Fprintf(h,
-		"%s.%s.%s.%v.%s",
+		"%s.%s,%s.%s.%v.%s",
 		stmt.table,
+		stmt.Symbol(),
 		stmt.kind,
 		stmt.typ,
 		stmt.columns,

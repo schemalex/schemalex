@@ -413,7 +413,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 			continue
 		}
 
-		if !indexStmt.HasName() {
+		if !indexStmt.HasName() && !indexStmt.HasSymbol() {
 			return 0, errors.Errorf("can not drop index without name: %s", indexStmt.ID())
 		}
 
@@ -424,10 +424,19 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString(ctx.from.Name())
 		if indexStmt.IsForeginKey() {
 			buf.WriteString("` DROP FOREIGN KEY `")
+			if indexStmt.HasSymbol() {
+				buf.WriteString(indexStmt.Symbol())
+			} else {
+				buf.WriteString(indexStmt.Name())
+			}
 		} else {
 			buf.WriteString("` DROP INDEX `")
+			if !indexStmt.HasName() {
+				buf.WriteString(indexStmt.Symbol())
+			} else {
+				buf.WriteString(indexStmt.Name())
+			}
 		}
-		buf.WriteString(indexStmt.Name())
 		buf.WriteString("`;")
 	}
 
