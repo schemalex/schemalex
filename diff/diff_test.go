@@ -88,6 +88,12 @@ func TestDiff(t *testing.T) {
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, FOREIGN KEY fk (fid) REFERENCES f (id) );",
 			Expect: "",
 		},
+		// change CONSTRAINT symbol naml
+		{
+			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, CONSTRAINT `fsym` FOREIGN KEY (fid) REFERENCES f (id) );",
+			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, CONSTRAINT `ksym` FOREIGN KEY (fid) REFERENCES f (id) );",
+			Expect: "ALTER TABLE `fuga` DROP FOREIGN KEY `fsym`;\nALTER TABLE `fuga` ADD CONSTRAINT `ksym` FOREIGN KEY (`fid`) REFERENCES `f` (`id`);",
+		},
 		// remove FOREIGN KEY
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, FOREIGN KEY fk (fid) REFERENCES f (id) );",
