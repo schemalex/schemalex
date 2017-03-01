@@ -1,6 +1,10 @@
 Changes
 =======
 
+v0.0.5 - 01 Mar 2017
+    * Fix Alter statements order (#24)
+    * Fix handling when Foreign Key is changed (#25)
+
 v0.0.4 - 15 Feb 2017
     * Fix enclosing value of some creatre table options in single quote (#22)
 
