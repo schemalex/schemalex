@@ -188,6 +188,10 @@ id bigint unsigned not null auto_increment
 			Input:  "DROP TABLE IF EXISTS `konboi_bug`; CREATE TABLE foo(`id` INT)",
 			Expect: "CREATE TABLE `foo` (\n`id` INT\n)",
 		},
+		{
+			Input: "CREATE TABLE `foo` (col TEXT CHARACTER SET latin1)",
+			Expect: "CREATE TABLE `foo` (\n`col` TEXT CHARACTER SET `latin1`\n)",
+		},
 	}
 
 	p := New()

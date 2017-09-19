@@ -211,6 +211,7 @@ type TableColumn interface {
 	SetLength(Length)
 	HasCharacterSet() bool
 	CharacterSet() string
+	SetCharacterSet(string)
 	HasCollation() bool
 	Collation() string
 	HasDefault() bool
