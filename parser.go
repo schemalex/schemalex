@@ -610,6 +610,8 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error
 			var name string
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
+			case CHARSET:
+				name = "DEFAULT CHARACTER SET"
 			case CHARACTER:
 				ctx.skipWhiteSpaces()
 				if t := ctx.next(); t.Type != SET {

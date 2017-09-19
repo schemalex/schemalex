@@ -98,16 +98,16 @@ c varchar(20) not null default "hoge",
 primary key (id, c)
 );
 `,
-			Error:  false,
 			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL DEFAULT \"hoge\",\nPRIMARY KEY (`id`, `c`)\n)",
 		},
 		// with table options
 		{
-			Input: `create table hoge (
-id bigint unsigned not null auto_increment
-) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8 COMMENT = 'hoge comment';
-`,
-			Error:  false,
+			Input: "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8 COMMENT = 'hoge comment';",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
+		},
+		// CHARACTER SET -> CHARSET
+		{
+			Input: "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARSET = utf8 COMMENT = 'hoge comment';",
 			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
 		},
 		// with key, index

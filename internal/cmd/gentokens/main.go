@@ -84,6 +84,7 @@ func _main() error {
 		{Ident: "CASCADE"},
 		{Ident: "CHAR"},
 		{Ident: "CHARACTER"},
+		{Ident: "CHARSET"},
 		{Ident: "CHECK"},
 		{Ident: "CHECKSUM"},
 		{Ident: "COLLATE"},
