@@ -831,6 +831,15 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				return newParseError(ctx, t, "cant apply NULL")
 			}
 			col.SetNullState(model.NullStateNull)
+		case ON:
+			// for now, only applicable to ON UPDATE ...
+			ctx.skipWhiteSpaces()
+			if t := ctx.next(); t.Type != UPDATE {
+				return newParseError(ctx, t, "expected ON UPDATE")
+			}
+			ctx.skipWhiteSpaces()
+			v := ctx.next()
+			col.SetAutoUpdate(v.Value)
 		case DEFAULT:
 			if !check(coloptDefault) {
 				return newParseError(ctx, t, "cant apply DEFAULT")
@@ -842,7 +851,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			case NUMBER, CURRENT_TIMESTAMP, NULL:
 				col.SetDefault(t.Value, false)
 			default:
-				return newParseError(ctx, t, "should IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
+				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
 		case AUTO_INCREMENT:
 			if !check(coloptAutoIncrement) {

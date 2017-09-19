@@ -175,3 +175,16 @@ func (t *tablecol) SetUnsigned(v bool) {
 func (t *tablecol) SetZeroFill(v bool) {
 	t.zerofill = v
 }
+
+func (t *tablecol) HasAutoUpdate() bool {
+	return t.autoUpdate.Valid
+}
+
+func (t *tablecol) SetAutoUpdate(s string) {
+	t.autoUpdate.Value = s
+	t.autoUpdate.Valid = true
+}
+
+func (t *tablecol) AutoUpdate() string {
+	return t.autoUpdate.Value
+}

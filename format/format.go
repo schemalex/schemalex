@@ -198,6 +198,11 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 		buf.WriteString(util.Backquote(col.Collation()))
 	}
 
+	if col.HasAutoUpdate() {
+		buf.WriteString(" ON UPDATE ")
+		buf.WriteString(col.AutoUpdate())
+	}
+
 	if n := col.NullState(); n != model.NullStateNone {
 		buf.WriteByte(' ')
 		switch n {
