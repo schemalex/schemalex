@@ -1,12 +1,11 @@
 package schemalex
 
 import (
+	"context"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
-
-	"golang.org/x/net/context"
 )
 
 func TestLexToken(t *testing.T) {
