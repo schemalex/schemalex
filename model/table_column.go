@@ -36,6 +36,11 @@ func (t *tablecol) ID() string {
 	return "tablecol#" + t.name
 }
 
+func (t *tablecol) SetCharacterSet(s string) {
+	t.charset.Valid = true
+	t.charset.Value = s
+}
+
 func (t *tablecol) CharacterSet() string {
 	return t.charset.Value
 }

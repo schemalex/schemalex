@@ -792,6 +792,14 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			} else {
 				return newParseError(ctx, t, "cant apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
 			}
+		case CHARACTER:
+			ctx.skipWhiteSpaces()
+			if t := ctx.next(); t.Type != SET {
+				return newParseError(ctx, t, "expected SET")
+			}
+			ctx.skipWhiteSpaces()
+			v := ctx.next()
+			col.SetCharacterSet(v.Value)
 		case UNSIGNED:
 			if !check(coloptUnsigned) {
 				return newParseError(ctx, t, "cant apply UNSIGNED")
