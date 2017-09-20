@@ -221,6 +221,9 @@ type TableColumn interface {
 	HasComment() bool
 	Comment() string
 	SetComment(string)
+	HasAutoUpdate() bool
+	AutoUpdate() string
+	SetAutoUpdate(string)
 
 	NullState() NullState
 	SetNullState(NullState)
@@ -256,6 +259,7 @@ type tablecol struct {
 	collation    maybeString
 	defaultValue defaultValue
 	comment      maybeString
+	autoUpdate   maybeString
 	autoincr     bool
 	binary       bool
 	key          bool

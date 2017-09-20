@@ -192,6 +192,10 @@ id bigint unsigned not null auto_increment
 			Input: "CREATE TABLE `foo` (col TEXT CHARACTER SET latin1)",
 			Expect: "CREATE TABLE `foo` (\n`col` TEXT CHARACTER SET `latin1`\n)",
 		},
+		{
+			Input: "CREATE TABLE `foo` (col DATETIME ON UPDATE CURRENT_TIMESTAMP)",
+			Expect: "CREATE TABLE `foo` (\n`col` DATETIME ON UPDATE CURRENT_TIMESTAMP\n)",
+		},
 	}
 
 	p := New()
