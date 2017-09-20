@@ -1,6 +1,11 @@
 Changes
 =======
 
+v0.0.6 - 20 Sep 2017
+    * support per-column character sets (#27)
+    * Implement auto-update column options (#28)
+    * make charset=character set for create table options (#29)
+
 v0.0.5 - 01 Mar 2017
     * Fix Alter statements order (#24)
     * Fix handling when Foreign Key is changed (#25)
