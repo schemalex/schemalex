@@ -2,11 +2,11 @@ package schemalex
 
 import (
 	"bytes"
+	"context"
 	"strings"
 	"unicode/utf8"
 
 	"github.com/schemalex/schemalex/internal/errors"
-	"golang.org/x/net/context"
 )
 
 const eof = rune(0)

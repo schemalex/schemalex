@@ -1,14 +1,10 @@
-hash: acd75c6bb27f02d764ba99c050695601a534267aba54c34ee1e5ae0a926c8de7
-updated: 2017-01-06T20:57:01.442243996+09:00
+hash: 653e5e93d2b773a793f9fb9a17855b4d081f35f1cbe1913e3c78bbeaae07e646
+updated: 2017-09-20T10:28:35.785261093+09:00
 imports:
 - name: github.com/deckarep/golang-set
-  version: 0c62f01318f81fb34e5ea393d2ec62141e9715e9
+  version: b3af78e1d186c53529e3c916055d734665f68121
 - name: github.com/pkg/errors
-  version: 248dadf4e9068a0b3e79f02ed0a610d935de5302
-- name: golang.org/x/net
-  version: 905989bd20b7c354fd28a61074eed1c8f49ebc89
-  subpackages:
-  - context
+  version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
 testImports:
 - name: github.com/davecgh/go-spew
   version: 04cdfd42973bb9c8589fd6a731800cf222fde1a9
@@ -19,6 +15,6 @@ testImports:
   subpackages:
   - difflib
 - name: github.com/stretchr/testify
-  version: 2402e8e7a02fc811447d11f881aa9746cdc57983
+  version: 890a5c3458b43e6104ff5da8dfa139d013d77544
   subpackages:
   - assert
