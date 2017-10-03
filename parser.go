@@ -3,6 +3,7 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
+	"regexp"
 	"strconv"
 
 	"github.com/schemalex/schemalex/internal/errors"
@@ -948,6 +949,22 @@ func (p *Parser) normalizeColumn(col model.TableColumn) error {
 
 	if col.Type() == model.ColumnTypeInteger {
 		col.SetType(model.ColumnTypeInt)
+	}
+
+	if col.HasDefault() {
+		if col.Default() == "NULL" && col.NullState() == model.NullStateNone {
+			col.SetNullState(model.NullStateNull)
+		}
+		if col.NullState() == model.NullStateNotNull && !col.IsQuotedDefault() {
+			if testNumber.MatchString(col.Default()) {
+				col.SetDefault(col.Default(), true)
+			}
+		}
+	} else {
+		if col.NullState() != model.NullStateNotNull {
+			col.SetDefault("NULL", false)
+			col.SetNullState(model.NullStateNull)
+		}
 	}
 
 	return nil
