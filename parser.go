@@ -936,14 +936,6 @@ func (p *Parser) normalizeColumn(col model.TableColumn) error {
 			l := model.NewLength("8")
 			l.SetDecimal("2")
 			col.SetLength(l)
-		case model.ColumnTypeTinyText, model.ColumnTypeTinyBlob:
-			col.SetLength(model.NewLength("255"))
-		case model.ColumnTypeBlob, model.ColumnTypeText:
-			col.SetLength(model.NewLength("65535"))
-		case model.ColumnTypeMediumBlob, model.ColumnTypeMediumText:
-			col.SetLength(model.NewLength("16777215"))
-		case model.ColumnTypeLongBlob, model.ColumnTypeLongText:
-			col.SetLength(model.NewLength("4294967295"))
 		}
 	}
 
