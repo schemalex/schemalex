@@ -3,7 +3,6 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
-	"regexp"
 	"strconv"
 
 	"github.com/schemalex/schemalex/internal/errors"
@@ -912,8 +911,6 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 	}
 }
 
-var testNumber = regexp.MustCompile(`^(-+)?[0-9]+(\.[0-9]+)?$`)
-
 func (p *Parser) normalizeColumn(col model.TableColumn) error {
 	if !col.HasLength() {
 		// set default length
@@ -944,18 +941,28 @@ func (p *Parser) normalizeColumn(col model.TableColumn) error {
 	}
 
 	if col.HasDefault() {
-		if col.Default() == "NULL" && col.NullState() == model.NullStateNone {
-			col.SetNullState(model.NullStateNull)
+		if col.Default() == "NULL" && col.NullState() == model.NullStateNull {
+			col.SetNullState(model.NullStateNone)
 		}
-		if col.NullState() == model.NullStateNotNull && !col.IsQuotedDefault() {
-			if testNumber.MatchString(col.Default()) {
-				col.SetDefault(col.Default(), true)
-			}
+		switch col.Type() {
+		case model.ColumnTypeTinyInt, model.ColumnTypeSmallInt,
+			model.ColumnTypeMediumInt, model.ColumnTypeInt,
+			model.ColumnTypeInteger, model.ColumnTypeBigInt,
+			model.ColumnTypeFloat, model.ColumnTypeDouble,
+			model.ColumnTypeDecimal, model.ColumnTypeNumeric, model.ColumnTypeReal:
+			col.SetDefault(col.Default(), false)
 		}
 	} else {
-		if col.NullState() != model.NullStateNotNull {
-			col.SetDefault("NULL", false)
-			col.SetNullState(model.NullStateNull)
+		switch col.Type() {
+		case model.ColumnTypeTinyText, model.ColumnTypeTinyBlob,
+			model.ColumnTypeBlob, model.ColumnTypeText,
+			model.ColumnTypeMediumBlob, model.ColumnTypeMediumText,
+			model.ColumnTypeLongBlob, model.ColumnTypeLongText:
+		default:
+			if col.NullState() != model.NullStateNotNull {
+				col.SetDefault("NULL", false)
+				col.SetNullState(model.NullStateNone)
+			}
 		}
 	}
 
