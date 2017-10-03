@@ -929,15 +929,20 @@ func (p *Parser) normalizeColumn(col model.TableColumn) error {
 			col.SetLength(model.NewLength(strconv.Itoa(11 - unsigned)))
 		case model.ColumnTypeBigInt:
 			col.SetLength(model.NewLength("20"))
-		case model.ColumnTypeFloat, model.ColumnTypeDouble, model.ColumnTypeDecimal, model.ColumnTypeNumeric, model.ColumnTypeReal:
-			l := model.NewLength("8")
-			l.SetDecimal("2")
+		case model.ColumnTypeDecimal, model.ColumnTypeNumeric:
+			l := model.NewLength("10")
+			l.SetDecimal("0")
 			col.SetLength(l)
 		}
 	}
 
-	if col.Type() == model.ColumnTypeInteger {
+	switch col.Type() {
+	case model.ColumnTypeInteger:
 		col.SetType(model.ColumnTypeInt)
+	case model.ColumnTypeNumeric:
+		col.SetType(model.ColumnTypeDecimal)
+	case model.ColumnTypeReal:
+		col.SetType(model.ColumnTypeDouble)
 	}
 
 	if col.HasDefault() {
