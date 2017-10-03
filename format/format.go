@@ -3,7 +3,6 @@ package format
 import (
 	"bytes"
 	"io"
-	"strconv"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/internal/util"
@@ -216,7 +215,9 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 	if col.HasDefault() {
 		buf.WriteString(" DEFAULT ")
 		if col.IsQuotedDefault() {
-			buf.WriteString(strconv.Quote(col.Default()))
+			buf.WriteByte('\'')
+			buf.WriteString(col.Default())
+			buf.WriteByte('\'')
 		} else {
 			buf.WriteString(col.Default())
 		}
