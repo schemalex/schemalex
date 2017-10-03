@@ -3,6 +3,7 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
+	"strconv"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/model"
@@ -451,6 +452,9 @@ func (p *Parser) parseTableColumn(ctx *parseCtx, table model.Table) error {
 
 	col := model.NewTableColumn(t.Value)
 	if err := p.parseTableColumnSpec(ctx, col); err != nil {
+		return err
+	}
+	if err := p.normalizeColumn(col); err != nil {
 		return err
 	}
 	table.AddColumn(col)
@@ -905,6 +909,48 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			return newParseError(ctx, t, "unexpected column options")
 		}
 	}
+}
+
+var testNumber = regexp.MustCompile(`^(-+)?[0-9]+(\.[0-9]+)?$`)
+
+func (p *Parser) normalizeColumn(col model.TableColumn) error {
+	if !col.HasLength() {
+		// set default length
+		unsigned := 0
+		if col.IsUnsigned() {
+			unsigned++
+		}
+		switch col.Type() {
+		case model.ColumnTypeTinyInt:
+			col.SetLength(model.NewLength(strconv.Itoa(4 - unsigned)))
+		case model.ColumnTypeSmallInt:
+			col.SetLength(model.NewLength(strconv.Itoa(6 - unsigned)))
+		case model.ColumnTypeMediumInt:
+			col.SetLength(model.NewLength(strconv.Itoa(9 - unsigned)))
+		case model.ColumnTypeInt, model.ColumnTypeInteger:
+			col.SetLength(model.NewLength(strconv.Itoa(11 - unsigned)))
+		case model.ColumnTypeBigInt:
+			col.SetLength(model.NewLength("20"))
+		case model.ColumnTypeFloat, model.ColumnTypeDouble, model.ColumnTypeDecimal, model.ColumnTypeNumeric, model.ColumnTypeReal:
+			l := model.NewLength("8")
+			l.SetDecimal("2")
+			col.SetLength(l)
+		case model.ColumnTypeTinyText, model.ColumnTypeTinyBlob:
+			col.SetLength(model.NewLength("255"))
+		case model.ColumnTypeBlob, model.ColumnTypeText:
+			col.SetLength(model.NewLength("65535"))
+		case model.ColumnTypeMediumBlob, model.ColumnTypeMediumText:
+			col.SetLength(model.NewLength("16777215"))
+		case model.ColumnTypeLongBlob, model.ColumnTypeLongText:
+			col.SetLength(model.NewLength("4294967295"))
+		}
+	}
+
+	if col.Type() == model.ColumnTypeInteger {
+		col.SetType(model.ColumnTypeInt)
+	}
+
+	return nil
 }
 
 func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) error {
