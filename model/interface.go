@@ -247,6 +247,11 @@ type TableColumn interface {
 	// Currently only supports
 	// numeric types, but may change later.
 	NativeLength() Length
+
+	// Normalize returns normalized column.
+	// It looks like a different column, but MySQL normalizes it as the same column.
+	// numeric column length, synonym type, and expression on NULL
+	Normalize() TableColumn
 }
 
 type defaultValue struct {

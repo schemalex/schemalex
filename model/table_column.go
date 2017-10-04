@@ -224,3 +224,50 @@ func (t *tablecol) NativeLength() Length {
 
 	return NewLength(strconv.Itoa(size))
 }
+
+func (t *tablecol) Normalize() TableColumn {
+	col := &tablecol{}
+	*col = *t
+	if !t.HasLength() {
+		if length := t.NativeLength(); length != nil {
+			col.SetLength(length)
+		}
+	}
+
+	if synonym := t.Type().SynonymType(); synonym != t.Type() {
+		col.SetType(synonym)
+	}
+
+	return col.normalizeNullExpression()
+}
+
+func (t *tablecol) normalizeNullExpression() TableColumn {
+	col := &tablecol{}
+	*col = *t
+	if col.HasDefault() {
+		if t.Default() == "NULL" && t.NullState() == NullStateNull {
+			col.SetNullState(NullStateNone)
+		}
+		switch t.Type() {
+		case ColumnTypeTinyInt, ColumnTypeSmallInt,
+			ColumnTypeMediumInt, ColumnTypeInt,
+			ColumnTypeInteger, ColumnTypeBigInt,
+			ColumnTypeFloat, ColumnTypeDouble,
+			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
+			col.SetDefault(t.Default(), false)
+		}
+	} else {
+		switch t.Type() {
+		case ColumnTypeTinyText, ColumnTypeTinyBlob,
+			ColumnTypeBlob, ColumnTypeText,
+			ColumnTypeMediumBlob, ColumnTypeMediumText,
+			ColumnTypeLongBlob, ColumnTypeLongText:
+		default:
+			if col.NullState() != NullStateNotNull {
+				col.SetDefault("NULL", false)
+				col.SetNullState(NullStateNone)
+			}
+		}
+	}
+	return col
+}

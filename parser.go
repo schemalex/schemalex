@@ -453,10 +453,7 @@ func (p *Parser) parseTableColumn(ctx *parseCtx, table model.Table) error {
 	if err := p.parseTableColumnSpec(ctx, col); err != nil {
 		return err
 	}
-	if err := p.normalizeColumn(col); err != nil {
-		return err
-	}
-	table.AddColumn(col)
+	table.AddColumn(col.Normalize())
 	return nil
 }
 
@@ -908,46 +905,6 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			return newParseError(ctx, t, "unexpected column options")
 		}
 	}
-}
-
-func (p *Parser) normalizeColumn(col model.TableColumn) error {
-	if !col.HasLength() {
-		if length := col.NativeLength(); length != nil {
-			col.SetLength(length)
-		}
-	}
-
-	if synonym := col.Type().SynonymType(); synonym != col.Type() {
-		col.SetType(synonym)
-	}
-
-	if col.HasDefault() {
-		if col.Default() == "NULL" && col.NullState() == model.NullStateNull {
-			col.SetNullState(model.NullStateNone)
-		}
-		switch col.Type() {
-		case model.ColumnTypeTinyInt, model.ColumnTypeSmallInt,
-			model.ColumnTypeMediumInt, model.ColumnTypeInt,
-			model.ColumnTypeInteger, model.ColumnTypeBigInt,
-			model.ColumnTypeFloat, model.ColumnTypeDouble,
-			model.ColumnTypeDecimal, model.ColumnTypeNumeric, model.ColumnTypeReal:
-			col.SetDefault(col.Default(), false)
-		}
-	} else {
-		switch col.Type() {
-		case model.ColumnTypeTinyText, model.ColumnTypeTinyBlob,
-			model.ColumnTypeBlob, model.ColumnTypeText,
-			model.ColumnTypeMediumBlob, model.ColumnTypeMediumText,
-			model.ColumnTypeLongBlob, model.ColumnTypeLongText:
-		default:
-			if col.NullState() != model.NullStateNotNull {
-				col.SetDefault("NULL", false)
-				col.SetNullState(model.NullStateNone)
-			}
-		}
-	}
-
-	return nil
 }
 
 func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) error {
