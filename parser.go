@@ -917,13 +917,8 @@ func (p *Parser) normalizeColumn(col model.TableColumn) error {
 		}
 	}
 
-	switch col.Type() {
-	case model.ColumnTypeInteger:
-		col.SetType(model.ColumnTypeInt)
-	case model.ColumnTypeNumeric:
-		col.SetType(model.ColumnTypeDecimal)
-	case model.ColumnTypeReal:
-		col.SetType(model.ColumnTypeDouble)
+	if synonym := col.Type().SynonymType(); synonym != col.Type() {
+		col.SetType(synonym)
 	}
 
 	if col.HasDefault() {

@@ -105,3 +105,17 @@ func (c ColumnType) String() string {
 		return "(invalid)"
 	}
 }
+
+// SynonymType returns synonym or what implemented as same
+// if not has synonym then returns self
+func (c ColumnType) SynonymType() ColumnType {
+	switch c {
+	case ColumnTypeInteger:
+		return ColumnTypeInt
+	case ColumnTypeNumeric:
+		return ColumnTypeDecimal
+	case ColumnTypeReal:
+		return ColumnTypeDouble
+	}
+	return c
+}
