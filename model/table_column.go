@@ -1,5 +1,9 @@
 package model
 
+import (
+	"strconv"
+)
+
 // NewLength creates a new Length which describes the
 // length of a column
 func NewLength(v string) Length {
@@ -187,4 +191,36 @@ func (t *tablecol) SetAutoUpdate(s string) {
 
 func (t *tablecol) AutoUpdate() string {
 	return t.autoUpdate.Value
+}
+
+func (t *tablecol) NativeLength() Length {
+	// I referred to perl: SQL::Translator::Parser::MySQL#normalize_field https://metacpan.org/source/SQL::Translator::Parser::MySQL#L1072
+	unsigned := 0
+	if t.IsUnsigned() {
+		unsigned++
+	}
+	var size int
+	switch t.Type() {
+	case ColumnTypeTinyInt:
+		size = 4 - unsigned
+	case ColumnTypeSmallInt:
+		size = 6 - unsigned
+	case ColumnTypeMediumInt:
+		size = 9 - unsigned
+	case ColumnTypeInt, ColumnTypeInteger:
+		size = 11 - unsigned
+	case ColumnTypeBigInt:
+		size = 20
+	case ColumnTypeDecimal, ColumnTypeNumeric:
+		// DECIMAL(M) means DECIMAL(M,0)
+		// The default value of M is 10.
+		// https://dev.mysql.com/doc/refman/5.6/en/fixed-point-types.html
+		l := NewLength("10")
+		l.SetDecimal("0")
+		return l
+	default:
+		return nil
+	}
+
+	return NewLength(strconv.Itoa(size))
 }

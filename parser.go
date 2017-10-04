@@ -3,7 +3,6 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
-	"strconv"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/model"
@@ -913,26 +912,8 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 
 func (p *Parser) normalizeColumn(col model.TableColumn) error {
 	if !col.HasLength() {
-		// set default length
-		unsigned := 0
-		if col.IsUnsigned() {
-			unsigned++
-		}
-		switch col.Type() {
-		case model.ColumnTypeTinyInt:
-			col.SetLength(model.NewLength(strconv.Itoa(4 - unsigned)))
-		case model.ColumnTypeSmallInt:
-			col.SetLength(model.NewLength(strconv.Itoa(6 - unsigned)))
-		case model.ColumnTypeMediumInt:
-			col.SetLength(model.NewLength(strconv.Itoa(9 - unsigned)))
-		case model.ColumnTypeInt, model.ColumnTypeInteger:
-			col.SetLength(model.NewLength(strconv.Itoa(11 - unsigned)))
-		case model.ColumnTypeBigInt:
-			col.SetLength(model.NewLength("20"))
-		case model.ColumnTypeDecimal, model.ColumnTypeNumeric:
-			l := model.NewLength("10")
-			l.SetDecimal("0")
-			col.SetLength(l)
+		if length := col.NativeLength(); length != nil {
+			col.SetLength(length)
 		}
 	}
 
