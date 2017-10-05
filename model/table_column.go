@@ -226,8 +226,7 @@ func (t *tablecol) NativeLength() Length {
 }
 
 func (t *tablecol) Normalize() TableColumn {
-	col := &tablecol{}
-	*col = *t
+	col := t.clone()
 	if !t.HasLength() {
 		if length := t.NativeLength(); length != nil {
 			col.SetLength(length)
@@ -238,15 +237,14 @@ func (t *tablecol) Normalize() TableColumn {
 		col.SetType(synonym)
 	}
 
-	return col.normalizeNullExpression()
+	col.normalizeNullExpression()
+	return col
 }
 
-func (t *tablecol) normalizeNullExpression() TableColumn {
-	col := &tablecol{}
-	*col = *t
-	if col.HasDefault() {
+func (t *tablecol) normalizeNullExpression() {
+	if t.HasDefault() {
 		if t.Default() == "NULL" && t.NullState() == NullStateNull {
-			col.SetNullState(NullStateNone)
+			t.SetNullState(NullStateNone)
 		}
 		switch t.Type() {
 		case ColumnTypeTinyInt, ColumnTypeSmallInt,
@@ -254,7 +252,7 @@ func (t *tablecol) normalizeNullExpression() TableColumn {
 			ColumnTypeInteger, ColumnTypeBigInt,
 			ColumnTypeFloat, ColumnTypeDouble,
 			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
-			col.SetDefault(t.Default(), false)
+			t.SetDefault(t.Default(), false)
 		}
 	} else {
 		switch t.Type() {
@@ -263,11 +261,16 @@ func (t *tablecol) normalizeNullExpression() TableColumn {
 			ColumnTypeMediumBlob, ColumnTypeMediumText,
 			ColumnTypeLongBlob, ColumnTypeLongText:
 		default:
-			if col.NullState() != NullStateNotNull {
-				col.SetDefault("NULL", false)
-				col.SetNullState(NullStateNone)
+			if t.NullState() != NullStateNotNull {
+				t.SetDefault("NULL", false)
+				t.SetNullState(NullStateNone)
 			}
 		}
 	}
+}
+
+func (t *tablecol) clone() TableColumn {
+	col := &tablecol{}
+	*col = *t
 	return col
 }
