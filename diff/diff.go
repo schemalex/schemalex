@@ -178,6 +178,20 @@ func Files(dst io.Writer, from, to string, options ...Option) error {
 	return Statements(dst, stmts1, stmts2, options...)
 }
 
+func Sources(dst io.Writer, from, to schemalex.SchemaSource, options ...Option) error {
+	var buf bytes.Buffer
+	if err := from.WriteSchema(&buf); err != nil {
+		return errors.Wrapf(err, `failed to retrieve schema from "from" source %s`, from)
+	}
+	fromStr := buf.String()
+	buf.Reset()
+
+	if err := to.WriteSchema(&buf); err != nil {
+		return errors.Wrapf(err, `failed to retrieve schema from "to" source %s`, to)
+	}
+	return Strings(dst, fromStr, buf.String(), options...)
+}
+
 func dropTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 	ids := ctx.fromSet.Difference(ctx.toSet)
