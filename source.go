@@ -5,10 +5,12 @@ import (
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
+	"fmt"
 	"io"
 	"io/ioutil"
 	"net/url"
 	"os"
+	"os/exec"
 	"strconv"
 	"strings"
 
@@ -24,6 +26,12 @@ type mysqlSource string
 
 type localFileSource string
 
+type localGitSource struct {
+	dir       string
+	file      string
+	commitish string
+}
+
 func NewSchemaSource(uri string) (SchemaSource, error) {
 	u, err := url.Parse(uri)
 	if err != nil {
@@ -31,6 +39,10 @@ func NewSchemaSource(uri string) (SchemaSource, error) {
 	}
 
 	switch strings.ToLower(u.Scheme) {
+	case "local-git":
+		// local-git:///path/to/dir?file=foo&commitish=bar
+		q := u.Query()
+		return NewLocalGitSource(u.Path, q.Get("file"), q.Get("commitish")), nil
 	case "mysql":
 		// Treat the argument as a DSN for mysql.
 		// DSN is everything after "mysql://", so let's be lazy
@@ -141,6 +153,30 @@ func (s mysqlSource) WriteSchema(dst io.Writer) error {
 		buf.WriteByte(';')
 	}
 	if _, err := buf.WriteTo(dst); err != nil {
+		return errors.Wrap(err, `failed to write schema to dst`)
+	}
+	return nil
+}
+
+func NewLocalGitSource(dir, file, commitish string) SchemaSource {
+	return &localGitSource{
+		dir:       dir,
+		file:      file,
+		commitish: commitish,
+	}
+}
+
+func (s localGitSource) WriteSchema(dst io.Writer) error {
+	var out bytes.Buffer
+	cmd := exec.Command("git", "show", fmt.Sprintf("%s:%s", s.commitish, s.file))
+	cmd.Stdout = &out
+	cmd.Dir = s.dir
+
+	if err := cmd.Run(); err != nil {
+		return errors.Wrapf(err, `failed to run git command: %s`, cmd.Args)
+	}
+
+	if _, err := out.WriteTo(dst); err != nil {
 		return errors.Wrap(err, `failed to write schema to dst`)
 	}
 	return nil
