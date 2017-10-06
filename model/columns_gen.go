@@ -107,7 +107,7 @@ func (c ColumnType) String() string {
 }
 
 // SynonymType returns synonym for a given type.
-// If the type does not have a synonym then this method returns the receive itself
+// If the type does not have a synonym then this method returns the receiver itself
 func (c ColumnType) SynonymType() ColumnType {
 	switch c {
 	case ColumnTypeInteger:

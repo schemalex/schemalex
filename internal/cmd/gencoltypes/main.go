@@ -30,7 +30,7 @@ func _main() error {
 	synonyms := map[string]string{
 		"Integer": "Int",
 		"Numeric": "Decimal",
-		"Real": "Double",
+		"Real":    "Double",
 	}
 
 	types := []string{
@@ -96,7 +96,7 @@ func _main() error {
 	buf.WriteString("\n}")
 
 	buf.WriteString("\n\n// SynonymType returns synonym for a given type.")
-	buf.WriteString("\n// If the type does not have a synonym then this method returns the receive itself")
+	buf.WriteString("\n// If the type does not have a synonym then this method returns the receiver itself")
 	buf.WriteString("\nfunc (c ColumnType) SynonymType() ColumnType {")
 	buf.WriteString("\nswitch c {")
 	for from, to := range synonyms {

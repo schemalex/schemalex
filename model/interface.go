@@ -243,9 +243,8 @@ type TableColumn interface {
 	IsZeroFill() bool
 	SetZeroFill(bool)
 
-	// NativeLength returns the "native" size of a column type. This is different from
-	// Currently only supports
-	// numeric types, but may change later.
+	// NativeLength returns the "native" size of a column type. This is the length used if you do not explicitly specify it.
+	// Currently only supports numeric types, but may change later.
 	NativeLength() Length
 
 	// Normalize returns normalized column.
