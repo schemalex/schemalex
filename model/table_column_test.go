@@ -1,8 +1,9 @@
 package model
 
 import (
-	"reflect"
 	"testing"
+
+	"github.com/stretchr/testify/assert"
 )
 
 func TestTableColumnNormalize(t *testing.T) {
@@ -150,8 +151,6 @@ func TestTableColumnNormalize(t *testing.T) {
 			},
 		},
 	} {
-		if g, w := tc.before.Normalize(), tc.after; !reflect.DeepEqual(g, w) {
-			t.Errorf("Not except return.\n got %#v\n want %#v", g, w)
-		}
+		assert.Equal(t, tc.before.Normalize(), tc.after, "Unexpected return value.")
 	}
 }
