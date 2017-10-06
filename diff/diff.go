@@ -155,27 +155,7 @@ func Strings(dst io.Writer, from, to string, options ...Option) error {
 // of statements to migrate from the old one to the new one,
 // writing the result to `dst`
 func Files(dst io.Writer, from, to string, options ...Option) error {
-	var p *schemalex.Parser
-	for _, o := range options {
-		switch o.Name() {
-		case "parser":
-			p = o.Value().(*schemalex.Parser)
-		}
-	}
-	if p == nil {
-		p = schemalex.New()
-	}
-	stmts1, err := p.ParseFile(from)
-	if err != nil {
-		return errors.Wrapf(err, `failed to open "from" file %s`, from)
-	}
-
-	stmts2, err := p.ParseFile(to)
-	if err != nil {
-		return errors.Wrapf(err, `failed to open "to" file %s`, to)
-	}
-
-	return Statements(dst, stmts1, stmts2, options...)
+	return Sources(dst, schemalex.NewLocalFileSource(from), schemalex.NewLocalFileSource(to), options...)
 }
 
 func Sources(dst io.Writer, from, to schemalex.SchemaSource, options ...Option) error {

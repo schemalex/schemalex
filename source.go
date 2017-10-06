@@ -35,17 +35,24 @@ func NewSchemaSource(uri string) (SchemaSource, error) {
 		// Treat the argument as a DSN for mysql.
 		// DSN is everything after "mysql://", so let's be lazy
 		// and use everything after the second slash
-		return mysqlSource(uri[8:]), nil
+		return NewMySQLSource(uri[8:]), nil
 	case "file", "":
 		// Eh, no remote host, please
 		if u.Host != "" && u.Host != "localhost" {
 			return nil, errors.Wrap(err, `remote hosts for file:// sources are not supported`)
 		}
-
-		return localFileSource(u.Path), nil
+		return NewLocalFileSource(u.Path), nil
 	}
 
 	return nil, errors.New("invalid source")
+}
+
+func NewMySQLSource(s string) SchemaSource {
+	return mysqlSource(s)
+}
+
+func NewLocalFileSource(s string) SchemaSource {
+	return localFileSource(s)
 }
 
 func (s mysqlSource) open() (*sql.DB, error) {
