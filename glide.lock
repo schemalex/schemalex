@@ -1,8 +1,10 @@
-hash: 653e5e93d2b773a793f9fb9a17855b4d081f35f1cbe1913e3c78bbeaae07e646
-updated: 2017-09-20T10:28:35.785261093+09:00
+hash: acd8b288de04336f293759ee9697b270fb2b8228696c0d80c7d06e35fc98b4a1
+updated: 2017-10-06T20:50:32.803347651+09:00
 imports:
 - name: github.com/deckarep/golang-set
   version: b3af78e1d186c53529e3c916055d734665f68121
+- name: github.com/go-sql-driver/mysql
+  version: a0583e0143b1624142adab07e0e97fe106d99561
 - name: github.com/pkg/errors
   version: 2b3a18b5f0fb6b4f9190549597d3f962c02bc5eb
 testImports:
