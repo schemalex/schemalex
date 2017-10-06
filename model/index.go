@@ -119,3 +119,13 @@ func (stmt *index) IsSpatial() bool {
 func (stmt *index) IsForeginKey() bool {
 	return stmt.kind == IndexKindForeignKey
 }
+
+func (stmt *index) Normalize() Index {
+	return stmt.clone()
+}
+
+func (stmt *index) clone() *index {
+	newindex := &index{}
+	*newindex = *stmt
+	return newindex
+}

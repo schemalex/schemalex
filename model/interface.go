@@ -42,6 +42,9 @@ type Index interface {
 	IsFullText() bool
 	IsSpatial() bool
 	IsForeginKey() bool
+
+	// Normalize returns normalized index.
+	Normalize() Index
 }
 
 // IndexKind describes the kind (purpose) of an index
@@ -147,6 +150,9 @@ type Table interface {
 
 	LookupColumn(string) (TableColumn, bool)
 	LookupIndex(string) (Index, bool)
+
+	// Normalize returns normalized table.
+	Normalize() Table
 }
 
 // TableOption describes a possible table option, such as `ENGINE=InnoDB`

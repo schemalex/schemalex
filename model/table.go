@@ -88,6 +88,44 @@ func (t *table) Options() chan TableOption {
 	return ch
 }
 
+func (t *table) Normalize() Table {
+	tbl := NewTable(t.Name())
+	tbl.SetIfNotExists(t.IsIfNotExists())
+	tbl.SetTemporary(t.IsTemporary())
+
+	for col := range t.Columns() {
+		ncol := col.Normalize()
+		switch {
+		case ncol.IsPrimary():
+			index := NewIndex(IndexKindPrimaryKey, tbl.ID())
+			index.SetType(IndexTypeNone)
+			index.AddColumns(ncol.Name())
+			tbl.AddIndex(index)
+			ncol.SetPrimary(false)
+		case ncol.IsUnique():
+			index := NewIndex(IndexKindUnique, tbl.ID())
+			index.SetType(IndexTypeNone)
+			index.AddColumns(ncol.Name())
+			tbl.AddIndex(index)
+			ncol.SetUnique(false)
+		}
+		tbl.AddColumn(ncol)
+	}
+	for idx := range t.Indexes() {
+		nidx := idx.Normalize()
+		switch {
+		case nidx.IsForeginKey():
+			// TODO add INDEX for FK
+			// Name CONSTRAINT > FOREGIN KEY
+		}
+		tbl.AddIndex(nidx)
+	}
+	for opt := range t.Options() {
+		tbl.AddOption(opt)
+	}
+	return tbl
+}
+
 // NewTableOption creates a new table option with the given name, value, and a flag indicating if quoting is necessary
 func NewTableOption(k, v string, q bool) TableOption {
 	return &tableopt{

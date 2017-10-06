@@ -274,7 +274,7 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		return nil, err
 	}
 
-	return table, nil
+	return table.Normalize(), nil
 }
 
 // Start parsing after `CREATE TABLE *** (`
@@ -453,7 +453,7 @@ func (p *Parser) parseTableColumn(ctx *parseCtx, table model.Table) error {
 	if err := p.parseTableColumnSpec(ctx, col); err != nil {
 		return err
 	}
-	table.AddColumn(col.Normalize())
+	table.AddColumn(col)
 	return nil
 }
 
