@@ -2,6 +2,7 @@ package model
 
 import (
 	"strconv"
+	"strings"
 )
 
 // NewLength creates a new Length which describes the
@@ -242,17 +243,24 @@ func (t *tablecol) Normalize() TableColumn {
 }
 
 func (t *tablecol) normalizeNullExpression() {
+	// remove null state if not `NOT NULL`
+	// If none is specified, the column is treated as if NULL was specified.
+	if t.NullState() == NullStateNull {
+		t.SetNullState(NullStateNone)
+	}
 	if t.HasDefault() {
-		if t.Default() == "NULL" && t.NullState() == NullStateNull {
-			t.SetNullState(NullStateNone)
-		}
 		switch t.Type() {
 		case ColumnTypeTinyInt, ColumnTypeSmallInt,
 			ColumnTypeMediumInt, ColumnTypeInt,
 			ColumnTypeInteger, ColumnTypeBigInt,
 			ColumnTypeFloat, ColumnTypeDouble,
 			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
+			// If numeric type then trim quate
 			t.SetDefault(t.Default(), false)
+		}
+		if strings.ToUpper(t.Default()) == "NULL" {
+			// null to UPPER
+			t.SetDefault("NULL", false)
 		}
 	} else {
 		switch t.Type() {
@@ -261,15 +269,15 @@ func (t *tablecol) normalizeNullExpression() {
 			ColumnTypeMediumBlob, ColumnTypeMediumText,
 			ColumnTypeLongBlob, ColumnTypeLongText:
 		default:
+			// if nullable then set default null.
 			if t.NullState() != NullStateNotNull {
 				t.SetDefault("NULL", false)
-				t.SetNullState(NullStateNone)
 			}
 		}
 	}
 }
 
-func (t *tablecol) clone() TableColumn {
+func (t *tablecol) clone() *tablecol {
 	col := &tablecol{}
 	*col = *t
 	return col
