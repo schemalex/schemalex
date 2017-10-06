@@ -1,5 +1,10 @@
 package model
 
+import (
+	"strconv"
+	"strings"
+)
+
 // NewLength creates a new Length which describes the
 // length of a column
 func NewLength(v string) Length {
@@ -187,4 +192,93 @@ func (t *tablecol) SetAutoUpdate(s string) {
 
 func (t *tablecol) AutoUpdate() string {
 	return t.autoUpdate.Value
+}
+
+func (t *tablecol) NativeLength() Length {
+	// I referred to perl: SQL::Translator::Parser::MySQL#normalize_field https://metacpan.org/source/SQL::Translator::Parser::MySQL#L1072
+	unsigned := 0
+	if t.IsUnsigned() {
+		unsigned++
+	}
+	var size int
+	switch t.Type() {
+	case ColumnTypeTinyInt:
+		size = 4 - unsigned
+	case ColumnTypeSmallInt:
+		size = 6 - unsigned
+	case ColumnTypeMediumInt:
+		size = 9 - unsigned
+	case ColumnTypeInt, ColumnTypeInteger:
+		size = 11 - unsigned
+	case ColumnTypeBigInt:
+		size = 20
+	case ColumnTypeDecimal, ColumnTypeNumeric:
+		// DECIMAL(M) means DECIMAL(M,0)
+		// The default value of M is 10.
+		// https://dev.mysql.com/doc/refman/5.6/en/fixed-point-types.html
+		l := NewLength("10")
+		l.SetDecimal("0")
+		return l
+	default:
+		return nil
+	}
+
+	return NewLength(strconv.Itoa(size))
+}
+
+func (t *tablecol) Normalize() TableColumn {
+	col := t.clone()
+	if !t.HasLength() {
+		if length := t.NativeLength(); length != nil {
+			col.SetLength(length)
+		}
+	}
+
+	if synonym := t.Type().SynonymType(); synonym != t.Type() {
+		col.SetType(synonym)
+	}
+
+	col.normalizeNullExpression()
+	return col
+}
+
+func (t *tablecol) normalizeNullExpression() {
+	// remove null state if not `NOT NULL`
+	// If none is specified, the column is treated as if NULL was specified.
+	if t.NullState() == NullStateNull {
+		t.SetNullState(NullStateNone)
+	}
+	if t.HasDefault() {
+		switch t.Type() {
+		case ColumnTypeTinyInt, ColumnTypeSmallInt,
+			ColumnTypeMediumInt, ColumnTypeInt,
+			ColumnTypeInteger, ColumnTypeBigInt,
+			ColumnTypeFloat, ColumnTypeDouble,
+			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
+			// If numeric type then trim quate
+			t.SetDefault(t.Default(), false)
+		}
+		if strings.ToUpper(t.Default()) == "NULL" {
+			// null to UPPER
+			t.SetDefault("NULL", false)
+		}
+	} else {
+		switch t.Type() {
+		case ColumnTypeTinyText, ColumnTypeTinyBlob,
+			ColumnTypeBlob, ColumnTypeText,
+			ColumnTypeMediumBlob, ColumnTypeMediumText,
+			ColumnTypeLongBlob, ColumnTypeLongText:
+		default:
+			// if nullable then set default null.
+			if t.NullState() != NullStateNotNull {
+				t.SetDefault("NULL", false)
+			}
+		}
+	}
+}
+
+func (t *tablecol) clone() *tablecol {
+	col := &tablecol{}
+	*col = *t
+	return col
 }

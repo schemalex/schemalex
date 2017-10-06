@@ -242,6 +242,15 @@ type TableColumn interface {
 	SetUnsigned(bool)
 	IsZeroFill() bool
 	SetZeroFill(bool)
+
+	// NativeLength returns the "native" size of a column type. This is the length used if you do not explicitly specify it.
+	// Currently only supports numeric types, but may change later.
+	NativeLength() Length
+
+	// Normalize returns normalized column.
+	// It looks like a different column, but MySQL normalizes it as the same column.
+	// numeric column length, synonym type, and expression on NULL
+	Normalize() TableColumn
 }
 
 type defaultValue struct {

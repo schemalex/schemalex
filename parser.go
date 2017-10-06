@@ -453,7 +453,7 @@ func (p *Parser) parseTableColumn(ctx *parseCtx, table model.Table) error {
 	if err := p.parseTableColumnSpec(ctx, col); err != nil {
 		return err
 	}
-	table.AddColumn(col)
+	table.AddColumn(col.Normalize())
 	return nil
 }
 

@@ -50,7 +50,7 @@ func TestParser(t *testing.T) {
 		{
 			Input:  "create table hoge_table ( id integer unsigned not null)",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge_table` (\n`id` INTEGER UNSIGNED NOT NULL\n)",
+			Expect: "CREATE TABLE `hoge_table` (\n`id` INT (10) UNSIGNED NOT NULL\n)",
 		},
 		// UNSIGNED position is wrong
 		{
@@ -88,7 +88,7 @@ c int not null default 10
 );
 `,
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`a` VARCHAR (20) DEFAULT \"hoge\",\n`b` VARCHAR (20) DEFAULT \"hoge\",\n`c` INT NOT NULL DEFAULT 10\n)",
+			Expect: "CREATE TABLE `hoge` (\n`a` VARCHAR (20) DEFAULT 'hoge',\n`b` VARCHAR (20) DEFAULT 'hoge',\n`c` INT (11) NOT NULL DEFAULT 10\n)",
 		},
 		// with primary key
 		{
@@ -98,35 +98,35 @@ c varchar(20) not null default "hoge",
 primary key (id, c)
 );
 `,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL DEFAULT \"hoge\",\nPRIMARY KEY (`id`, `c`)\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL DEFAULT 'hoge',\nPRIMARY KEY (`id`, `c`)\n)",
 		},
 		// with table options
 		{
-			Input: "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8 COMMENT = 'hoge comment';",
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
+			Input:  "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8 COMMENT = 'hoge comment';",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
 		},
 		// CHARACTER SET -> CHARSET
 		{
-			Input: "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARSET = utf8 COMMENT = 'hoge comment';",
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
+			Input:  "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARSET = utf8 COMMENT = 'hoge comment';",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge comment'",
 		},
 		// with key, index
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nKEY (`id`), INDEX (`c`)\n)",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nINDEX (`id`),\nINDEX (`c`)\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nINDEX (`id`),\nINDEX (`c`)\n)",
 		},
 		// with unique key, primary key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nUNIQUE INDEX `uniq_id` (`id`, `c`),\n PRIMARY KEY (`id`)\n )",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nUNIQUE INDEX `uniq_id` (`id`, `c`),\nPRIMARY KEY (`id`)\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nUNIQUE INDEX `uniq_id` (`id`, `c`),\nPRIMARY KEY (`id`)\n)",
 		},
 		// with basic foreign key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) )",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
 		},
 		// with fulltext index
 		{
@@ -138,31 +138,31 @@ primary key (id, c)
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) )",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`)\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`)\n)",
 		},
 		// with match reference foreign key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH SIMPLE )",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH SIMPLE\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH SIMPLE\n)",
 		},
 		// with on delete reference foreign key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE SET NULL)",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE SET NULL\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE SET NULL\n)",
 		},
 		// with match and on delete reference foreign key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH PARTIAL ON DELETE NO ACTION)",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH PARTIAL ON DELETE NO ACTION\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) MATCH PARTIAL ON DELETE NO ACTION\n)",
 		},
 		// with on delete, on update reference foreign key
 		{
 			Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE)",
 			Error:  false,
-			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE\n)",
+			Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) ON DELETE NO ACTION ON UPDATE CASCADE\n)",
 		},
 		// on delete after on update got error
 		{
@@ -178,23 +178,23 @@ primary key (id, c)
 		},
 		{
 			Input:  "create table hoge (`foo` DECIMAL(32,30))",
-			Expect: "CREATE TABLE `hoge` (\n`foo` DECIMAL (32,30)\n)",
+			Expect: "CREATE TABLE `hoge` (\n`foo` DECIMAL (32,30) DEFAULT NULL\n)",
 		},
 		{
 			Input:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, CONSTRAINT `symbol` UNIQUE KEY `uniq_id` USING BTREE (`id`) )",
-			Expect: "CREATE TABLE `fuga` (\n`id` INTEGER NOT NULL AUTO_INCREMENT,\nCONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)\n)",
+			Expect: "CREATE TABLE `fuga` (\n`id` INT (11) NOT NULL AUTO_INCREMENT,\nCONSTRAINT `symbol` UNIQUE INDEX `uniq_id` USING BTREE (`id`)\n)",
 		},
 		{
 			Input:  "DROP TABLE IF EXISTS `konboi_bug`; CREATE TABLE foo(`id` INT)",
-			Expect: "CREATE TABLE `foo` (\n`id` INT\n)",
+			Expect: "CREATE TABLE `foo` (\n`id` INT (11) DEFAULT NULL\n)",
 		},
 		{
-			Input: "CREATE TABLE `foo` (col TEXT CHARACTER SET latin1)",
+			Input:  "CREATE TABLE `foo` (col TEXT CHARACTER SET latin1)",
 			Expect: "CREATE TABLE `foo` (\n`col` TEXT CHARACTER SET `latin1`\n)",
 		},
 		{
-			Input: "CREATE TABLE `foo` (col DATETIME ON UPDATE CURRENT_TIMESTAMP)",
-			Expect: "CREATE TABLE `foo` (\n`col` DATETIME ON UPDATE CURRENT_TIMESTAMP\n)",
+			Input:  "CREATE TABLE `foo` (col DATETIME ON UPDATE CURRENT_TIMESTAMP)",
+			Expect: "CREATE TABLE `foo` (\n`col` DATETIME ON UPDATE CURRENT_TIMESTAMP DEFAULT NULL\n)",
 		},
 	}
 
