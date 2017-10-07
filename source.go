@@ -22,6 +22,10 @@ type SchemaSource interface {
 	WriteSchema(io.Writer) error
 }
 
+type readerSource struct {
+	src io.Reader
+}
+
 type mysqlSource string
 
 type localFileSource string
@@ -33,6 +37,11 @@ type localGitSource struct {
 }
 
 func NewSchemaSource(uri string) (SchemaSource, error) {
+	// "-" is a special source, denoting stdin.
+	if uri == "-" {
+		return NewReaderSource(os.Stdin), nil
+	}
+
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, errors.Wrap(err, `failed to parse uri`)
@@ -57,6 +66,17 @@ func NewSchemaSource(uri string) (SchemaSource, error) {
 	}
 
 	return nil, errors.New("invalid source")
+}
+
+func NewReaderSource(src io.Reader) SchemaSource {
+	return &readerSource{src: src}
+}
+
+func (s *readerSource) WriteSchema(dst io.Writer) error {
+	if _, err := io.Copy(dst, s.src); err != nil {
+		return errors.Wrap(err, `failed to write schema to dst`)
+	}
+	return nil
 }
 
 func NewMySQLSource(s string) SchemaSource {
@@ -152,10 +172,8 @@ func (s mysqlSource) WriteSchema(dst io.Writer) error {
 		buf.WriteString(tableSchema)
 		buf.WriteByte(';')
 	}
-	if _, err := buf.WriteTo(dst); err != nil {
-		return errors.Wrap(err, `failed to write schema to dst`)
-	}
-	return nil
+
+	return NewReaderSource(&buf).WriteSchema(dst)
 }
 
 func NewLocalGitSource(dir, file, commitish string) SchemaSource {
@@ -176,8 +194,5 @@ func (s localGitSource) WriteSchema(dst io.Writer) error {
 		return errors.Wrapf(err, `failed to run git command: %s`, cmd.Args)
 	}
 
-	if _, err := out.WriteTo(dst); err != nil {
-		return errors.Wrap(err, `failed to write schema to dst`)
-	}
-	return nil
+	return NewReaderSource(&out).WriteSchema(dst)
 }
