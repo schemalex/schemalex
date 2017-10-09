@@ -42,7 +42,7 @@ Examples:
 
 * Compare local files
   schemalex /path/to/file /another/path/to/file
-	schemalex file:///path/to/file /another/path/to/file
+  schemalex file:///path/to/file /another/path/to/file
 
 * Compare local file against online mysql schema
   schemalex /path/to/file "mysql://user:password@tcp(host:port)/dbname?option=value"
