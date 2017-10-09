@@ -2,6 +2,7 @@ package schemalex
 
 import (
 	"bytes"
+	"crypto/rand"
 	"crypto/tls"
 	"crypto/x509"
 	"database/sql"
@@ -83,7 +84,7 @@ func NewReaderSource(src io.Reader) SchemaSource {
 }
 
 // NewMySQLSource creates a SchemaSource whose contents are derived by
-// accessing the specified MySQL instance
+// accessing the specified MySQL instance.
 func NewMySQLSource(s string) SchemaSource {
 	return mysqlSource(s)
 }
@@ -111,6 +112,13 @@ func (s *readerSource) WriteSchema(dst io.Writer) error {
 	return nil
 }
 
+// MySQLConfig creates a *mysql.Config struct from the given DSN.
+//
+// On top of just calling mysql.ParseDSN, we check for extra parameters
+// "ssl-ca", "ssl-cert", and "ssl-secret" (which all should point to
+// local file names) when the "tls" parameter is set to some boolean
+// true value. In this case, we register the given tls configuration
+// using those values automatically.
 func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 	cfg, err := mysql.ParseDSN(string(s))
 	if err != nil {
@@ -128,7 +136,17 @@ func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 			return nil, errors.New(`to enable tls, you must provide ssl-ca, ssl-cert, and ssl-secret parameters to the DSN`)
 		}
 
-		tlsName := "custom-tls"
+		// When comparing two mysql schemas against eachother, we will have
+		// multiple calls to RegisterTLSConfig, and in that case we need
+		// unique names for both.
+		//
+		// Here, we do the poor man's UUID, and create a unique name
+		b := make([]byte, 16)
+		rand.Reader.Read(b)
+		b[6] = (b[6] & 0x0F) | 0x40
+		b[8] = (b[8] &^ 0x40) | 0x80
+		tlsName := fmt.Sprintf("custom-tls-%x-%x-%x-%x-%x", b[0:4], b[4:6], b[6:8], b[8:10], b[10:])
+
 		rootCertPool := x509.NewCertPool()
 		pem, err := ioutil.ReadFile(sslCa)
 		if err != nil {

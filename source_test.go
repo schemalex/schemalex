@@ -200,7 +200,7 @@ func TestSchemaSource(t *testing.T) {
 					if !assert.NoError(t, err, "should be able to parse DSN") {
 						return false
 					}
-					if !assert.Equal(t, cfg.TLSConfig, "custom-tls", "TLSConfig should be enabled") {
+					if !assert.True(t, strings.HasPrefix(cfg.TLSConfig, "custom-tls"), "TLSConfig should be enabled") {
 						return false
 					}
 
