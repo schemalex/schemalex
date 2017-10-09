@@ -111,8 +111,7 @@ func (s *readerSource) WriteSchema(dst io.Writer) error {
 	return nil
 }
 
-func (s mysqlSource) open() (*sql.DB, error) {
-	// attempt to open connection to mysql
+func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 	cfg, err := mysql.ParseDSN(string(s))
 	if err != nil {
 		return nil, errors.Wrap(err, `failed to parse DSN`)
@@ -135,6 +134,7 @@ func (s mysqlSource) open() (*sql.DB, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, `failed to read ssl-ca file`)
 		}
+
 		if ok := rootCertPool.AppendCertsFromPEM(pem); !ok {
 			return nil, errors.New(`failed to append ssl-ca PEM to cert pool`)
 		}
@@ -147,6 +147,15 @@ func (s mysqlSource) open() (*sql.DB, error) {
 			Certificates: []tls.Certificate{certs},
 		})
 		cfg.TLSConfig = tlsName
+	}
+	return cfg, nil
+}
+
+func (s mysqlSource) open() (*sql.DB, error) {
+	// attempt to open connection to mysql
+	cfg, err := s.MySQLConfig()
+	if err != nil {
+		return nil, errors.Wrap(err, `failed to create MySQL config from source spec`)
 	}
 
 	return sql.Open("mysql", cfg.FormatDSN())
