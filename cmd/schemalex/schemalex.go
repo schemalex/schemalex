@@ -35,8 +35,8 @@ schemalex [options...] before after
 -t[=true]     Enable/Disable transaction in the output (default: true)
 
 "before" and "after" may be a file path, or a URI.
-A special URI schema "mysql" may be used to indicate to retrieve the
-schema definition from a database.
+Special URI schemes "mysql", "local-git", are supported on top of
+"file". If the special path "-" is used, it is treated as stdin
 
 Examples:
 
