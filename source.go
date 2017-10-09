@@ -85,6 +85,16 @@ func NewReaderSource(src io.Reader) SchemaSource {
 
 // NewMySQLSource creates a SchemaSource whose contents are derived by
 // accessing the specified MySQL instance.
+//
+// MySQL sources respect extra parameters "ssl-ca", "ssl-cert", and
+// "ssl-secret" (which all should point to local file names) when
+// the "tls" parameter is set to some boolean true value. In this
+// case, we register the given tls configuration using those values
+// automatically.
+//
+// Please note that the "tls" parameter MUST BE A BOOLEAN. Otherwise
+// we expect that you have already registered your tls configuration
+// manually, and that you gave us the name of that configuration
 func NewMySQLSource(s string) SchemaSource {
 	return mysqlSource(s)
 }
@@ -113,12 +123,6 @@ func (s *readerSource) WriteSchema(dst io.Writer) error {
 }
 
 // MySQLConfig creates a *mysql.Config struct from the given DSN.
-//
-// On top of just calling mysql.ParseDSN, we check for extra parameters
-// "ssl-ca", "ssl-cert", and "ssl-secret" (which all should point to
-// local file names) when the "tls" parameter is set to some boolean
-// true value. In this case, we register the given tls configuration
-// using those values automatically.
 func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 	cfg, err := mysql.ParseDSN(string(s))
 	if err != nil {
