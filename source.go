@@ -18,7 +18,11 @@ import (
 	"github.com/schemalex/schemalex/internal/errors"
 )
 
+// SchemaSource is the interface used for objects that provide us with
+// a MySQL database schema to work with.
 type SchemaSource interface {
+	// WriteSchema is responsible for doing whatever necessary to retrieve
+	// the database schema and write to the given io.Writer
 	WriteSchema(io.Writer) error
 }
 
@@ -36,6 +40,10 @@ type localGitSource struct {
 	commitish string
 }
 
+// NewSchemaSource creates a SchemaSource based on the given URI.
+// Currently "-" (for stdin), "local-git://...", "mysql://...", and
+// "file://..." are supported. A string that does not match any of
+// the above patterns and has no scheme part is treated as a local file.
 func NewSchemaSource(uri string) (SchemaSource, error) {
 	// "-" is a special source, denoting stdin.
 	if uri == "-" {
@@ -68,8 +76,32 @@ func NewSchemaSource(uri string) (SchemaSource, error) {
 	return nil, errors.New("invalid source")
 }
 
+// NewReaderSource creates a SchemaSource whose contents are read from the
+// given io.Reader.
 func NewReaderSource(src io.Reader) SchemaSource {
 	return &readerSource{src: src}
+}
+
+// NewMySQLSource creates a SchemaSource whose contents are derived by
+// accessing the specified MySQL instance
+func NewMySQLSource(s string) SchemaSource {
+	return mysqlSource(s)
+}
+
+// NewLocalFileSource creates a SchemaSource whose contents are derived from
+// the given local file
+func NewLocalFileSource(s string) SchemaSource {
+	return localFileSource(s)
+}
+
+// NewLocalGitSource creates a SchemaSource whose contents are derived from
+// the given file at the given commit ID in a git repository.
+func NewLocalGitSource(gitDir, file, commitish string) SchemaSource {
+	return &localGitSource{
+		dir:       gitDir,
+		file:      file,
+		commitish: commitish,
+	}
 }
 
 func (s *readerSource) WriteSchema(dst io.Writer) error {
@@ -77,14 +109,6 @@ func (s *readerSource) WriteSchema(dst io.Writer) error {
 		return errors.Wrap(err, `failed to write schema to dst`)
 	}
 	return nil
-}
-
-func NewMySQLSource(s string) SchemaSource {
-	return mysqlSource(s)
-}
-
-func NewLocalFileSource(s string) SchemaSource {
-	return localFileSource(s)
 }
 
 func (s mysqlSource) open() (*sql.DB, error) {
@@ -174,14 +198,6 @@ func (s mysqlSource) WriteSchema(dst io.Writer) error {
 	}
 
 	return NewReaderSource(&buf).WriteSchema(dst)
-}
-
-func NewLocalGitSource(dir, file, commitish string) SchemaSource {
-	return &localGitSource{
-		dir:       dir,
-		file:      file,
-		commitish: commitish,
-	}
 }
 
 func (s localGitSource) WriteSchema(dst io.Writer) error {
