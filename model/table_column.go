@@ -254,7 +254,7 @@ func (t *tablecol) normalizeNullExpression() {
 			ColumnTypeInteger, ColumnTypeBigInt,
 			ColumnTypeFloat, ColumnTypeDouble,
 			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
-			// If numeric type then trim quate
+			// If numeric type then trim quote
 			t.SetDefault(t.Default(), false)
 		}
 	} else {
