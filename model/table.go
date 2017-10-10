@@ -100,8 +100,6 @@ func (t *table) Normalize() Table {
 		switch {
 		case ncol.IsPrimary():
 			index := NewIndex(IndexKindPrimaryKey, tbl.ID())
-			// In MySQL, the name of a PRIMARY KEY is PRIMARY
-			index.SetName("PRIMARY")
 			index.SetType(IndexTypeNone)
 			index.AddColumns(ncol.Name())
 			tbl.AddIndex(index)
