@@ -271,7 +271,7 @@ func (t *tablecol) Normalize() (TableColumn, bool) {
 	nullState := t.NullState()
 	// remove null state if not `NOT NULL`
 	// If none is specified, the column is treated as if NULL was specified.
-	if t.NullState() == NullStateNull {
+	if nullState == NullStateNull {
 		clone = true
 		nullState = NullStateNone
 	}
