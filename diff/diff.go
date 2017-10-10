@@ -158,6 +158,9 @@ func Files(dst io.Writer, from, to string, options ...Option) error {
 	return Sources(dst, schemalex.NewLocalFileSource(from), schemalex.NewLocalFileSource(to), options...)
 }
 
+// Files compares contents from two sources and generates a series
+// of statements to migrate from the old one to the new one,
+// writing the result to `dst`
 func Sources(dst io.Writer, from, to schemalex.SchemaSource, options ...Option) error {
 	var buf bytes.Buffer
 	if err := from.WriteSchema(&buf); err != nil {
