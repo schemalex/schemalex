@@ -53,12 +53,14 @@ func (t *table) IsTemporary() bool {
 	return t.temporary
 }
 
-func (t *table) SetIfNotExists(v bool) {
+func (t *table) SetIfNotExists(v bool) Table {
 	t.ifnotexists = v
+	return t
 }
 
-func (t *table) SetTemporary(v bool) {
+func (t *table) SetTemporary(v bool) Table {
 	t.temporary = v
+	return t
 }
 
 func (t *table) Columns() chan TableColumn {

@@ -29,10 +29,10 @@ type Index interface {
 	HasSymbol() bool
 	Name() string
 	Reference() Reference
-	SetReference(Reference)
-	SetSymbol(string)
-	SetType(IndexType)
-	SetName(string)
+	SetReference(Reference) Index
+	SetSymbol(string) Index
+	SetType(IndexType) Index
+	SetName(string) Index
 	Symbol() string
 	IsBtree() bool
 	IsHash() bool
@@ -90,10 +90,10 @@ type Reference interface {
 	TableName() string
 	OnDelete() ReferenceOption
 	OnUpdate() ReferenceOption
-	SetTableName(string)
-	SetMatch(ReferenceMatch)
-	SetOnDelete(ReferenceOption)
-	SetOnUpdate(ReferenceOption)
+	SetTableName(string) Reference
+	SetMatch(ReferenceMatch) Reference
+	SetOnDelete(ReferenceOption) Reference
+	SetOnUpdate(ReferenceOption) Reference
 	MatchFull() bool
 	MatchPartial() bool
 	MatchSimple() bool
@@ -137,9 +137,9 @@ type Table interface {
 
 	Name() string
 	IsTemporary() bool
-	SetTemporary(bool)
+	SetTemporary(bool) Table
 	IsIfNotExists() bool
-	SetIfNotExists(bool)
+	SetIfNotExists(bool) Table
 
 	AddColumn(TableColumn)
 	Columns() chan TableColumn
@@ -194,7 +194,7 @@ const (
 type Length interface {
 	HasDecimal() bool
 	Decimal() string
-	SetDecimal(string)
+	SetDecimal(string) Length
 	Length() string
 }
 
@@ -210,44 +210,44 @@ type TableColumn interface {
 
 	Name() string
 	Type() ColumnType
-	SetType(ColumnType)
+	SetType(ColumnType) TableColumn
 
 	HasLength() bool
 	Length() Length
-	SetLength(Length)
+	SetLength(Length) TableColumn
 	HasCharacterSet() bool
 	CharacterSet() string
-	SetCharacterSet(string)
+	SetCharacterSet(string) TableColumn
 	HasCollation() bool
 	Collation() string
 	HasDefault() bool
 	Default() string
 	IsQuotedDefault() bool
-	SetDefault(string, bool)
+	SetDefault(string, bool) TableColumn
 	HasComment() bool
 	Comment() string
-	SetComment(string)
+	SetComment(string) TableColumn
 	HasAutoUpdate() bool
 	AutoUpdate() string
-	SetAutoUpdate(string)
+	SetAutoUpdate(string) TableColumn
 
 	NullState() NullState
-	SetNullState(NullState)
+	SetNullState(NullState) TableColumn
 
 	IsAutoIncrement() bool
-	SetAutoIncrement(bool)
+	SetAutoIncrement(bool) TableColumn
 	IsBinary() bool
-	SetBinary(bool)
+	SetBinary(bool) TableColumn
 	IsKey() bool
-	SetKey(bool)
+	SetKey(bool) TableColumn
 	IsPrimary() bool
-	SetPrimary(bool)
+	SetPrimary(bool) TableColumn
 	IsUnique() bool
-	SetUnique(bool)
+	SetUnique(bool) TableColumn
 	IsUnsigned() bool
-	SetUnsigned(bool)
+	SetUnsigned(bool) TableColumn
 	IsZeroFill() bool
-	SetZeroFill(bool)
+	SetZeroFill(bool) TableColumn
 
 	// NativeLength returns the "native" size of a column type. This is the length used if you do not explicitly specify it.
 	// Currently only supports numeric types, but may change later.
@@ -298,7 +298,7 @@ type Database interface {
 
 	Name() string
 	IsIfNotExists() bool
-	SetIfNotExists(bool)
+	SetIfNotExists(bool) Database
 }
 
 type database struct {

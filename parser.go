@@ -1053,7 +1053,7 @@ func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, index model.Index) er
 	return nil
 }
 
-func (p *Parser) parseReferenceOption(ctx *parseCtx, set func(model.ReferenceOption)) error {
+func (p *Parser) parseReferenceOption(ctx *parseCtx, set func(model.ReferenceOption) model.Reference) error {
 	ctx.skipWhiteSpaces()
 	switch t := ctx.next(); t.Type {
 	case RESTRICT:
