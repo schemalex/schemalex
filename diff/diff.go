@@ -460,11 +460,31 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 func addTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 	indexes := ctx.toIndexes.Difference(ctx.fromIndexes)
+	// add index before add foreign key.
+	// because cannot add index if create implicitly index by foreign key.
+	lazy := make([]model.Index, 0, indexes.Cardinality())
 	for _, index := range indexes.ToSlice() {
 		indexStmt, ok := ctx.to.LookupIndex(index.(string))
 		if !ok {
 			return 0, errors.Errorf(`index '%s' not found in old schema (add index)`, index)
 		}
+		if indexStmt.IsForeginKey() {
+			lazy = append(lazy, indexStmt)
+			continue
+		}
+		if buf.Len() > 0 {
+			buf.WriteByte('\n')
+		}
+		buf.WriteString("ALTER TABLE `")
+		buf.WriteString(ctx.from.Name())
+		buf.WriteString("` ADD ")
+		if err := format.SQL(&buf, indexStmt); err != nil {
+			return 0, err
+		}
+		buf.WriteByte(';')
+	}
+
+	for _, indexStmt := range lazy {
 		if buf.Len() > 0 {
 			buf.WriteByte('\n')
 		}
