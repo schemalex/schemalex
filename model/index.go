@@ -124,11 +124,11 @@ func (stmt *index) IsForeginKey() bool {
 	return stmt.kind == IndexKindForeignKey
 }
 
-func (stmt *index) Normalize() Index {
-	return stmt.clone()
+func (stmt *index) Normalize() (Index, bool) {
+	return stmt, false
 }
 
-func (stmt *index) clone() *index {
+func (stmt *index) Clone() Index {
 	newindex := &index{}
 	*newindex = *stmt
 	return newindex

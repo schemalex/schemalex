@@ -186,11 +186,13 @@ CREATE TABLE foo (
 	var buf bytes.Buffer
 	for _, spec := range specs {
 		buf.Reset()
-
 		if !assert.NoError(t, diff.Strings(&buf, spec.Before, spec.After), "diff.String should succeed") {
 			return
 		}
+
 		if !assert.Equal(t, spec.Expect, buf.String(), "result SQL should match") {
+			t.Logf("before = %s", spec.Before)
+			t.Logf("after = %s", spec.After)
 			return
 		}
 	}

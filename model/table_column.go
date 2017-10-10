@@ -41,6 +41,15 @@ func (t *tablecol) ID() string {
 	return "tablecol#" + t.name
 }
 
+func (t *tablecol) SetTableID(id string) TableColumn {
+	t.tableID = id
+	return t
+}
+
+func (t *tablecol) TableID() string {
+	return t.tableID
+}
+
 func (t *tablecol) SetCharacterSet(s string) TableColumn {
 	t.charset.Valid = true
 	t.charset.Value = s
@@ -240,7 +249,7 @@ func (t *tablecol) NativeLength() Length {
 	return NewLength(strconv.Itoa(size))
 }
 
-func (t *tablecol) Normalize() TableColumn {
+func (t *tablecol) Normalize() (TableColumn, bool) {
 	var clone bool
 	var length Length
 	var synonym ColumnType
@@ -295,12 +304,14 @@ func (t *tablecol) Normalize() TableColumn {
 		}
 	}
 
+
+
 	// avoid cloning if we don't have to
 	if !clone {
-		return t
+		return t, false
 	}
 
-	col := t.clone()
+	col := t.Clone()
 	if length != nil {
 		col.SetLength(length)
 	}
@@ -317,10 +328,10 @@ func (t *tablecol) Normalize() TableColumn {
 	if setDefaultNull {
 		col.SetDefault("NULL", false)
 	}
-	return col
+	return col, true
 }
 
-func (t *tablecol) clone() *tablecol {
+func (t *tablecol) Clone() TableColumn {
 	col := &tablecol{}
 	*col = *t
 	return col

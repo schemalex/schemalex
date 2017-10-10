@@ -43,8 +43,15 @@ type Index interface {
 	IsSpatial() bool
 	IsForeginKey() bool
 
-	// Normalize returns normalized index.
-	Normalize() Index
+	// Normalize returns normalized index. If a normalization was performed
+	// and the index is modified, returns a new instance of the Table object
+	// along with a true value as the second return value.
+	// Otherwise, Normalize() returns the receiver unchanged, with a false
+	// as the second return value.
+	Normalize() (Index, bool)
+
+	// Clone returns the clone index
+	Clone() Index
 }
 
 // IndexKind describes the kind (purpose) of an index
@@ -141,18 +148,22 @@ type Table interface {
 	IsIfNotExists() bool
 	SetIfNotExists(bool) Table
 
-	AddColumn(TableColumn)
+	AddColumn(TableColumn) Table
 	Columns() chan TableColumn
-	AddIndex(Index)
+	AddIndex(Index) Table
 	Indexes() chan Index
-	AddOption(TableOption)
+	AddOption(TableOption) Table
 	Options() chan TableOption
 
 	LookupColumn(string) (TableColumn, bool)
 	LookupIndex(string) (Index, bool)
 
-	// Normalize returns normalized table.
-	Normalize() Table
+	// Normalize returns normalized table. If a normalization was performed
+	// and the table is modified, returns a new instance of the Table object
+	// along with a true value as the second return value.
+	// Otherwise, Normalize() returns the receiver unchanged, with a false
+	// as the second return value.
+	Normalize() (Table, bool)
 }
 
 // TableOption describes a possible table option, such as `ENGINE=InnoDB`
@@ -208,6 +219,9 @@ type length struct {
 type TableColumn interface {
 	Stmt
 
+	TableID() string
+	SetTableID(string) TableColumn
+
 	Name() string
 	Type() ColumnType
 	SetType(ColumnType) TableColumn
@@ -253,10 +267,18 @@ type TableColumn interface {
 	// Currently only supports numeric types, but may change later.
 	NativeLength() Length
 
-	// Normalize returns normalized column.
-	// It looks like a different column, but MySQL normalizes it as the same column.
-	// numeric column length, synonym type, and expression on NULL
-	Normalize() TableColumn
+	// Normalize returns normalized column. If a normalization was performed
+	// and the column is modified, returns a new instance of the Table object
+	// along with a true value as the second return value.
+	// Otherwise, Normalize() returns the receiver unchanged, with a false
+	// as the second return value.
+	//
+	// Normalization is performed on numertic type display lengths, synonym
+	// types, and NULL expressions
+	Normalize() (TableColumn, bool)
+
+	// Clone returns the cloned column
+	Clone() TableColumn
 }
 
 type defaultValue struct {
@@ -266,6 +288,7 @@ type defaultValue struct {
 }
 
 type tablecol struct {
+	tableID      string
 	name         string
 	typ          ColumnType
 	length       Length

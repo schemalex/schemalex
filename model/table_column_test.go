@@ -106,7 +106,8 @@ func TestTableColumnNormalize(t *testing.T) {
 		format.SQL(&buf, tc.after)
 		afterStr := buf.String()
 		t.Run(fmt.Sprintf("from %s to %s", beforeStr, afterStr), func(t *testing.T) {
-			if !assert.Equal(t, tc.before.Normalize(), tc.after, "Unexpected return value.") {
+			norm, _ := tc.before.Normalize()
+			if !assert.Equal(t, norm, tc.after, "Unexpected return value.") {
 				t.Logf("before: %s", beforeStr)
 				t.Logf("after: %s", afterStr)
 			}
