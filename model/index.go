@@ -70,22 +70,26 @@ func (stmt *index) HasSymbol() bool {
 	return stmt.symbol.Valid
 }
 
-func (stmt *index) SetReference(r Reference) {
+func (stmt *index) SetReference(r Reference) Index {
 	stmt.reference = r
+	return stmt
 }
 
-func (stmt *index) SetName(s string) {
+func (stmt *index) SetName(s string) Index {
 	stmt.name.Valid = true
 	stmt.name.Value = s
+	return stmt
 }
 
-func (stmt *index) SetSymbol(s string) {
+func (stmt *index) SetSymbol(s string) Index {
 	stmt.symbol.Valid = true
 	stmt.symbol.Value = s
+	return stmt
 }
 
-func (stmt *index) SetType(typ IndexType) {
+func (stmt *index) SetType(typ IndexType) Index {
 	stmt.typ = typ
+	return stmt
 }
 
 func (stmt *index) IsBtree() bool {
@@ -120,11 +124,11 @@ func (stmt *index) IsForeginKey() bool {
 	return stmt.kind == IndexKindForeignKey
 }
 
-func (stmt *index) Normalize() Index {
-	return stmt.clone()
+func (stmt *index) Normalize() (Index, bool) {
+	return stmt, false
 }
 
-func (stmt *index) clone() *index {
+func (stmt *index) Clone() Index {
 	newindex := &index{}
 	*newindex = *stmt
 	return newindex

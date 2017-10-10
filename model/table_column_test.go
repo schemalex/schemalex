@@ -1,156 +1,116 @@
-package model
+package model_test
 
 import (
+	"bytes"
+	"fmt"
 	"testing"
 
+	"github.com/schemalex/schemalex/format"
+	"github.com/schemalex/schemalex/model"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestTableColumnNormalize(t *testing.T) {
 	type testCase struct {
-		before, after *tablecol
+		before, after model.TableColumn
 	}
 
 	for _, tc := range []testCase{
 		{
 			// foo VARCHAR (255) NOT NULL
-			before: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeVarChar,
-				length:    NewLength("255"),
-				nullstate: NullStateNotNull,
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeVarChar).
+				SetLength(model.NewLength("255")).
+				SetNullState(model.NullStateNotNull),
 			// foo VARCHAR (255) NOT NULL
-			after: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeVarChar,
-				length:    NewLength("255"),
-				nullstate: NullStateNotNull,
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeVarChar).
+				SetLength(model.NewLength("255")).
+				SetNullState(model.NullStateNotNull),
 		},
 		{
 			// foo VARCHAR NULL
-			before: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeVarChar,
-				nullstate: NullStateNull,
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeVarChar).
+				SetNullState(model.NullStateNull),
 			// foo VARCHAR DEFAULT NULL
-			after: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeVarChar,
-				nullstate: NullStateNone,
-				defaultValue: defaultValue{
-					Valid:  true,
-					Value:  "NULL",
-					Quoted: false,
-				},
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeVarChar).
+				SetNullState(model.NullStateNone).
+				SetDefault("NULL", false),
 		},
 		{
 			// foo INTEGER NOT NULL,
-			before: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeInteger,
-				nullstate: NullStateNotNull,
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeInteger).
+				SetNullState(model.NullStateNotNull),
 			// foo INT (11) NOT NULL,
-			after: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeInt,
-				length:    NewLength("11"),
-				nullstate: NullStateNotNull,
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeInt).
+				SetLength(model.NewLength("11")).
+				SetNullState(model.NullStateNotNull),
 		},
 		{
 			// foo INTEGER UNSIGNED NULL DEFAULT 0,
-			before: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeInteger,
-				unsigned:  true,
-				nullstate: NullStateNull,
-				defaultValue: defaultValue{
-					Valid:  true,
-					Value:  "0",
-					Quoted: false,
-				},
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeInteger).
+				SetUnsigned(true).
+				SetNullState(model.NullStateNull).
+				SetDefault("0", false),
 			// foo INT (10) UNSIGNED DEFAULT 0,
-			after: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeInt,
-				length:    NewLength("10"),
-				unsigned:  true,
-				nullstate: NullStateNone,
-				defaultValue: defaultValue{
-					Valid:  true,
-					Value:  "0",
-					Quoted: false,
-				},
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeInt).
+				SetLength(model.NewLength("10")).
+				SetUnsigned(true).
+				SetNullState(model.NullStateNone).
+				SetDefault("0", false),
 		},
 		{
 			// foo bigint null default null,
-			before: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeBigInt,
-				nullstate: NullStateNull,
-				defaultValue: defaultValue{
-					Valid:  true,
-					Value:  "null",
-					Quoted: false,
-				},
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBigInt).
+				SetNullState(model.NullStateNull).
+				SetDefault("NULL", false),
 			// foo BIGINT (20) DEFAULT NULL,
-			after: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeBigInt,
-				length:    NewLength("20"),
-				nullstate: NullStateNone,
-				defaultValue: defaultValue{
-					Valid:  true,
-					Value:  "NULL",
-					Quoted: false,
-				},
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBigInt).
+				SetLength(model.NewLength("20")).
+				SetNullState(model.NullStateNone).
+				SetDefault("NULL", false),
 		},
 		{
 			// foo DECIMAL,
-			before: &tablecol{
-				name:      "foo",
-				typ:       ColumnTypeNumeric,
-				nullstate: NullStateNone,
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeNumeric).
+				SetNullState(model.NullStateNone),
 			// foo DECIMAL (10,0) DEFAULT NULL,
-			after: &tablecol{
-				name: "foo",
-				typ:  ColumnTypeDecimal,
-				length: func() Length {
-					len := NewLength("10")
-					len.SetDecimal("0")
-					return len
-				}(),
-				nullstate: NullStateNone,
-				defaultValue: defaultValue{
-					Valid:  true,
-					Value:  "NULL",
-					Quoted: false,
-				},
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeDecimal).
+				SetLength(model.NewLength("10").SetDecimal("0")).
+				SetNullState(model.NullStateNone).
+				SetDefault("NULL", false),
 		},
 		{
 			// foo TEXT,
-			before: &tablecol{
-				name: "foo",
-				typ:  ColumnTypeText,
-			},
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeText),
 			// foo TEXT,
-			after: &tablecol{
-				name: "foo",
-				typ:  ColumnTypeText,
-			},
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeText),
 		},
 	} {
-		assert.Equal(t, tc.before.Normalize(), tc.after, "Unexpected return value.")
+		var buf bytes.Buffer
+		format.SQL(&buf, tc.before)
+		beforeStr := buf.String()
+		buf.Reset()
+		format.SQL(&buf, tc.after)
+		afterStr := buf.String()
+		t.Run(fmt.Sprintf("from %s to %s", beforeStr, afterStr), func(t *testing.T) {
+			norm, _ := tc.before.Normalize()
+			if !assert.Equal(t, norm, tc.after, "Unexpected return value.") {
+				t.Logf("before: %s", beforeStr)
+				t.Logf("after: %s", afterStr)
+			}
+		})
 	}
 }

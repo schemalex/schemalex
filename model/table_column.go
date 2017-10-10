@@ -2,7 +2,6 @@ package model
 
 import (
 	"strconv"
-	"strings"
 )
 
 // NewLength creates a new Length which describes the
@@ -21,9 +20,10 @@ func (l *length) HasDecimal() bool {
 	return l.decimals.Valid
 }
 
-func (l *length) SetDecimal(v string) {
+func (l *length) SetDecimal(v string) Length {
 	l.decimals.Valid = true
 	l.decimals.Value = v
+	return l
 }
 
 func (l *length) Length() string {
@@ -41,9 +41,19 @@ func (t *tablecol) ID() string {
 	return "tablecol#" + t.name
 }
 
-func (t *tablecol) SetCharacterSet(s string) {
+func (t *tablecol) SetTableID(id string) TableColumn {
+	t.tableID = id
+	return t
+}
+
+func (t *tablecol) TableID() string {
+	return t.tableID
+}
+
+func (t *tablecol) SetCharacterSet(s string) TableColumn {
 	t.charset.Valid = true
 	t.charset.Value = s
+	return t
 }
 
 func (t *tablecol) CharacterSet() string {
@@ -130,64 +140,77 @@ func (t *tablecol) Type() ColumnType {
 	return t.typ
 }
 
-func (t *tablecol) SetAutoIncrement(v bool) {
+func (t *tablecol) SetAutoIncrement(v bool) TableColumn {
 	t.autoincr = v
+	return t
 }
 
-func (t *tablecol) SetBinary(v bool) {
+func (t *tablecol) SetBinary(v bool) TableColumn {
 	t.binary = v
+	return t
 }
 
-func (t *tablecol) SetComment(v string) {
+func (t *tablecol) SetComment(v string) TableColumn {
 	t.comment.Valid = true
 	t.comment.Value = v
+	return t
 }
 
-func (t *tablecol) SetDefault(v string, quoted bool) {
+func (t *tablecol) SetDefault(v string, quoted bool) TableColumn {
 	t.defaultValue.Valid = true
 	t.defaultValue.Value = v
 	t.defaultValue.Quoted = quoted
+	return t
 }
 
-func (t *tablecol) SetKey(v bool) {
+func (t *tablecol) SetKey(v bool) TableColumn {
 	t.key = v
+	return t
 }
 
-func (t *tablecol) SetLength(v Length) {
+func (t *tablecol) SetLength(v Length) TableColumn {
 	t.length = v
+	return t
 }
 
-func (t *tablecol) SetNullState(v NullState) {
+func (t *tablecol) SetNullState(v NullState) TableColumn {
 	t.nullstate = v
+	return t
 }
 
-func (t *tablecol) SetPrimary(v bool) {
+func (t *tablecol) SetPrimary(v bool) TableColumn {
 	t.primary = v
+	return t
 }
 
-func (t *tablecol) SetType(v ColumnType) {
+func (t *tablecol) SetType(v ColumnType) TableColumn {
 	t.typ = v
+	return t
 }
 
-func (t *tablecol) SetUnique(v bool) {
+func (t *tablecol) SetUnique(v bool) TableColumn {
 	t.unique = v
+	return t
 }
 
-func (t *tablecol) SetUnsigned(v bool) {
+func (t *tablecol) SetUnsigned(v bool) TableColumn {
 	t.unsigned = v
+	return t
 }
 
-func (t *tablecol) SetZeroFill(v bool) {
+func (t *tablecol) SetZeroFill(v bool) TableColumn {
 	t.zerofill = v
+	return t
 }
 
 func (t *tablecol) HasAutoUpdate() bool {
 	return t.autoUpdate.Valid
 }
 
-func (t *tablecol) SetAutoUpdate(s string) {
+func (t *tablecol) SetAutoUpdate(s string) TableColumn {
 	t.autoUpdate.Value = s
 	t.autoUpdate.Valid = true
+	return t
 }
 
 func (t *tablecol) AutoUpdate() string {
@@ -226,28 +249,33 @@ func (t *tablecol) NativeLength() Length {
 	return NewLength(strconv.Itoa(size))
 }
 
-func (t *tablecol) Normalize() TableColumn {
-	col := t.clone()
+func (t *tablecol) Normalize() (TableColumn, bool) {
+	var clone bool
+	var length Length
+	var synonym ColumnType
+	var removeQuotes bool
+	var setDefaultNull bool
+
 	if !t.HasLength() {
-		if length := t.NativeLength(); length != nil {
-			col.SetLength(length)
+		if l := t.NativeLength(); l != nil {
+			clone = true
+			length = l
 		}
 	}
 
-	if synonym := t.Type().SynonymType(); synonym != t.Type() {
-		col.SetType(synonym)
+	if typ := t.Type(); typ.SynonymType() != typ {
+		clone = true
+		synonym = typ.SynonymType()
 	}
 
-	col.normalizeNullExpression()
-	return col
-}
-
-func (t *tablecol) normalizeNullExpression() {
+	nullState := t.NullState()
 	// remove null state if not `NOT NULL`
 	// If none is specified, the column is treated as if NULL was specified.
-	if t.NullState() == NullStateNull {
-		t.SetNullState(NullStateNone)
+	if nullState == NullStateNull {
+		clone = true
+		nullState = NullStateNone
 	}
+
 	if t.HasDefault() {
 		switch t.Type() {
 		case ColumnTypeTinyInt, ColumnTypeSmallInt,
@@ -255,12 +283,11 @@ func (t *tablecol) normalizeNullExpression() {
 			ColumnTypeInteger, ColumnTypeBigInt,
 			ColumnTypeFloat, ColumnTypeDouble,
 			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
-			// If numeric type then trim quate
-			t.SetDefault(t.Default(), false)
-		}
-		if strings.ToUpper(t.Default()) == "NULL" {
-			// null to UPPER
-			t.SetDefault("NULL", false)
+			// If numeric type then trim quote
+			if t.IsQuotedDefault() {
+				clone = true
+				removeQuotes = true
+			}
 		}
 	} else {
 		switch t.Type() {
@@ -270,14 +297,41 @@ func (t *tablecol) normalizeNullExpression() {
 			ColumnTypeLongBlob, ColumnTypeLongText:
 		default:
 			// if nullable then set default null.
-			if t.NullState() != NullStateNotNull {
-				t.SetDefault("NULL", false)
+			if nullState != NullStateNotNull {
+				clone = true
+				setDefaultNull = true
 			}
 		}
 	}
+
+
+
+	// avoid cloning if we don't have to
+	if !clone {
+		return t, false
+	}
+
+	col := t.Clone()
+	if length != nil {
+		col.SetLength(length)
+	}
+	if synonym != ColumnTypeInvalid {
+		col.SetType(synonym)
+	}
+
+	col.SetNullState(nullState)
+
+	if removeQuotes {
+		col.SetDefault(t.Default(), false)
+	}
+
+	if setDefaultNull {
+		col.SetDefault("NULL", false)
+	}
+	return col, true
 }
 
-func (t *tablecol) clone() *tablecol {
+func (t *tablecol) Clone() TableColumn {
 	col := &tablecol{}
 	*col = *t
 	return col
