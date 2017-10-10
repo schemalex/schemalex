@@ -72,7 +72,7 @@ schemalex [options...] before after
 -t[=true]     Enable/Disable transaction in the output (default: true)
 
 "before" and "after" may be a file path, or a URI.
-Special URI schemes "mysql", "local-git", are supported on top of
+Special URI schemes "mysql" and "local-git" are supported on top of
 "file". If the special path "-" is used, it is treated as stdin
 
 Examples:
