@@ -92,7 +92,7 @@ func TestDiff(t *testing.T) {
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, CONSTRAINT `fsym` FOREIGN KEY (fid) REFERENCES f (id) );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, CONSTRAINT `ksym` FOREIGN KEY (fid) REFERENCES f (id) );",
-			Expect: "ALTER TABLE `fuga` DROP FOREIGN KEY `fsym`;\nALTER TABLE `fuga` ADD CONSTRAINT `ksym` FOREIGN KEY (`fid`) REFERENCES `f` (`id`);",
+			Expect: "ALTER TABLE `fuga` DROP FOREIGN KEY `fsym`;\nALTER TABLE `fuga` DROP INDEX `fsym`;\nALTER TABLE `fuga` ADD INDEX `ksym` (`fid`);\nALTER TABLE `fuga` ADD CONSTRAINT `ksym` FOREIGN KEY (`fid`) REFERENCES `f` (`id`);",
 		},
 		// remove FOREIGN KEY
 		{
@@ -177,7 +177,7 @@ CREATE TABLE foo (
   KEY bar_fk (integers),
   KEY foo_idx (ints),
   CONSTRAINT bar_fk FOREIGN KEY (integers) REFERENCES bar (id)
-)
+);
 			`,
 			Expect: "",
 		},
