@@ -95,15 +95,21 @@ func (t *table) Normalize() Table {
 
 	for col := range t.Columns() {
 		ncol := col.Normalize()
+		// column_definition [UNIQUE [KEY] | [PRIMARY] KEY]
+		// they mean same as INDEX or CONSTRAINT
 		switch {
 		case ncol.IsPrimary():
 			index := NewIndex(IndexKindPrimaryKey, tbl.ID())
+			// In MySQL, the name of a PRIMARY KEY is PRIMARY
+			index.SetName("PRIMARY")
 			index.SetType(IndexTypeNone)
 			index.AddColumns(ncol.Name())
 			tbl.AddIndex(index)
 			ncol.SetPrimary(false)
 		case ncol.IsUnique():
 			index := NewIndex(IndexKindUnique, tbl.ID())
+			//  if you do not assign a name, the index is assigned the same name as the first indexed column
+			index.SetName(ncol.Name())
 			index.SetType(IndexTypeNone)
 			index.AddColumns(ncol.Name())
 			tbl.AddIndex(index)
