@@ -97,7 +97,7 @@ func TestTableColumnNormalize(t *testing.T) {
 				nullstate: NullStateNull,
 				defaultValue: defaultValue{
 					Valid:  true,
-					Value:  "null",
+					Value:  "NULL",
 					Quoted: false,
 				},
 			},

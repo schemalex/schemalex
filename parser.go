@@ -3,6 +3,7 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
+	"strings"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/model"
@@ -852,7 +853,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
 				col.SetDefault(t.Value, true)
 			case NUMBER, CURRENT_TIMESTAMP, NULL:
-				col.SetDefault(t.Value, false)
+				col.SetDefault(strings.ToUpper(t.Value), false)
 			default:
 				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}

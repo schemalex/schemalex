@@ -2,7 +2,6 @@ package model
 
 import (
 	"strconv"
-	"strings"
 )
 
 // NewLength creates a new Length which describes the
@@ -257,10 +256,6 @@ func (t *tablecol) normalizeNullExpression() {
 			ColumnTypeDecimal, ColumnTypeNumeric, ColumnTypeReal:
 			// If numeric type then trim quate
 			t.SetDefault(t.Default(), false)
-		}
-		if strings.ToUpper(t.Default()) == "NULL" {
-			// null to UPPER
-			t.SetDefault("NULL", false)
 		}
 	} else {
 		switch t.Type() {
