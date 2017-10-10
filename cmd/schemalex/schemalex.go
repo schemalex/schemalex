@@ -28,11 +28,31 @@ func _main() error {
 		fmt.Printf(`schemalex version %s
 
 schemalex -version
-schemalex [options...] /path/to/before /path/to/after
+schemalex [options...] before after
 
 -v            Print out the version and exit
 -o file	      Output the result to the specified file (default: stdout)
 -t[=true]     Enable/Disable transaction in the output (default: true)
+
+"before" and "after" may be a file path, or a URI.
+Special URI schemes "mysql" and "local-git" are supported on top of
+"file". If the special path "-" is used, it is treated as stdin
+
+Examples:
+
+* Compare local files
+  schemalex /path/to/file /another/path/to/file
+  schemalex file:///path/to/file /another/path/to/file
+
+* Compare local file against online mysql schema
+  schemalex /path/to/file "mysql://user:password@tcp(host:port)/dbname?option=value"
+
+* Compare file in local git repository against local file
+  schemalex local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf /path/to/file
+
+* Compare schema from stdin against local file
+	.... | schemalex - /path/to/file
+
 `, schemalex.Version)
 	}
 	flag.BoolVar(&version, "v", false, "")
@@ -66,11 +86,21 @@ schemalex [options...] /path/to/before /path/to/after
 		defer f.Close()
 	}
 
+	fromSource, err := schemalex.NewSchemaSource(flag.Arg(0))
+	if err != nil {
+		return errors.Wrap(err, `failed to create schema source for "from"`)
+	}
+
+	toSource, err := schemalex.NewSchemaSource(flag.Arg(1))
+	if err != nil {
+		return errors.Wrap(err, `failed to create schema source for "to"`)
+	}
+
 	p := schemalex.New()
-	return diff.Files(
+	return diff.Sources(
 		dst,
-		flag.Arg(0),
-		flag.Arg(1),
+		fromSource,
+		toSource,
 		diff.WithTransaction(txn), diff.WithParser(p),
 	)
 }
