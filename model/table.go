@@ -119,8 +119,21 @@ func (t *table) Normalize() Table {
 		nidx := idx.Normalize()
 		switch {
 		case nidx.IsForeginKey():
-			// TODO add INDEX for FK
-			// Name CONSTRAINT > FOREGIN KEY
+			// add implicitly created INDEX
+			index := NewIndex(IndexKindNormal, tbl.ID())
+			switch {
+			case nidx.Symbol() != "":
+				index.SetName(nidx.Symbol())
+				index.SetType(IndexTypeNone)
+				columns := []string{}
+				for c := range nidx.Columns() {
+					columns = append(columns, c)
+				}
+				index.AddColumns(columns...)
+				tbl.AddIndex(index)
+			default:
+				// if Not defined CONSTRAINT symbol, then resolve implicitly created INDEX too difficult.
+			}
 		}
 		tbl.AddIndex(nidx)
 	}
