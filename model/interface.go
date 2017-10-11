@@ -29,10 +29,10 @@ type Index interface {
 	HasSymbol() bool
 	Name() string
 	Reference() Reference
-	SetReference(Reference)
-	SetSymbol(string)
-	SetType(IndexType)
-	SetName(string)
+	SetReference(Reference) Index
+	SetSymbol(string) Index
+	SetType(IndexType) Index
+	SetName(string) Index
 	Symbol() string
 	IsBtree() bool
 	IsHash() bool
@@ -42,6 +42,16 @@ type Index interface {
 	IsFullText() bool
 	IsSpatial() bool
 	IsForeginKey() bool
+
+	// Normalize returns normalized index. If a normalization was performed
+	// and the index is modified, returns a new instance of the Table object
+	// along with a true value as the second return value.
+	// Otherwise, Normalize() returns the receiver unchanged, with a false
+	// as the second return value.
+	Normalize() (Index, bool)
+
+	// Clone returns the clone index
+	Clone() Index
 }
 
 // IndexKind describes the kind (purpose) of an index
@@ -87,10 +97,10 @@ type Reference interface {
 	TableName() string
 	OnDelete() ReferenceOption
 	OnUpdate() ReferenceOption
-	SetTableName(string)
-	SetMatch(ReferenceMatch)
-	SetOnDelete(ReferenceOption)
-	SetOnUpdate(ReferenceOption)
+	SetTableName(string) Reference
+	SetMatch(ReferenceMatch) Reference
+	SetOnDelete(ReferenceOption) Reference
+	SetOnUpdate(ReferenceOption) Reference
 	MatchFull() bool
 	MatchPartial() bool
 	MatchSimple() bool
@@ -134,19 +144,26 @@ type Table interface {
 
 	Name() string
 	IsTemporary() bool
-	SetTemporary(bool)
+	SetTemporary(bool) Table
 	IsIfNotExists() bool
-	SetIfNotExists(bool)
+	SetIfNotExists(bool) Table
 
-	AddColumn(TableColumn)
+	AddColumn(TableColumn) Table
 	Columns() chan TableColumn
-	AddIndex(Index)
+	AddIndex(Index) Table
 	Indexes() chan Index
-	AddOption(TableOption)
+	AddOption(TableOption) Table
 	Options() chan TableOption
 
 	LookupColumn(string) (TableColumn, bool)
 	LookupIndex(string) (Index, bool)
+
+	// Normalize returns normalized table. If a normalization was performed
+	// and the table is modified, returns a new instance of the Table object
+	// along with a true value as the second return value.
+	// Otherwise, Normalize() returns the receiver unchanged, with a false
+	// as the second return value.
+	Normalize() (Table, bool)
 }
 
 // TableOption describes a possible table option, such as `ENGINE=InnoDB`
@@ -188,7 +205,7 @@ const (
 type Length interface {
 	HasDecimal() bool
 	Decimal() string
-	SetDecimal(string)
+	SetDecimal(string) Length
 	Length() string
 }
 
@@ -202,55 +219,66 @@ type length struct {
 type TableColumn interface {
 	Stmt
 
+	TableID() string
+	SetTableID(string) TableColumn
+
 	Name() string
 	Type() ColumnType
-	SetType(ColumnType)
+	SetType(ColumnType) TableColumn
 
 	HasLength() bool
 	Length() Length
-	SetLength(Length)
+	SetLength(Length) TableColumn
 	HasCharacterSet() bool
 	CharacterSet() string
-	SetCharacterSet(string)
+	SetCharacterSet(string) TableColumn
 	HasCollation() bool
 	Collation() string
 	HasDefault() bool
 	Default() string
 	IsQuotedDefault() bool
-	SetDefault(string, bool)
+	SetDefault(string, bool) TableColumn
 	HasComment() bool
 	Comment() string
-	SetComment(string)
+	SetComment(string) TableColumn
 	HasAutoUpdate() bool
 	AutoUpdate() string
-	SetAutoUpdate(string)
+	SetAutoUpdate(string) TableColumn
 
 	NullState() NullState
-	SetNullState(NullState)
+	SetNullState(NullState) TableColumn
 
 	IsAutoIncrement() bool
-	SetAutoIncrement(bool)
+	SetAutoIncrement(bool) TableColumn
 	IsBinary() bool
-	SetBinary(bool)
+	SetBinary(bool) TableColumn
 	IsKey() bool
-	SetKey(bool)
+	SetKey(bool) TableColumn
 	IsPrimary() bool
-	SetPrimary(bool)
+	SetPrimary(bool) TableColumn
 	IsUnique() bool
-	SetUnique(bool)
+	SetUnique(bool) TableColumn
 	IsUnsigned() bool
-	SetUnsigned(bool)
+	SetUnsigned(bool) TableColumn
 	IsZeroFill() bool
-	SetZeroFill(bool)
+	SetZeroFill(bool) TableColumn
 
 	// NativeLength returns the "native" size of a column type. This is the length used if you do not explicitly specify it.
 	// Currently only supports numeric types, but may change later.
 	NativeLength() Length
 
-	// Normalize returns normalized column.
-	// It looks like a different column, but MySQL normalizes it as the same column.
-	// numeric column length, synonym type, and expression on NULL
-	Normalize() TableColumn
+	// Normalize returns normalized column. If a normalization was performed
+	// and the column is modified, returns a new instance of the Table object
+	// along with a true value as the second return value.
+	// Otherwise, Normalize() returns the receiver unchanged, with a false
+	// as the second return value.
+	//
+	// Normalization is performed on numertic type display lengths, synonym
+	// types, and NULL expressions
+	Normalize() (TableColumn, bool)
+
+	// Clone returns the cloned column
+	Clone() TableColumn
 }
 
 type defaultValue struct {
@@ -260,6 +288,7 @@ type defaultValue struct {
 }
 
 type tablecol struct {
+	tableID      string
 	name         string
 	typ          ColumnType
 	length       Length
@@ -292,7 +321,7 @@ type Database interface {
 
 	Name() string
 	IsIfNotExists() bool
-	SetIfNotExists(bool)
+	SetIfNotExists(bool) Database
 }
 
 type database struct {

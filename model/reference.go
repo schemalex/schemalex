@@ -49,20 +49,24 @@ func (r *reference) OnUpdate() ReferenceOption {
 	return r.onUpdate
 }
 
-func (r *reference) SetMatch(v ReferenceMatch) {
+func (r *reference) SetMatch(v ReferenceMatch) Reference {
 	r.match = v
+	return r
 }
 
-func (r *reference) SetOnDelete(v ReferenceOption) {
+func (r *reference) SetOnDelete(v ReferenceOption) Reference {
 	r.onDelete = v
+	return r
 }
 
-func (r *reference) SetOnUpdate(v ReferenceOption) {
+func (r *reference) SetOnUpdate(v ReferenceOption) Reference {
 	r.onUpdate = v
+	return r
 }
 
-func (r *reference) SetTableName(v string) {
+func (r *reference) SetTableName(v string) Reference {
 	r.tableName = v
+	return r
 }
 
 func (r reference) String() string {

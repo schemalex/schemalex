@@ -3,6 +3,7 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
+	"strings"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/model"
@@ -274,6 +275,7 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		return nil, err
 	}
 
+	table, _ = table.Normalize()
 	return table, nil
 }
 
@@ -453,7 +455,7 @@ func (p *Parser) parseTableColumn(ctx *parseCtx, table model.Table) error {
 	if err := p.parseTableColumnSpec(ctx, col); err != nil {
 		return err
 	}
-	table.AddColumn(col.Normalize())
+	table.AddColumn(col)
 	return nil
 }
 
@@ -852,7 +854,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
 				col.SetDefault(t.Value, true)
 			case NUMBER, CURRENT_TIMESTAMP, NULL:
-				col.SetDefault(t.Value, false)
+				col.SetDefault(strings.ToUpper(t.Value), false)
 			default:
 				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
@@ -1052,7 +1054,7 @@ func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, index model.Index) er
 	return nil
 }
 
-func (p *Parser) parseReferenceOption(ctx *parseCtx, set func(model.ReferenceOption)) error {
+func (p *Parser) parseReferenceOption(ctx *parseCtx, set func(model.ReferenceOption) model.Reference) error {
 	ctx.skipWhiteSpaces()
 	switch t := ctx.next(); t.Type {
 	case RESTRICT:

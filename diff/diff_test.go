@@ -92,7 +92,7 @@ func TestDiff(t *testing.T) {
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, CONSTRAINT `fsym` FOREIGN KEY (fid) REFERENCES f (id) );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, CONSTRAINT `ksym` FOREIGN KEY (fid) REFERENCES f (id) );",
-			Expect: "ALTER TABLE `fuga` DROP FOREIGN KEY `fsym`;\nALTER TABLE `fuga` ADD CONSTRAINT `ksym` FOREIGN KEY (`fid`) REFERENCES `f` (`id`);",
+			Expect: "ALTER TABLE `fuga` DROP FOREIGN KEY `fsym`;\nALTER TABLE `fuga` DROP INDEX `fsym`;\nALTER TABLE `fuga` ADD INDEX `ksym` (`fid`);\nALTER TABLE `fuga` ADD CONSTRAINT `ksym` FOREIGN KEY (`fid`) REFERENCES `f` (`id`);",
 		},
 		// remove FOREIGN KEY
 		{
@@ -111,6 +111,7 @@ func TestDiff(t *testing.T) {
 			// human input
 			Before: `
 create table foo (
+   id int not null AUTO_INCREMENT PRIMARY KEY,
    tinyints tinyint,
    tinyintu tinyint unsigned,
    smallints smallint,
@@ -121,7 +122,7 @@ create table foo (
    intu int unsigned,
    integers integer null default null,
    integeru integer unsigned null,
-   bigins bigint,
+   bigins bigint UNIQUE KEY,
    bigintu bigint unsigned,
    floats float,
    floaru float unsigned,
@@ -137,12 +138,14 @@ create table foo (
    blobnn blob,
    intsd int default 0,
    intud int unsigned default 0,
+   CONSTRAINT bar_fk FOREIGN KEY (integers) REFERENCES bar (id),
    INDEX foo_idx (ints)
 );
 			`,
 			// show create table foo
 			After: `
 CREATE TABLE foo (
+  id int(11) NOT NULL AUTO_INCREMENT,
   tinyints tinyint(4) DEFAULT NULL,
   tinyintu tinyint(3) unsigned DEFAULT NULL,
   smallints smallint(6) DEFAULT NULL,
@@ -169,8 +172,12 @@ CREATE TABLE foo (
   blobnn blob,
   intsd int(11) DEFAULT '0',
   intud int(10) unsigned DEFAULT '0',
-  KEY foo_idx (ints)
-)
+  PRIMARY KEY (id),
+  UNIQUE KEY bigins (bigins),
+  KEY bar_fk (integers),
+  KEY foo_idx (ints),
+  CONSTRAINT bar_fk FOREIGN KEY (integers) REFERENCES bar (id)
+);
 			`,
 			Expect: "",
 		},
@@ -179,11 +186,13 @@ CREATE TABLE foo (
 	var buf bytes.Buffer
 	for _, spec := range specs {
 		buf.Reset()
-
 		if !assert.NoError(t, diff.Strings(&buf, spec.Before, spec.After), "diff.String should succeed") {
 			return
 		}
+
 		if !assert.Equal(t, spec.Expect, buf.String(), "result SQL should match") {
+			t.Logf("before = %s", spec.Before)
+			t.Logf("after = %s", spec.After)
 			return
 		}
 	}

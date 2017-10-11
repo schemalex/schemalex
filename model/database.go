@@ -23,6 +23,7 @@ func (d *database) IsIfNotExists() bool {
 	return d.ifnotexists
 }
 
-func (d *database) SetIfNotExists(v bool) {
+func (d *database) SetIfNotExists(v bool) Database {
 	d.ifnotexists = v
+	return d
 }
