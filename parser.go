@@ -20,9 +20,10 @@ const (
 	coloptCollate
 	coloptNull
 	coloptDefault
-	coloptAutoIncrement
 	coloptKey
 	coloptComment
+
+	coloptAutoIncrement = coloptKey
 )
 
 const (
