@@ -91,7 +91,7 @@ func formatTable(dst io.Writer, table model.Table) error {
 
 	if table.HasLikeTable() {
 		buf.WriteString(" LIKE ")
-	buf.WriteString(util.Backquote(table.LikeTable()))
+		buf.WriteString(util.Backquote(table.LikeTable()))
 	} else {
 		buf.WriteString(" (")
 
