@@ -17,8 +17,7 @@ type fmtCtx struct {
 
 func newFmtCtx(dst io.Writer) *fmtCtx {
 	return &fmtCtx{
-		dst:    dst,
-		indent: "  ",
+		dst: dst,
 	}
 }
 
@@ -32,8 +31,15 @@ func (ctx *fmtCtx) clone() *fmtCtx {
 
 // SQL takes an arbitrary `model.*` object and formats it as SQL,
 // writing its result to `dst`
-func SQL(dst io.Writer, v interface{}) error {
+func SQL(dst io.Writer, v interface{}, options ...Option) error {
 	ctx := newFmtCtx(dst)
+	for _, o := range options {
+		switch o.Name() {
+		case "indent":
+			ctx.indent = o.Value().(string)
+		}
+	}
+
 	return format(ctx, v)
 }
 
@@ -374,8 +380,11 @@ func formatIndex(ctx *fmtCtx, index model.Index) error {
 	buf.WriteByte(')')
 
 	if ref := index.Reference(); ref != nil {
+		newctx := ctx.clone()
+		newctx.dst = &buf
+
 		buf.WriteByte(' ')
-		if err := formatReference(ctx, ref); err != nil {
+		if err := formatReference(newctx, ref); err != nil {
 			return err
 		}
 	}
