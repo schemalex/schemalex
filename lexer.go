@@ -3,7 +3,6 @@ package schemalex
 import (
 	"bytes"
 	"context"
-	"log"
 	"strings"
 	"unicode/utf8"
 
@@ -87,11 +86,9 @@ func (l *lexer) emit(ctx context.Context, typ TokenType) {
 }
 
 func (l *lexer) str() string {
-	//	log.Printf("str() = %v, str length = %d, l.peekCount = %d", l.input[l.start.pos:], len(l.input[l.start.pos:]), l.peekCount)
 	endpos := l.cur.pos - (l.peekCount + 1)
 	w := len(l.input[l.start.pos:])
-	log.Printf("startpos = %d, endpos = %d, endpos - startpos = %d, w = %d", l.start.pos, endpos, endpos - l.start.pos, w)
-	if endpos - l.start.pos > w {
+	if endpos-l.start.pos > w {
 		endpos = l.start.pos + w
 	}
 	return string(l.input[l.start.pos:endpos])
