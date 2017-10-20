@@ -27,7 +27,7 @@ func main() {
 func _main() error {
 	var showVersion bool
 	var outfile string
-	var indentNum string
+	var indentNum int
 
 	flag.Usage = func() {
 		fmt.Printf(`schemalint version %s
