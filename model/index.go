@@ -25,18 +25,25 @@ func (stmt *index) ID() string {
 		name = name + "#" + stmt.Name()
 	}
 	h := sha256.New()
+
+	sym := "none"
+	if stmt.HasSymbol() {
+		sym = stmt.Symbol()
+	}
+
 	fmt.Fprintf(h,
-		"%s.%s,%s.%s",
+		"%s.%s.%s.%s",
 		stmt.table,
-		stmt.Symbol(),
+		sym,
 		stmt.kind,
 		stmt.typ,
 	)
 	for col := range stmt.Columns() {
-		fmt.Fprintf(h, "%s", col.ID())
 		fmt.Fprintf(h, ".")
+		fmt.Fprintf(h, "%s", col.ID())
 	}
 	if stmt.reference != nil {
+		fmt.Fprintf(h, ".")
 		fmt.Fprintf(h, stmt.reference.ID())
 	}
 	return fmt.Sprintf("%s#%x", name, h.Sum(nil))
@@ -147,9 +154,9 @@ func NewIndexColumn(name string) IndexColumn {
 
 func (col *indexColumn) ID() string {
 	if col.HasLength() {
-		return "index_column#" + col.Name()
+		return "index_column#" + col.Name() + "-" + col.Length()
 	}
-	return "index_column#" + col.Name() + "-" + col.Length()
+	return "index_column#" + col.Name()
 }
 
 func (col *indexColumn) Name() string {

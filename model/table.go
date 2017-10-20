@@ -117,15 +117,12 @@ func (t *table) Normalize() (Table, bool) {
 			index := NewIndex(IndexKindPrimaryKey, t.ID())
 			index.SetType(IndexTypeNone)
 			idxCol := NewIndexColumn(ncol.Name())
-			if ncol.HasLength() && !ncol.Length().HasDecimal() {
-				idxCol.SetLength(ncol.Length().Length())
-			}
 			index.AddColumns(idxCol)
 			additionalIndexes = append(additionalIndexes, index)
 			if !modified {
 				clone = true
-				ncol = ncol.Clone()
 			}
+			ncol = ncol.Clone()
 			ncol.SetPrimary(false)
 		case ncol.IsUnique():
 			index := NewIndex(IndexKindUnique, t.ID())
@@ -133,15 +130,12 @@ func (t *table) Normalize() (Table, bool) {
 			index.SetName(ncol.Name())
 			index.SetType(IndexTypeNone)
 			idxCol := NewIndexColumn(ncol.Name())
-			if ncol.HasLength() && !ncol.Length().HasDecimal() {
-				idxCol.SetLength(ncol.Length().Length())
-			}
 			index.AddColumns(idxCol)
 			additionalIndexes = append(additionalIndexes, index)
 			if !modified {
 				clone = true
-				ncol = ncol.Clone()
 			}
+			ncol = ncol.Clone()
 			ncol.SetUnique(false)
 		}
 
