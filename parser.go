@@ -3,7 +3,6 @@ package schemalex
 import (
 	"context"
 	"io/ioutil"
-	"log"
 	"strings"
 
 	"github.com/schemalex/schemalex/internal/errors"
@@ -266,7 +265,6 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		ctx.skipWhiteSpaces()
 		switch t := ctx.next(); t.Type {
 		case IDENT, BACKTICK_IDENT:
-			log.Printf("t.Value = '%v'", []byte(t.Value))
 			table.SetLikeTable(t.Value)
 		default:
 			return nil, newParseError(ctx, t, "expected table name after LIKE")
