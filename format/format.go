@@ -9,37 +9,63 @@ import (
 	"github.com/schemalex/schemalex/model"
 )
 
+type fmtCtx struct {
+	curIndent string
+	dst       io.Writer
+	indent    string
+}
+
+func newFmtCtx(dst io.Writer) *fmtCtx {
+	return &fmtCtx{
+		dst:    dst,
+		indent: "  ",
+	}
+}
+
+func (ctx *fmtCtx) clone() *fmtCtx {
+	return &fmtCtx{
+		curIndent: ctx.curIndent,
+		dst:       ctx.dst,
+		indent:    ctx.indent,
+	}
+}
+
 // SQL takes an arbitrary `model.*` object and formats it as SQL,
 // writing its result to `dst`
 func SQL(dst io.Writer, v interface{}) error {
+	ctx := newFmtCtx(dst)
+	return format(ctx, v)
+}
+
+func format(ctx *fmtCtx, v interface{}) error {
 	switch v.(type) {
 	case model.ColumnType:
-		return formatColumnType(dst, v.(model.ColumnType))
+		return formatColumnType(ctx, v.(model.ColumnType))
 	case model.Database:
-		return formatDatabase(dst, v.(model.Database))
+		return formatDatabase(ctx, v.(model.Database))
 	case model.Stmts:
 		for _, s := range v.(model.Stmts) {
-			if err := SQL(dst, s); err != nil {
+			if err := format(ctx, s); err != nil {
 				return err
 			}
 		}
 		return nil
 	case model.Table:
-		return formatTable(dst, v.(model.Table))
+		return formatTable(ctx, v.(model.Table))
 	case model.TableColumn:
-		return formatTableColumn(dst, v.(model.TableColumn))
+		return formatTableColumn(ctx, v.(model.TableColumn))
 	case model.TableOption:
-		return formatTableOption(dst, v.(model.TableOption))
+		return formatTableOption(ctx, v.(model.TableOption))
 	case model.Index:
-		return formatIndex(dst, v.(model.Index))
+		return formatIndex(ctx, v.(model.Index))
 	case model.Reference:
-		return formatReference(dst, v.(model.Reference))
+		return formatReference(ctx, v.(model.Reference))
 	default:
 		return errors.New("unsupported model type")
 	}
 }
 
-func formatDatabase(dst io.Writer, d model.Database) error {
+func formatDatabase(ctx *fmtCtx, d model.Database) error {
 	var buf bytes.Buffer
 	buf.WriteString("CREATE DATABASE")
 	if d.IsIfNotExists() {
@@ -49,13 +75,13 @@ func formatDatabase(dst io.Writer, d model.Database) error {
 	buf.WriteString(util.Backquote(d.Name()))
 	buf.WriteByte(';')
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := buf.WriteTo(ctx.dst); err != nil {
 		return err
 	}
 	return nil
 }
 
-func formatTableOption(dst io.Writer, option model.TableOption) error {
+func formatTableOption(ctx *fmtCtx, option model.TableOption) error {
 	var buf bytes.Buffer
 	buf.WriteString(option.Key())
 	buf.WriteString(" = ")
@@ -67,13 +93,13 @@ func formatTableOption(dst io.Writer, option model.TableOption) error {
 		buf.WriteString(option.Value())
 	}
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := buf.WriteTo(ctx.dst); err != nil {
 		return err
 	}
 	return nil
 }
 
-func formatTable(dst io.Writer, table model.Table) error {
+func formatTable(ctx *fmtCtx, table model.Table) error {
 	var buf bytes.Buffer
 
 	buf.WriteString("CREATE")
@@ -93,6 +119,11 @@ func formatTable(dst io.Writer, table model.Table) error {
 		buf.WriteString(" LIKE ")
 		buf.WriteString(util.Backquote(table.LikeTable()))
 	} else {
+
+		newctx := ctx.clone()
+		newctx.curIndent = newctx.indent + newctx.curIndent
+		newctx.dst = &buf
+
 		buf.WriteString(" (")
 
 		colch := table.Columns()
@@ -103,7 +134,7 @@ func formatTable(dst io.Writer, table model.Table) error {
 		var i int
 		for col := range colch {
 			buf.WriteByte('\n')
-			if err := formatTableColumn(&buf, col); err != nil {
+			if err := formatTableColumn(newctx, col); err != nil {
 				return err
 			}
 			if i < colchmax-1 || idxchmax > 0 {
@@ -115,7 +146,7 @@ func formatTable(dst io.Writer, table model.Table) error {
 		i = 0
 		for idx := range idxch {
 			buf.WriteByte('\n')
-			if err := formatIndex(&buf, idx); err != nil {
+			if err := formatIndex(newctx, idx); err != nil {
 				return err
 			}
 			if i < idxchmax-1 {
@@ -131,7 +162,7 @@ func formatTable(dst io.Writer, table model.Table) error {
 			buf.WriteByte(' ')
 			var i int
 			for option := range optch {
-				if err := formatTableOption(&buf, option); err != nil {
+				if err := formatTableOption(newctx, option); err != nil {
 					return err
 				}
 
@@ -143,31 +174,35 @@ func formatTable(dst io.Writer, table model.Table) error {
 		}
 	}
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := buf.WriteTo(ctx.dst); err != nil {
 		return err
 	}
 	return nil
 }
 
-func formatColumnType(dst io.Writer, col model.ColumnType) error {
+func formatColumnType(ctx *fmtCtx, col model.ColumnType) error {
 	if col <= model.ColumnTypeInvalid || col >= model.ColumnTypeMax {
 		return errors.New(`invalid column type`)
 	}
 
-	if _, err := io.WriteString(dst, col.String()); err != nil {
+	if _, err := io.WriteString(ctx.dst, col.String()); err != nil {
 		return err
 	}
 
 	return nil
 }
 
-func formatTableColumn(dst io.Writer, col model.TableColumn) error {
+func formatTableColumn(ctx *fmtCtx, col model.TableColumn) error {
 	var buf bytes.Buffer
 
+	buf.WriteString(ctx.curIndent)
 	buf.WriteString(util.Backquote(col.Name()))
 	buf.WriteByte(' ')
 
-	if err := formatColumnType(&buf, col.Type()); err != nil {
+	newctx := ctx.clone()
+	newctx.curIndent = ""
+	newctx.dst = &buf
+	if err := formatColumnType(newctx, col.Type()); err != nil {
 		return err
 	}
 
@@ -273,15 +308,16 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 		buf.WriteByte('\'')
 	}
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := buf.WriteTo(ctx.dst); err != nil {
 		return err
 	}
 	return nil
 }
 
-func formatIndex(dst io.Writer, index model.Index) error {
+func formatIndex(ctx *fmtCtx, index model.Index) error {
 	var buf bytes.Buffer
 
+	buf.WriteString(ctx.curIndent)
 	if index.HasSymbol() {
 		buf.WriteString("CONSTRAINT ")
 		buf.WriteString(util.Backquote(index.Symbol()))
@@ -339,20 +375,21 @@ func formatIndex(dst io.Writer, index model.Index) error {
 
 	if ref := index.Reference(); ref != nil {
 		buf.WriteByte(' ')
-		if err := formatReference(&buf, ref); err != nil {
+		if err := formatReference(ctx, ref); err != nil {
 			return err
 		}
 	}
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := buf.WriteTo(ctx.dst); err != nil {
 		return err
 	}
 	return nil
 }
 
-func formatReference(dst io.Writer, r model.Reference) error {
+func formatReference(ctx *fmtCtx, r model.Reference) error {
 	var buf bytes.Buffer
 
+	buf.WriteString(ctx.curIndent)
 	buf.WriteString("REFERENCES ")
 	buf.WriteString(util.Backquote(r.TableName()))
 	buf.WriteString(" (")
@@ -387,7 +424,7 @@ func formatReference(dst io.Writer, r model.Reference) error {
 	writeReferenceOption(&buf, "ON DELETE", r.OnDelete())
 	writeReferenceOption(&buf, "ON UPDATE", r.OnUpdate())
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := buf.WriteTo(ctx.dst); err != nil {
 		return err
 	}
 	return nil
