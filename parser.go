@@ -20,8 +20,8 @@ const (
 	coloptCollate
 	coloptNull
 	coloptDefault
-	coloptKey
 	coloptAutoIncrement
+	coloptKey
 	coloptComment
 )
 
