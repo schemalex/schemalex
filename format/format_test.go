@@ -24,7 +24,7 @@ func TestFormat(t *testing.T) {
 
 	index := model.NewIndex(model.IndexKindPrimaryKey, table.ID())
 	index.SetName("hoge_pk")
-	index.AddColumns("fuga")
+	index.AddColumns(model.NewIndexColumn("fuga"))
 	table.AddIndex(index)
 
 	if !assert.NoError(t, format.SQL(&dst, table), "format.SQL should succeed") {
