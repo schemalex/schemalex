@@ -200,6 +200,10 @@ primary key (id, c)
 			Input:  "CREATE TABLE `foo` (col TEXT, KEY col_idx (col(196)))",
 			Expect: "CREATE TABLE `foo` (\n`col` TEXT,\nINDEX `col_idx` (`col`(196))\n)",
 		},
+		{
+			Input:  "CREATE TABLE foo LIKE bar",
+			Expect: "CREATE TABLE `foo` LIKE `bar`",
+		},
 	}
 
 	p := New()
