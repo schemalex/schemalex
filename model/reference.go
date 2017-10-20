@@ -2,6 +2,8 @@ package model
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"fmt"
 
 	"github.com/schemalex/schemalex/internal/errors"
 	"github.com/schemalex/schemalex/internal/util"
@@ -12,12 +14,28 @@ func NewReference() Reference {
 	return &reference{}
 }
 
-func (r *reference) AddColumns(l ...string) {
+func (r *reference) ID() string {
+	h := sha256.New()
+	fmt.Fprintf(h,
+		"%s.%s.%s.%s",
+		r.tableName,
+		r.match,
+		r.onDelete,
+		r.onUpdate,
+	)
+	for col := range r.Columns() {
+		fmt.Fprintf(h, "%s", col.ID())
+		fmt.Fprintf(h, ".")
+	}
+	return fmt.Sprintf("reference#%x", h.Sum(nil))
+}
+
+func (r *reference) AddColumns(l ...IndexColumn) {
 	r.columns = append(r.columns, l...)
 }
 
-func (r *reference) Columns() chan string {
-	c := make(chan string, len(r.columns))
+func (r *reference) Columns() chan IndexColumn {
+	c := make(chan IndexColumn, len(r.columns))
 	for _, col := range r.columns {
 		c <- col
 	}
@@ -80,7 +98,7 @@ func (r reference) String() string {
 	lch := len(ch)
 	var i int
 	for col := range ch {
-		buf.WriteString(util.Backquote(col))
+		buf.WriteString(util.Backquote(col.Name()))
 		if i < lch-1 {
 			buf.WriteString(", ")
 		}
@@ -103,7 +121,6 @@ func (r reference) String() string {
 
 	return buf.String()
 }
-
 
 func writeReferenceOption(buf *bytes.Buffer, prefix string, opt ReferenceOption) error {
 	if opt != ReferenceOptionNone {

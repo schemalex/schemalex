@@ -20,8 +20,8 @@ const (
 	coloptCollate
 	coloptNull
 	coloptDefault
-	coloptAutoIncrement
 	coloptKey
+	coloptAutoIncrement
 	coloptComment
 )
 
@@ -795,7 +795,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				l.SetDecimal(tscale)
 				col.SetLength(l)
 			} else {
-				return newParseError(ctx, t, "cant apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
+				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
 			}
 		case CHARACTER:
 			ctx.skipWhiteSpaces()
@@ -807,22 +807,22 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			col.SetCharacterSet(v.Value)
 		case UNSIGNED:
 			if !check(coloptUnsigned) {
-				return newParseError(ctx, t, "cant apply UNSIGNED")
+				return newParseError(ctx, t, "cannot apply UNSIGNED")
 			}
 			col.SetUnsigned(true)
 		case ZEROFILL:
 			if !check(coloptZerofill) {
-				return newParseError(ctx, t, "cant apply ZEROFILL")
+				return newParseError(ctx, t, "cannot apply ZEROFILL")
 			}
 			col.SetZeroFill(true)
 		case BINARY:
 			if !check(coloptBinary) {
-				return newParseError(ctx, t, "cant apply BINARY")
+				return newParseError(ctx, t, "cannot apply BINARY")
 			}
 			col.SetBinary(true)
 		case NOT:
 			if !check(coloptNull) {
-				return newParseError(ctx, t, "cant apply NOT NULL")
+				return newParseError(ctx, t, "cannot apply NOT NULL")
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
@@ -833,7 +833,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 		case NULL:
 			if !check(coloptNull) {
-				return newParseError(ctx, t, "cant apply NULL")
+				return newParseError(ctx, t, "cannot apply NULL")
 			}
 			col.SetNullState(model.NullStateNull)
 		case ON:
@@ -847,7 +847,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			col.SetAutoUpdate(v.Value)
 		case DEFAULT:
 			if !check(coloptDefault) {
-				return newParseError(ctx, t, "cant apply DEFAULT")
+				return newParseError(ctx, t, "cannot apply DEFAULT")
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
@@ -860,12 +860,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 		case AUTO_INCREMENT:
 			if !check(coloptAutoIncrement) {
-				return newParseError(ctx, t, "cant apply AUTO_INCREMENT")
+				return newParseError(ctx, t, "cannot apply AUTO_INCREMENT")
 			}
 			col.SetAutoIncrement(true)
 		case UNIQUE:
 			if !check(coloptKey) {
-				return newParseError(ctx, t, "cant apply UNIQUE KEY")
+				return newParseError(ctx, t, "cannot apply UNIQUE KEY")
 			}
 			ctx.skipWhiteSpaces()
 			if t := ctx.next(); t.Type == KEY {
@@ -874,12 +874,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 		case KEY:
 			if !check(coloptKey) {
-				return newParseError(ctx, t, "cant apply KEY")
+				return newParseError(ctx, t, "cannot apply KEY")
 			}
 			col.SetKey(true)
 		case PRIMARY:
 			if !check(coloptKey) {
-				return newParseError(ctx, t, "cant apply PRIMARY KEY")
+				return newParseError(ctx, t, "cannot apply PRIMARY KEY")
 			}
 			ctx.skipWhiteSpaces()
 			if t := ctx.peek(); t.Type == KEY {
@@ -888,7 +888,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 		case COMMENT:
 			if !check(coloptComment) {
-				return newParseError(ctx, t, "cant apply COMMENT")
+				return newParseError(ctx, t, "cannot apply COMMENT")
 			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
@@ -923,7 +923,7 @@ func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) er
 		return err
 	}
 
-	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
 		return err
 	}
 
@@ -951,7 +951,7 @@ func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index model.Index) err
 		return err
 	}
 
-	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
 		return err
 	}
 
@@ -973,7 +973,7 @@ func (p *Parser) parseColumnIndexKey(ctx *parseCtx, index model.Index) error {
 		return err
 	}
 
-	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
 		return err
 	}
 
@@ -996,7 +996,7 @@ func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index model.Index) e
 		return err
 	}
 
-	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
 		return err
 	}
 
@@ -1019,7 +1019,7 @@ func (p *Parser) parseColumnIndexSpatialKey(ctx *parseCtx, index model.Index) er
 		return err
 	}
 
-	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
 		return err
 	}
 
@@ -1040,7 +1040,7 @@ func (p *Parser) parseColumnIndexForeignKey(ctx *parseCtx, index model.Index) er
 		return err
 	}
 
-	if err := p.parseColumnIndexColName(ctx, index); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
 		return err
 	}
 
@@ -1095,7 +1095,7 @@ func (p *Parser) parseColumnReference(ctx *parseCtx, index model.Index) error {
 		return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 	}
 
-	if err := p.parseColumnIndexColName(ctx, r); err != nil {
+	if err := p.parseColumnIndexColumns(ctx, r); err != nil {
 		return err
 	}
 
@@ -1184,10 +1184,10 @@ func (p *Parser) parseColumnIndexType(ctx *parseCtx, index model.Index) error {
 }
 
 // TODO rename method name
-func (p *Parser) parseColumnIndexColName(ctx *parseCtx, container interface {
-	AddColumns(...string)
+func (p *Parser) parseColumnIndexColumns(ctx *parseCtx, container interface {
+	AddColumns(...model.IndexColumn)
 }) error {
-	var cols []string
+	var cols []model.IndexColumn
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != LPAREN {
@@ -1201,7 +1201,25 @@ OUTER:
 		if !(t.Type == IDENT || t.Type == BACKTICK_IDENT) {
 			return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 		}
-		cols = append(cols, t.Value)
+		col := model.NewIndexColumn(t.Value)
+		cols = append(cols, col)
+
+		ctx.skipWhiteSpaces()
+		switch t = ctx.next(); t.Type {
+		case LPAREN:
+			t := ctx.next()
+			if t.Type != NUMBER {
+				return newParseError(ctx, t, "expected NUMBER")
+			}
+			tlen := t.Value
+			ctx.skipWhiteSpaces()
+			if t = ctx.next(); t.Type != RPAREN {
+				return newParseError(ctx, t, "expected RPAREN")
+			}
+			col.SetLength(tlen)
+		default:
+			ctx.rewind()
+		}
 
 		ctx.skipWhiteSpaces()
 		switch t = ctx.next(); t.Type {
@@ -1211,7 +1229,7 @@ OUTER:
 		case RPAREN:
 			break OUTER
 		default:
-			return newParseError(ctx, t, "should , or )")
+			return newParseError(ctx, t, "expected COMMA or RPAREN")
 		}
 	}
 

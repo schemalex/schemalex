@@ -16,8 +16,17 @@ type maybeString struct {
 // ColumnContainer is the interface for objects that can contain
 // column names
 type ColumnContainer interface {
-	AddColumns(...string)
-	Columns() chan string
+	AddColumns(...IndexColumn)
+	Columns() chan IndexColumn
+}
+
+// IndexColumn is a column name/length specification used in indexes
+type IndexColumn interface {
+	ID() string
+	Name() string
+	SetLength(string) IndexColumn
+	HasLength() bool
+	Length() string
 }
 
 // Index describes an index on a table.
@@ -78,13 +87,20 @@ const (
 	IndexTypeHash
 )
 
+// and index column specification may be
+// name or name(length)
+type indexColumn struct {
+	name   string
+	length maybeString
+}
+
 type index struct {
 	symbol  maybeString
 	kind    IndexKind
 	name    maybeString
 	typ     IndexType
 	table   string
-	columns []string
+	columns []IndexColumn
 	// TODO Options.
 	reference Reference
 }
@@ -93,6 +109,7 @@ type index struct {
 type Reference interface {
 	ColumnContainer
 
+	ID() string
 	String() string
 	TableName() string
 	OnDelete() ReferenceOption
@@ -108,7 +125,7 @@ type Reference interface {
 
 type reference struct {
 	tableName string
-	columns   []string
+	columns   []IndexColumn
 	match     ReferenceMatch
 	onDelete  ReferenceOption
 	onUpdate  ReferenceOption

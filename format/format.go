@@ -294,7 +294,12 @@ func formatIndex(dst io.Writer, index model.Index) error {
 
 	var i int
 	for col := range ch {
-		buf.WriteString(util.Backquote(col))
+		buf.WriteString(util.Backquote(col.Name()))
+		if col.HasLength() {
+			buf.WriteByte('(')
+			buf.WriteString(col.Length())
+			buf.WriteByte(')')
+		}
 		if i < lch-1 {
 			buf.WriteString(", ")
 		}
@@ -326,7 +331,12 @@ func formatReference(dst io.Writer, r model.Reference) error {
 	lch := len(ch)
 	var i int
 	for col := range ch {
-		buf.WriteString(util.Backquote(col))
+		buf.WriteString(util.Backquote(col.Name()))
+		if col.HasLength() {
+			buf.WriteByte('(')
+			buf.WriteString(col.Length())
+			buf.WriteByte(')')
+		}
 		if i < lch-1 {
 			buf.WriteString(", ")
 		}
