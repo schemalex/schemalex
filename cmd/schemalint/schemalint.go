@@ -27,6 +27,7 @@ func main() {
 func _main() error {
 	var showVersion bool
 	var outfile string
+	var indentNum string
 
 	flag.Usage = func() {
 		fmt.Printf(`schemalint version %s
@@ -36,6 +37,7 @@ schemalint [options...] source
 
 -v            Print out the version and exit
 -o file	      Output the result to the specified file (default: stdout)
+-i number     Number of spaces to insert as indent (default: 2)
 
 "source" may be a file path, or a URI.
 Special URI schemes "mysql" and "local-git" are supported on top of
@@ -60,6 +62,7 @@ Examples:
 	}
 	flag.BoolVar(&showVersion, "v", false, "")
 	flag.StringVar(&outfile, "o", "", "")
+	flag.IntVar(&indentNum, "i", 2, "")
 	flag.Parse()
 
 	if showVersion {
@@ -105,8 +108,12 @@ Examples:
 		return errors.Wrap(err, `failed to parse source`)
 	}
 
+	var indent string
+	for i := 0; i < indentNum; i++ {
+		indent += " "
+	}
 	for _, stmt := range stmts {
-		if err := format.SQL(dst, stmt); err != nil {
+		if err := format.SQL(dst, stmt, format.WithIndent(indent)); err != nil {
 			return errors.Wrap(err, `failed to format source`)
 		}
 		dst.Write([]byte{';', '\n', '\n'})
