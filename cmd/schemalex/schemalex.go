@@ -7,14 +7,11 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/schemalex/schemalex"
 	"github.com/schemalex/schemalex/diff"
 	"github.com/schemalex/schemalex/internal/errors"
 )
-
-var version = fmt.Sprintf("custom build (%s)", time.Now().Format(time.RFC3339))
 
 func main() {
 	if err := _main(); err != nil {
@@ -24,12 +21,11 @@ func main() {
 
 func _main() error {
 	var txn bool
-	var showVersion bool
+	var version bool
 	var outfile string
 
 	flag.Usage = func() {
 		fmt.Printf(`schemalex version %s
-[DEPRECATED] Please use 'schemadiff' instead
 
 schemalex -version
 schemalex [options...] before after
@@ -57,17 +53,16 @@ Examples:
 * Compare schema from stdin against local file
 	.... | schemalex - /path/to/file
 
-`, version)
+`, schemalex.Version)
 	}
-	flag.BoolVar(&showVersion, "v", false, "")
+	flag.BoolVar(&version, "v", false, "")
 	flag.BoolVar(&txn, "t", true, "")
 	flag.StringVar(&outfile, "o", "", "")
 	flag.Parse()
 
-	if showVersion {
+	if version {
 		fmt.Printf(
-			"schemalex version %s built with schemalex %s and go %s for %s/%s\n",
-			version,
+			"schemalex version %s, built with go %s for %s/%s\n",
 			schemalex.Version,
 			runtime.Version(),
 			runtime.GOOS,
