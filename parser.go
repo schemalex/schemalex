@@ -894,9 +894,6 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			col.SetKey(true)
 		case PRIMARY:
-			if !check(coloptKey) {
-				return newParseError(ctx, t, "cannot apply PRIMARY KEY")
-			}
 			ctx.skipWhiteSpaces()
 			if t := ctx.peek(); t.Type == KEY {
 				ctx.advance()
