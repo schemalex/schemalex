@@ -199,6 +199,7 @@ primary key (id, c)
 			Input:  "CREATE TABLE foo LIKE bar",
 			Expect: "CREATE TABLE `foo` LIKE `bar`",
 		},
+		// see https://github.com/schemalex/schemalex/pull/40
 		{
 			Input:  "CREATE TABLE foo (id INTEGER PRIMARY KEY AUTO_INCREMENT)",
 			Expect: "CREATE TABLE `foo` (\n`id` INT (11) DEFAULT NULL AUTO_INCREMENT,\nPRIMARY KEY (`id`)\n)",

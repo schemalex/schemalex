@@ -18,12 +18,21 @@ const (
 	coloptBinary
 	coloptCharacterSet
 	coloptCollate
-	coloptNull
-	coloptDefault
-	coloptKey
-	coloptComment
 
-	coloptAutoIncrement = coloptKey
+	// Everything else, meaning after this position, you can put anything
+	// you want. e.g. these are allowed
+	// * INT(11) COMMENT 'foo' NOT NULL PRIMARY KEY AUTO_INCREMENT
+	// * INT(11) AUTO_INCREMENT NOT NULL DEFAULT 1
+	// But this needs to be an error
+	// * COMMENT 'foo' INT(11) NOT NULL
+
+	coloptEverythingElse
+
+	coloptNull          = coloptEverythingElse
+	coloptDefault       = coloptEverythingElse
+	coloptAutoIncrement = coloptEverythingElse
+	coloptKey           = coloptEverythingElse
+	coloptComment       = coloptEverythingElse
 )
 
 const (
@@ -846,6 +855,9 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			col.SetBinary(true)
 		case NOT:
+			if !check(coloptNull) {
+				return newParseError(ctx, t, "cannot apply NOT NULL")
+			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case NULL:
@@ -854,6 +866,9 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				return newParseError(ctx, t, "expected NULL")
 			}
 		case NULL:
+			if !check(coloptNull) {
+				return newParseError(ctx, t, "cannot apply NULL")
+			}
 			col.SetNullState(model.NullStateNull)
 		case ON:
 			// for now, only applicable to ON UPDATE ...
@@ -883,6 +898,9 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			col.SetAutoIncrement(true)
 		case UNIQUE:
+			if !check(coloptKey) {
+				return newParseError(ctx, t, "cannot apply UNIQUE KEY")
+			}
 			ctx.skipWhiteSpaces()
 			if t := ctx.peek(); t.Type == KEY {
 				ctx.advance()
@@ -894,11 +912,14 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			col.SetKey(true)
 		case PRIMARY:
-			ctx.skipWhiteSpaces()
-			if t := ctx.peek(); t.Type == KEY {
-				ctx.advance()
-				col.SetPrimary(true)
+			if !check(coloptKey) {
+				return newParseError(ctx, t, "cannot apply PRIMARY KEY")
 			}
+			ctx.skipWhiteSpaces()
+			if t := ctx.next(); t.Type != KEY {
+				return newParseError(ctx, t, "expected PRIMARY KEY")
+			}
+			col.SetPrimary(true)
 		case COMMENT:
 			if !check(coloptComment) {
 				return newParseError(ctx, t, "cannot apply COMMENT")
