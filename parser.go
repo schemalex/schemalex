@@ -742,7 +742,13 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error
 	}
 }
 
-// parse for column
+// parse column options
+//
+// Also see: https://github.com/schemalex/schemalex/pull/40
+// Seems like MySQL doesn't really care about the order of some elements in the
+// column options, although the docs (https://dev.mysql.com/doc/refman/5.7/en/create-table.html)
+// seem to state otherwise.
+//
 func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) error {
 	f = f | coloptNull | coloptDefault | coloptAutoIncrement | coloptKey | coloptComment
 	pos := 0
@@ -840,20 +846,14 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			col.SetBinary(true)
 		case NOT:
-			if !check(coloptNull) {
-				return newParseError(ctx, t, "cannot apply NOT NULL")
-			}
 			ctx.skipWhiteSpaces()
 			switch t := ctx.next(); t.Type {
 			case NULL:
 				col.SetNullState(model.NullStateNotNull)
 			default:
-				return newParseError(ctx, t, "should NULL")
+				return newParseError(ctx, t, "expected NULL")
 			}
 		case NULL:
-			if !check(coloptNull) {
-				return newParseError(ctx, t, "cannot apply NULL")
-			}
 			col.SetNullState(model.NullStateNull)
 		case ON:
 			// for now, only applicable to ON UPDATE ...
@@ -883,14 +883,11 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			col.SetAutoIncrement(true)
 		case UNIQUE:
-			if !check(coloptKey) {
-				return newParseError(ctx, t, "cannot apply UNIQUE KEY")
-			}
 			ctx.skipWhiteSpaces()
-			if t := ctx.next(); t.Type == KEY {
+			if t := ctx.peek(); t.Type == KEY {
 				ctx.advance()
-				col.SetUnique(true)
 			}
+			col.SetUnique(true)
 		case KEY:
 			if !check(coloptKey) {
 				return newParseError(ctx, t, "cannot apply KEY")
@@ -923,7 +920,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			ctx.rewind()
 			return nil
 		default:
-			return newParseError(ctx, t, "unexpected column options")
+			return newParseError(ctx, t, "unexpected column option %s", t.Type)
 		}
 	}
 }
