@@ -88,52 +88,58 @@ func formatTable(dst io.Writer, table model.Table) error {
 
 	buf.WriteByte(' ')
 	buf.WriteString(util.Backquote(table.Name()))
-	buf.WriteString(" (")
 
-	colch := table.Columns()
-	idxch := table.Indexes()
-	colchmax := len(colch)
-	idxchmax := len(idxch)
+	if table.HasLikeTable() {
+		buf.WriteString(" LIKE ")
+		buf.WriteString(util.Backquote(table.LikeTable()))
+	} else {
+		buf.WriteString(" (")
 
-	var i int
-	for col := range colch {
-		buf.WriteByte('\n')
-		if err := formatTableColumn(&buf, col); err != nil {
-			return err
-		}
-		if i < colchmax-1 || idxchmax > 0 {
-			buf.WriteByte(',')
-		}
-		i++
-	}
+		colch := table.Columns()
+		idxch := table.Indexes()
+		colchmax := len(colch)
+		idxchmax := len(idxch)
 
-	i = 0
-	for idx := range idxch {
-		buf.WriteByte('\n')
-		if err := formatIndex(&buf, idx); err != nil {
-			return err
-		}
-		if i < idxchmax-1 {
-			buf.WriteByte(',')
-		}
-		i++
-	}
-
-	buf.WriteString("\n)")
-
-	optch := table.Options()
-	if l := len(optch); l > 0 {
-		buf.WriteByte(' ')
 		var i int
-		for option := range optch {
-			if err := formatTableOption(&buf, option); err != nil {
+		for col := range colch {
+			buf.WriteByte('\n')
+			if err := formatTableColumn(&buf, col); err != nil {
 				return err
 			}
-
-			if i < l-1 {
-				buf.WriteString(", ")
+			if i < colchmax-1 || idxchmax > 0 {
+				buf.WriteByte(',')
 			}
 			i++
+		}
+
+		i = 0
+		for idx := range idxch {
+			buf.WriteByte('\n')
+			if err := formatIndex(&buf, idx); err != nil {
+				return err
+			}
+			if i < idxchmax-1 {
+				buf.WriteByte(',')
+			}
+			i++
+		}
+
+		buf.WriteString("\n)")
+
+		optch := table.Options()
+		if l := len(optch); l > 0 {
+			buf.WriteByte(' ')
+			var i int
+			for option := range optch {
+				if err := formatTableOption(&buf, option); err != nil {
+					return err
+				}
+
+				if i < l-1 {
+					buf.WriteString(", ")
+				}
+				i++
+			}
 		}
 	}
 

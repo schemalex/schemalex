@@ -258,7 +258,25 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 	table.SetTemporary(temporary)
 
 	ctx.skipWhiteSpaces()
-	if t := ctx.peek(); t.Type == IF {
+	switch t := ctx.peek(); t.Type {
+	case LIKE:
+		// CREATE TABLE foo LIKE bar
+		ctx.advance()
+		ctx.skipWhiteSpaces()
+		switch t := ctx.next(); t.Type {
+		case IDENT, BACKTICK_IDENT:
+			table.SetLikeTable(t.Value)
+		default:
+			return nil, newParseError(ctx, t, "expected table name after LIKE")
+		}
+
+		ctx.skipWhiteSpaces()
+		switch t := ctx.peek(); t.Type {
+		case EOF, SEMICOLON:
+			ctx.advance()
+		}
+		return table, nil
+	case IF:
 		ctx.advance()
 		if _, err := p.parseIdents(ctx, NOT, EXISTS); err != nil {
 			return nil, newParseError(ctx, t, "should NOT EXISTS")

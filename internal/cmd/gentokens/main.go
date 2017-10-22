@@ -126,6 +126,7 @@ func _main() error {
 		{Ident: "KEY"},
 		{Ident: "KEY_BLOCK_SIZE"},
 		{Ident: "LAST"},
+		{Ident: "LIKE"},
 		{Ident: "LONGBLOB"},
 		{Ident: "LONGTEXT"},
 		{Ident: "MATCH"},

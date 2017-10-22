@@ -86,7 +86,12 @@ func (l *lexer) emit(ctx context.Context, typ TokenType) {
 }
 
 func (l *lexer) str() string {
-	return string(l.input[l.start.pos : l.cur.pos-(l.peekCount+1)])
+	endpos := l.cur.pos - (l.peekCount + 1)
+	w := len(l.input[l.start.pos:])
+	if endpos-l.start.pos > w {
+		endpos = l.start.pos + w
+	}
+	return string(l.input[l.start.pos:endpos])
 }
 
 func (l *lexer) Run(ctx context.Context) {

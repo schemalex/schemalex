@@ -96,6 +96,7 @@ const (
 	KEY
 	KEY_BLOCK_SIZE
 	LAST
+	LIKE
 	LONGBLOB
 	LONGTEXT
 	MATCH
@@ -202,6 +203,7 @@ var keywordIdentMap = map[string]TokenType{
 	"KEY":                KEY,
 	"KEY_BLOCK_SIZE":     KEY_BLOCK_SIZE,
 	"LAST":               LAST,
+	"LIKE":               LIKE,
 	"LONGBLOB":           LONGBLOB,
 	"LONGTEXT":           LONGTEXT,
 	"MATCH":              MATCH,
@@ -404,6 +406,8 @@ func (t TokenType) String() string {
 		return "KEY_BLOCK_SIZE"
 	case LAST:
 		return "LAST"
+	case LIKE:
+		return "LIKE"
 	case LONGBLOB:
 		return "LONGBLOB"
 	case LONGTEXT:

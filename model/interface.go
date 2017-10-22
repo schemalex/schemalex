@@ -170,6 +170,10 @@ type Table interface {
 	IsIfNotExists() bool
 	SetIfNotExists(bool) Table
 
+	HasLikeTable() bool
+	LikeTable() string
+	SetLikeTable(string) Table
+
 	AddColumn(TableColumn) Table
 	Columns() chan TableColumn
 	AddIndex(Index) Table
@@ -200,6 +204,7 @@ type table struct {
 	name        string
 	temporary   bool
 	ifnotexists bool
+	likeTable   maybeString
 	columns     []TableColumn
 	indexes     []Index
 	options     []TableOption

@@ -66,6 +66,20 @@ func (t *table) SetIfNotExists(v bool) Table {
 	return t
 }
 
+func (t *table) HasLikeTable() bool {
+	return t.likeTable.Valid
+}
+
+func (t *table) SetLikeTable(s string) Table {
+	t.likeTable.Valid = true
+	t.likeTable.Value = s
+	return t
+}
+
+func (t *table) LikeTable() string {
+	return t.likeTable.Value
+}
+
 func (t *table) SetTemporary(v bool) Table {
 	t.temporary = v
 	return t
