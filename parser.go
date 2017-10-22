@@ -18,11 +18,21 @@ const (
 	coloptBinary
 	coloptCharacterSet
 	coloptCollate
-	coloptNull
-	coloptDefault
-	coloptAutoIncrement
-	coloptKey
-	coloptComment
+
+	// Everything else, meaning after this position, you can put anything
+	// you want. e.g. these are allowed
+	// * INT(11) COMMENT 'foo' NOT NULL PRIMARY KEY AUTO_INCREMENT
+	// * INT(11) AUTO_INCREMENT NOT NULL DEFAULT 1
+	// But this needs to be an error
+	// * COMMENT 'foo' INT(11) NOT NULL
+
+	coloptEverythingElse
+
+	coloptNull          = coloptEverythingElse
+	coloptDefault       = coloptEverythingElse
+	coloptAutoIncrement = coloptEverythingElse
+	coloptKey           = coloptEverythingElse
+	coloptComment       = coloptEverythingElse
 )
 
 const (
@@ -741,7 +751,13 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error
 	}
 }
 
-// parse for column
+// parse column options
+//
+// Also see: https://github.com/schemalex/schemalex/pull/40
+// Seems like MySQL doesn't really care about the order of some elements in the
+// column options, although the docs (https://dev.mysql.com/doc/refman/5.7/en/create-table.html)
+// seem to state otherwise.
+//
 func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) error {
 	f = f | coloptNull | coloptDefault | coloptAutoIncrement | coloptKey | coloptComment
 	pos := 0
@@ -847,7 +863,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			case NULL:
 				col.SetNullState(model.NullStateNotNull)
 			default:
-				return newParseError(ctx, t, "should NULL")
+				return newParseError(ctx, t, "expected NULL")
 			}
 		case NULL:
 			if !check(coloptNull) {
@@ -886,10 +902,10 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				return newParseError(ctx, t, "cannot apply UNIQUE KEY")
 			}
 			ctx.skipWhiteSpaces()
-			if t := ctx.next(); t.Type == KEY {
+			if t := ctx.peek(); t.Type == KEY {
 				ctx.advance()
-				col.SetUnique(true)
 			}
+			col.SetUnique(true)
 		case KEY:
 			if !check(coloptKey) {
 				return newParseError(ctx, t, "cannot apply KEY")
@@ -900,10 +916,10 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				return newParseError(ctx, t, "cannot apply PRIMARY KEY")
 			}
 			ctx.skipWhiteSpaces()
-			if t := ctx.peek(); t.Type == KEY {
-				ctx.advance()
-				col.SetPrimary(true)
+			if t := ctx.next(); t.Type != KEY {
+				return newParseError(ctx, t, "expected PRIMARY KEY")
 			}
+			col.SetPrimary(true)
 		case COMMENT:
 			if !check(coloptComment) {
 				return newParseError(ctx, t, "cannot apply COMMENT")
@@ -922,7 +938,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			ctx.rewind()
 			return nil
 		default:
-			return newParseError(ctx, t, "unexpected column options")
+			return newParseError(ctx, t, "unexpected column option %s", t.Type)
 		}
 	}
 }

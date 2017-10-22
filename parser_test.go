@@ -52,11 +52,6 @@ func TestParser(t *testing.T) {
 			Error:  false,
 			Expect: "CREATE TABLE `hoge_table` (\n`id` INT (10) UNSIGNED NOT NULL\n)",
 		},
-		// UNSIGNED position is wrong
-		{
-			Input: "create table hoge_table ( id integer not null unsigned)",
-			Error: true,
-		},
 		// with c style comment
 		{
 			Input:  "create table hoge ( /* id integer unsigned not null */ c varchar not null )",
@@ -204,6 +199,21 @@ primary key (id, c)
 			Input:  "CREATE TABLE foo LIKE bar",
 			Expect: "CREATE TABLE `foo` LIKE `bar`",
 		},
+		// see https://github.com/schemalex/schemalex/pull/40
+		{
+			Input:  "CREATE TABLE foo (id INTEGER PRIMARY KEY AUTO_INCREMENT)",
+			Expect: "CREATE TABLE `foo` (\n`id` INT (11) DEFAULT NULL AUTO_INCREMENT,\nPRIMARY KEY (`id`)\n)",
+		},
+		// see https://github.com/schemalex/schemalex/pull/40
+		{
+			Input:  "CREATE TABLE `test` (\n`id` int(11) PRIMARY KEY COMMENT 'aaa' NOT NULL,\nhoge int default 1 not null COMMENT 'bbb' UNIQUE\n);",
+			Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
+		},
+		// see https://github.com/schemalex/schemalex/pull/40
+		{
+			Input:  "CREATE TABLE `test` (\n`id` int(11) COMMENT 'aaa' PRIMARY KEY NOT NULL,\nhoge int default 1 UNIQUE not null COMMENT 'bbb'\n);",
+			Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
+		},
 	}
 
 	p := New()
@@ -273,7 +283,7 @@ func TestParseError2(t *testing.T) {
 		return
 	}
 
-	expected := "parse error: unexpected column options at line 2 column 37\n    \"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
+	expected := "parse error: unexpected column option IDENT at line 2 column 37\n    \"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
 	if !assert.Equal(t, expected, err.Error(), "error matches") {
 		return
 	}
@@ -305,7 +315,7 @@ func TestParseFileError(t *testing.T) {
 		return
 	}
 
-	expected := "parse error: unexpected column options in file " + f.Name() + " at line 2 column 37\n    \"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
+	expected := "parse error: unexpected column option IDENT in file " + f.Name() + " at line 2 column 37\n    \"CREATE TABLE bar (id int PRIMARY KEY \" <---- AROUND HERE"
 	if !assert.Equal(t, expected, pe.Error(), "pe.Error() matches expected") {
 		return
 	}
