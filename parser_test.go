@@ -196,6 +196,10 @@ primary key (id, c)
 			Input:  "CREATE TABLE `foo` (col DATETIME ON UPDATE CURRENT_TIMESTAMP)",
 			Expect: "CREATE TABLE `foo` (\n`col` DATETIME ON UPDATE CURRENT_TIMESTAMP DEFAULT NULL\n)",
 		},
+		{
+			Input:  "CREATE TABLE `foo` (col TEXT, KEY col_idx (col(196)))",
+			Expect: "CREATE TABLE `foo` (\n`col` TEXT,\nINDEX `col_idx` (`col`(196))\n)",
+		},
 	}
 
 	p := New()

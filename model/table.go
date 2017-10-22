@@ -116,24 +116,26 @@ func (t *table) Normalize() (Table, bool) {
 			// primary key column to an index associated with the table
 			index := NewIndex(IndexKindPrimaryKey, t.ID())
 			index.SetType(IndexTypeNone)
-			index.AddColumns(ncol.Name())
+			idxCol := NewIndexColumn(ncol.Name())
+			index.AddColumns(idxCol)
 			additionalIndexes = append(additionalIndexes, index)
 			if !modified {
 				clone = true
-				ncol = ncol.Clone()
 			}
+			ncol = ncol.Clone()
 			ncol.SetPrimary(false)
 		case ncol.IsUnique():
 			index := NewIndex(IndexKindUnique, t.ID())
 			// if you do not assign a name, the index is assigned the same name as the first indexed column
 			index.SetName(ncol.Name())
 			index.SetType(IndexTypeNone)
-			index.AddColumns(ncol.Name())
+			idxCol := NewIndexColumn(ncol.Name())
+			index.AddColumns(idxCol)
 			additionalIndexes = append(additionalIndexes, index)
 			if !modified {
 				clone = true
-				ncol = ncol.Clone()
 			}
+			ncol = ncol.Clone()
 			ncol.SetUnique(false)
 		}
 
@@ -157,7 +159,7 @@ func (t *table) Normalize() (Table, bool) {
 			index := NewIndex(IndexKindNormal, t.ID())
 			index.SetName(nidx.Symbol())
 			index.SetType(IndexTypeNone)
-			columns := []string{}
+			columns := []IndexColumn{}
 			for c := range nidx.Columns() {
 				columns = append(columns, c)
 			}

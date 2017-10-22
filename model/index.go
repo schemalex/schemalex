@@ -25,24 +25,36 @@ func (stmt *index) ID() string {
 		name = name + "#" + stmt.Name()
 	}
 	h := sha256.New()
+
+	sym := "none"
+	if stmt.HasSymbol() {
+		sym = stmt.Symbol()
+	}
+
 	fmt.Fprintf(h,
-		"%s.%s,%s.%s.%v.%s",
+		"%s.%s.%s.%s",
 		stmt.table,
-		stmt.Symbol(),
+		sym,
 		stmt.kind,
 		stmt.typ,
-		stmt.columns,
-		stmt.reference,
 	)
+	for col := range stmt.Columns() {
+		fmt.Fprintf(h, ".")
+		fmt.Fprintf(h, "%s", col.ID())
+	}
+	if stmt.reference != nil {
+		fmt.Fprintf(h, ".")
+		fmt.Fprintf(h, stmt.reference.ID())
+	}
 	return fmt.Sprintf("%s#%x", name, h.Sum(nil))
 }
 
-func (stmt *index) AddColumns(l ...string) {
+func (stmt *index) AddColumns(l ...IndexColumn) {
 	stmt.columns = append(stmt.columns, l...)
 }
 
-func (stmt *index) Columns() chan string {
-	c := make(chan string, len(stmt.columns))
+func (stmt *index) Columns() chan IndexColumn {
+	c := make(chan IndexColumn, len(stmt.columns))
 	for _, col := range stmt.columns {
 		c <- col
 	}
@@ -132,4 +144,35 @@ func (stmt *index) Clone() Index {
 	newindex := &index{}
 	*newindex = *stmt
 	return newindex
+}
+
+func NewIndexColumn(name string) IndexColumn {
+	return &indexColumn{
+		name: name,
+	}
+}
+
+func (col *indexColumn) ID() string {
+	if col.HasLength() {
+		return "index_column#" + col.Name() + "-" + col.Length()
+	}
+	return "index_column#" + col.Name()
+}
+
+func (col *indexColumn) Name() string {
+	return col.name
+}
+
+func (col *indexColumn) HasLength() bool {
+	return col.length.Valid
+}
+
+func (col *indexColumn) Length() string {
+	return col.length.Value
+}
+
+func (col *indexColumn) SetLength(s string) IndexColumn {
+	col.length.Valid = true
+	col.length.Value = s
+	return col
 }
