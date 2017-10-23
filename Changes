@@ -1,6 +1,11 @@
 Changes
 =======
 
+v0.0.8 - 23 Oct 2017
+    * Introduce model.IndexColumn (#38)
+    * Support "CREATE TABLE foo LIKE bar" (#39)
+    * Allow PRIMARY KEY/AUTO_INCREMENT order to be interchangeable (#40)
+
 v0.0.7 - 11 Oct 2017
     * Remove references to golang.org/x/net/context (#32)
     * Normalize column (#33)
