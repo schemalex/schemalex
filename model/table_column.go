@@ -217,6 +217,15 @@ func (t *tablecol) AutoUpdate() string {
 	return t.autoUpdate.Value
 }
 
+func (t *tablecol) SetEnumValues(enumValues []string) TableColumn {
+	t.enumValues = enumValues
+	return t
+}
+
+func (t *tablecol) EnumValues() []string {
+	return t.enumValues
+}
+
 func (t *tablecol) NativeLength() Length {
 	// I referred to perl: SQL::Translator::Parser::MySQL#normalize_field https://metacpan.org/source/SQL::Translator::Parser::MySQL#L1072
 	unsigned := 0
@@ -303,8 +312,6 @@ func (t *tablecol) Normalize() (TableColumn, bool) {
 			}
 		}
 	}
-
-
 
 	// avoid cloning if we don't have to
 	if !clone {

@@ -37,6 +37,8 @@ const (
 	ColumnTypeText
 	ColumnTypeMediumText
 	ColumnTypeLongText
+	ColumnTypeEnum
+	ColumnTypeSet
 
 	ColumnTypeMax
 )
@@ -101,6 +103,10 @@ func (c ColumnType) String() string {
 		return "MEDIUMTEXT"
 	case ColumnTypeLongText:
 		return "LONGTEXT"
+	case ColumnTypeEnum:
+		return "ENUM"
+	case ColumnTypeSet:
+		return "SET"
 	default:
 		return "(invalid)"
 	}
@@ -110,12 +116,12 @@ func (c ColumnType) String() string {
 // If the type does not have a synonym then this method returns the receiver itself
 func (c ColumnType) SynonymType() ColumnType {
 	switch c {
+	case ColumnTypeInteger:
+		return ColumnTypeInt
 	case ColumnTypeNumeric:
 		return ColumnTypeDecimal
 	case ColumnTypeReal:
 		return ColumnTypeDouble
-	case ColumnTypeInteger:
-		return ColumnTypeInt
 	}
 	return c
 }

@@ -18,6 +18,7 @@ const (
 	coloptBinary
 	coloptCharacterSet
 	coloptCollate
+	coloptValues
 
 	// Everything else, meaning after this position, you can put anything
 	// you want. e.g. these are allowed
@@ -43,6 +44,7 @@ const (
 	coloptFlagTime            = coloptSize
 	coloptFlagChar            = coloptSize | coloptBinary | coloptCharacterSet | coloptCollate
 	coloptFlagBinary          = coloptSize
+	coloptFlagEnum            = coloptValues
 )
 
 // Parser is responsible to parse a set of SQL statements
@@ -580,7 +582,9 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	case LONGTEXT:
 		coltyp = model.ColumnTypeLongText
 		colopt = coloptFlagChar
-	// case "ENUM":
+	case ENUM:
+		coltyp = model.ColumnTypeEnum
+		colopt = coloptFlagEnum
 	// case "SET":
 	default:
 		return newParseError(ctx, t, "unsupported type in column specification")
@@ -828,6 +832,26 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				l := model.NewLength(tlen)
 				l.SetDecimal(tscale)
 				col.SetLength(l)
+			} else if check(coloptValues) {
+				enumValues := make([]string, 0, 10)
+				for {
+					ctx.skipWhiteSpaces()
+					v := ctx.next()
+					if v.Type == SINGLE_QUOTE_IDENT || v.Type == DOUBLE_QUOTE_IDENT {
+						enumValues = append(enumValues, v.Value)
+					} else {
+						return newParseError(ctx, t, "expected RPAREN, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT(enum values): %s", v.Type)
+					}
+					ctx.skipWhiteSpaces()
+					commaOrRparen := ctx.next()
+					if commaOrRparen.Type == RPAREN {
+						break
+					}
+					if commaOrRparen.Type != COMMA {
+						return newParseError(ctx, t, "expected COMMA(enum values)")
+					}
+				}
+				col.SetEnumValues(enumValues)
 			} else {
 				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
 			}

@@ -214,6 +214,11 @@ primary key (id, c)
 			Input:  "CREATE TABLE `test` (\n`id` int(11) COMMENT 'aaa' PRIMARY KEY NOT NULL,\nhoge int default 1 UNIQUE not null COMMENT 'bbb'\n);",
 			Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
 		},
+		// ENUM
+		{
+			Input:  "CREATE TABLE `test` (\n`status` ENUM('on', 'off') NOT NULL DEFAULT 'off'\n);",
+			Expect: "CREATE TABLE `test` (\n`status` ENUM ('on', 'off') NOT NULL DEFAULT 'off'\n)",
+		},
 	}
 
 	p := New()
