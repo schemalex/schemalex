@@ -224,6 +224,11 @@ primary key (id, c)
 			Input:  "CREATE TABLE `test` (\n`status` SET('foo', 'bar', 'baz') NOT NULL DEFAULT 'foo,baz'\n);",
 			Expect: "CREATE TABLE `test` (\n`status` SET ('foo', 'bar', 'baz') NOT NULL DEFAULT 'foo,baz'\n)",
 		},
+		// BOOLEAN
+		{
+			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default true\n);",
+			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT TRUE\n)",
+		},
 	}
 
 	p := New()

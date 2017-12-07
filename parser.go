@@ -589,6 +589,9 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	case SET:
 		coltyp = model.ColumnTypeSet
 		colopt = coloptFlagSet
+	case BOOLEAN:
+		coltyp = model.ColumnTypeBoolean
+		colopt = coloptFlagNone
 	default:
 		return newParseError(ctx, t, "unsupported type in column specification")
 	}
@@ -914,7 +917,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			switch t := ctx.next(); t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
 				col.SetDefault(t.Value, true)
-			case NUMBER, CURRENT_TIMESTAMP, NULL:
+			case NUMBER, CURRENT_TIMESTAMP, NULL, TRUE, FALSE:
 				col.SetDefault(strings.ToUpper(t.Value), false)
 			default:
 				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")

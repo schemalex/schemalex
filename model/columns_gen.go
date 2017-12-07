@@ -39,6 +39,7 @@ const (
 	ColumnTypeLongText
 	ColumnTypeEnum
 	ColumnTypeSet
+	ColumnTypeBoolean
 
 	ColumnTypeMax
 )
@@ -107,6 +108,8 @@ func (c ColumnType) String() string {
 		return "ENUM"
 	case ColumnTypeSet:
 		return "SET"
+	case ColumnTypeBoolean:
+		return "BOOLEAN"
 	default:
 		return "(invalid)"
 	}
