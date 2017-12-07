@@ -45,6 +45,7 @@ const (
 	coloptFlagChar            = coloptSize | coloptBinary | coloptCharacterSet | coloptCollate
 	coloptFlagBinary          = coloptSize
 	coloptFlagEnum            = coloptValues
+	coloptFlagSet             = coloptValues
 )
 
 // Parser is responsible to parse a set of SQL statements
@@ -585,7 +586,9 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	case ENUM:
 		coltyp = model.ColumnTypeEnum
 		colopt = coloptFlagEnum
-	// case "SET":
+	case SET:
+		coltyp = model.ColumnTypeSet
+		colopt = coloptFlagSet
 	default:
 		return newParseError(ctx, t, "unsupported type in column specification")
 	}

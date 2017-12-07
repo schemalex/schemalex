@@ -219,6 +219,11 @@ primary key (id, c)
 			Input:  "CREATE TABLE `test` (\n`status` ENUM('on', 'off') NOT NULL DEFAULT 'off'\n);",
 			Expect: "CREATE TABLE `test` (\n`status` ENUM ('on', 'off') NOT NULL DEFAULT 'off'\n)",
 		},
+		// SET
+		{
+			Input:  "CREATE TABLE `test` (\n`status` SET('foo', 'bar', 'baz') NOT NULL DEFAULT 'foo,baz'\n);",
+			Expect: "CREATE TABLE `test` (\n`status` SET ('foo', 'bar', 'baz') NOT NULL DEFAULT 'foo,baz'\n)",
+		},
 	}
 
 	p := New()
