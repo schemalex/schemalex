@@ -170,7 +170,7 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 		return err
 	}
 
-	if len(col.EnumValues()) != 0 {
+	if col.HasEnumValues() {
 		buf.WriteString(" (")
 		for i, enumValue := range col.EnumValues() {
 			if i != 0 {
@@ -178,6 +178,19 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 			}
 			buf.WriteByte('\'')
 			buf.WriteString(enumValue)
+			buf.WriteByte('\'')
+		}
+		buf.WriteByte(')')
+	}
+
+	if col.HasSetValues() {
+		buf.WriteString(" (")
+		for i, setValue := range col.SetValues() {
+			if i != 0 {
+				buf.WriteString(", ")
+			}
+			buf.WriteByte('\'')
+			buf.WriteString(setValue)
 			buf.WriteByte('\'')
 		}
 		buf.WriteByte(')')

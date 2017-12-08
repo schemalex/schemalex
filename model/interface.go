@@ -271,8 +271,10 @@ type TableColumn interface {
 	HasAutoUpdate() bool
 	AutoUpdate() string
 	SetAutoUpdate(string) TableColumn
+	HasEnumValues() bool
 	SetEnumValues([]string) TableColumn
 	EnumValues() []string
+	HasSetValues() bool
 	SetSetValues([]string) TableColumn
 	SetValues() []string
 

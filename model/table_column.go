@@ -217,6 +217,10 @@ func (t *tablecol) AutoUpdate() string {
 	return t.autoUpdate.Value
 }
 
+func (t *tablecol) HasEnumValues() bool {
+	return len(t.enumValues) != 0
+}
+
 func (t *tablecol) SetEnumValues(enumValues []string) TableColumn {
 	t.enumValues = enumValues
 	return t
@@ -224,6 +228,10 @@ func (t *tablecol) SetEnumValues(enumValues []string) TableColumn {
 
 func (t *tablecol) EnumValues() []string {
 	return t.enumValues
+}
+
+func (t *tablecol) HasSetValues() bool {
+	return len(t.setValues) != 0
 }
 
 func (t *tablecol) SetSetValues(setValues []string) TableColumn {
