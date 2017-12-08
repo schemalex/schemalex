@@ -253,18 +253,6 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		return nil, errors.New(`expected TABLE`)
 	}
 
-	// IF NOT EXISTS
-	ctx.skipWhiteSpaces()
-
-	var notexists bool
-	if ctx.peek().Type == IF {
-		ctx.advance()
-		if _, err := p.parseIdents(ctx, NOT, EXISTS); err != nil {
-			return nil, err
-		}
-		notexists = true
-	}
-
 	var table model.Table
 
 	ctx.skipWhiteSpaces()
@@ -273,6 +261,17 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		ctx.advance()
 		ctx.skipWhiteSpaces()
 		temporary = true
+	}
+
+	// IF NOT EXISTS
+	var notexists bool
+	if ctx.peek().Type == IF {
+		ctx.advance()
+		if _, err := p.parseIdents(ctx, NOT, EXISTS); err != nil {
+			return nil, err
+		}
+		ctx.skipWhiteSpaces()
+		notexists = true
 	}
 
 	switch t := ctx.next(); t.Type {
