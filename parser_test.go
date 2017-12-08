@@ -229,6 +229,10 @@ primary key (id, c)
 			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default true\n);",
 			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT TRUE\n)",
 		},
+		{
+			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default false\n);",
+			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT FALSE\n)",
+		},
 		// CREATE TABLE IF NOT EXISTS
 		{
 			Input:  "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n);",
