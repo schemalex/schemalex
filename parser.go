@@ -856,7 +856,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			} else if check(coloptSetValues) {
 				ctx.parseSetOrEnum(col.SetSetValues)
 			} else {
-				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
+				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize, coloptEnumValues, coloptSetValues")
 			}
 		case CHARACTER:
 			ctx.skipWhiteSpaces()
