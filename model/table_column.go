@@ -226,8 +226,13 @@ func (t *tablecol) SetEnumValues(enumValues []string) TableColumn {
 	return t
 }
 
-func (t *tablecol) EnumValues() []string {
-	return t.enumValues
+func (t *tablecol) EnumValues() chan string {
+	ch := make(chan string, len(t.enumValues))
+	for _, enumValue := range t.enumValues {
+		ch <- enumValue
+	}
+	close(ch)
+	return ch
 }
 
 func (t *tablecol) HasSetValues() bool {
@@ -239,8 +244,13 @@ func (t *tablecol) SetSetValues(setValues []string) TableColumn {
 	return t
 }
 
-func (t *tablecol) SetValues() []string {
-	return t.setValues
+func (t *tablecol) SetValues() chan string {
+	ch := make(chan string, len(t.setValues))
+	for _, setValue := range t.setValues {
+		ch <- setValue
+	}
+	close(ch)
+	return ch
 }
 
 func (t *tablecol) NativeLength() Length {
