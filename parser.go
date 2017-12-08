@@ -852,26 +852,10 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				l := model.NewLength(tlen)
 				l.SetDecimal(tscale)
 				col.SetLength(l)
-			} else if check(coloptValues) {
-				enumValues := make([]string, 0, 10)
-				for {
-					ctx.skipWhiteSpaces()
-					v := ctx.next()
-					if v.Type == SINGLE_QUOTE_IDENT || v.Type == DOUBLE_QUOTE_IDENT {
-						enumValues = append(enumValues, v.Value)
-					} else {
-						return newParseError(ctx, t, "expected RPAREN, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT(enum values): %s", v.Type)
-					}
-					ctx.skipWhiteSpaces()
-					commaOrRparen := ctx.next()
-					if commaOrRparen.Type == RPAREN {
-						break
-					}
-					if commaOrRparen.Type != COMMA {
-						return newParseError(ctx, t, "expected COMMA(enum values)")
-					}
-				}
-				col.SetEnumValues(enumValues)
+			} else if check(coloptEnumValues) {
+				ctx.parseSetOrEnum(col.SetEnumValues)
+			} else if check(coloptSetValues) {
+				ctx.parseSetOrEnum(col.SetSetValues)
 			} else {
 				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
 			}
@@ -985,6 +969,31 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			return newParseError(ctx, t, "unexpected column option %s", t.Type)
 		}
 	}
+}
+
+func (ctx *parseCtx) parseSetOrEnum(setter func([]string) model.TableColumn) error {
+	var values []string
+OUTER:
+	for {
+		ctx.skipWhiteSpaces()
+		v := ctx.next()
+		if v.Type == SINGLE_QUOTE_IDENT || v.Type == DOUBLE_QUOTE_IDENT {
+			values = append(values, v.Value)
+		} else {
+			return newParseError(ctx, v, "expected RPAREN, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT(enum values): %s", v.Type)
+		}
+		ctx.skipWhiteSpaces()
+
+		switch t := ctx.next(); t.Type {
+		case COMMA:
+		case RPAREN:
+			break OUTER
+		default:
+			return newParseError(ctx, t, "expected COMMA")
+		}
+	}
+	setter(values)
+	return nil
 }
 
 func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) error {
