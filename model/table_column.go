@@ -226,6 +226,15 @@ func (t *tablecol) EnumValues() []string {
 	return t.enumValues
 }
 
+func (t *tablecol) SetSetValues(setValues []string) TableColumn {
+	t.setValues = setValues
+	return t
+}
+
+func (t *tablecol) SetValues() []string {
+	return t.setValues
+}
+
 func (t *tablecol) NativeLength() Length {
 	// I referred to perl: SQL::Translator::Parser::MySQL#normalize_field https://metacpan.org/source/SQL::Translator::Parser::MySQL#L1072
 	unsigned := 0

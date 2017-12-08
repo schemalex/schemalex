@@ -273,6 +273,8 @@ type TableColumn interface {
 	SetAutoUpdate(string) TableColumn
 	SetEnumValues([]string) TableColumn
 	EnumValues() []string
+	SetSetValues([]string) TableColumn
+	SetValues() []string
 
 	NullState() NullState
 	SetNullState(NullState) TableColumn
@@ -328,6 +330,7 @@ type tablecol struct {
 	comment      maybeString
 	autoUpdate   maybeString
 	enumValues   []string
+	setValues    []string
 	autoincr     bool
 	binary       bool
 	key          bool
