@@ -18,7 +18,8 @@ const (
 	coloptBinary
 	coloptCharacterSet
 	coloptCollate
-	coloptValues
+	coloptEnumValues
+	coloptSetValues
 
 	// Everything else, meaning after this position, you can put anything
 	// you want. e.g. these are allowed
@@ -44,8 +45,8 @@ const (
 	coloptFlagTime            = coloptSize
 	coloptFlagChar            = coloptSize | coloptBinary | coloptCharacterSet | coloptCollate
 	coloptFlagBinary          = coloptSize
-	coloptFlagEnum            = coloptValues
-	coloptFlagSet             = coloptValues
+	coloptFlagEnum            = coloptEnumValues
+	coloptFlagSet             = coloptSetValues
 )
 
 // Parser is responsible to parse a set of SQL statements
