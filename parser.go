@@ -18,6 +18,8 @@ const (
 	coloptBinary
 	coloptCharacterSet
 	coloptCollate
+	coloptEnumValues
+	coloptSetValues
 
 	// Everything else, meaning after this position, you can put anything
 	// you want. e.g. these are allowed
@@ -43,6 +45,8 @@ const (
 	coloptFlagTime            = coloptSize
 	coloptFlagChar            = coloptSize | coloptBinary | coloptCharacterSet | coloptCollate
 	coloptFlagBinary          = coloptSize
+	coloptFlagEnum            = coloptEnumValues
+	coloptFlagSet             = coloptSetValues
 )
 
 // Parser is responsible to parse a set of SQL statements
@@ -259,6 +263,17 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		temporary = true
 	}
 
+	// IF NOT EXISTS
+	var notexists bool
+	if ctx.peek().Type == IF {
+		ctx.advance()
+		if _, err := p.parseIdents(ctx, NOT, EXISTS); err != nil {
+			return nil, err
+		}
+		ctx.skipWhiteSpaces()
+		notexists = true
+	}
+
 	switch t := ctx.next(); t.Type {
 	case IDENT, BACKTICK_IDENT:
 		table = model.NewTable(t.Value)
@@ -266,6 +281,7 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 		return nil, newParseError(ctx, t, "expected IDENT or BACKTICK_IDENT")
 	}
 	table.SetTemporary(temporary)
+	table.SetIfNotExists(notexists)
 
 	ctx.skipWhiteSpaces()
 	switch t := ctx.peek(); t.Type {
@@ -580,8 +596,15 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	case LONGTEXT:
 		coltyp = model.ColumnTypeLongText
 		colopt = coloptFlagChar
-	// case "ENUM":
-	// case "SET":
+	case ENUM:
+		coltyp = model.ColumnTypeEnum
+		colopt = coloptFlagEnum
+	case SET:
+		coltyp = model.ColumnTypeSet
+		colopt = coloptFlagSet
+	case BOOLEAN:
+		coltyp = model.ColumnTypeBoolean
+		colopt = coloptFlagNone
 	default:
 		return newParseError(ctx, t, "unsupported type in column specification")
 	}
@@ -828,8 +851,12 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				l := model.NewLength(tlen)
 				l.SetDecimal(tscale)
 				col.SetLength(l)
+			} else if check(coloptEnumValues) {
+				ctx.parseSetOrEnum(col.SetEnumValues)
+			} else if check(coloptSetValues) {
+				ctx.parseSetOrEnum(col.SetSetValues)
 			} else {
-				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize")
+				return newParseError(ctx, t, "cannot apply coloptSize, coloptDecimalSize, coloptDecimalOptionalSize, coloptEnumValues, coloptSetValues")
 			}
 		case CHARACTER:
 			ctx.skipWhiteSpaces()
@@ -887,7 +914,7 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			switch t := ctx.next(); t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
 				col.SetDefault(t.Value, true)
-			case NUMBER, CURRENT_TIMESTAMP, NULL:
+			case NUMBER, CURRENT_TIMESTAMP, NULL, TRUE, FALSE:
 				col.SetDefault(strings.ToUpper(t.Value), false)
 			default:
 				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
@@ -941,6 +968,31 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			return newParseError(ctx, t, "unexpected column option %s", t.Type)
 		}
 	}
+}
+
+func (ctx *parseCtx) parseSetOrEnum(setter func([]string) model.TableColumn) error {
+	var values []string
+OUTER:
+	for {
+		ctx.skipWhiteSpaces()
+		v := ctx.next()
+		if v.Type == SINGLE_QUOTE_IDENT || v.Type == DOUBLE_QUOTE_IDENT {
+			values = append(values, v.Value)
+		} else {
+			return newParseError(ctx, v, "expected RPAREN, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT(enum values): %s", v.Type)
+		}
+		ctx.skipWhiteSpaces()
+
+		switch t := ctx.next(); t.Type {
+		case COMMA:
+		case RPAREN:
+			break OUTER
+		default:
+			return newParseError(ctx, t, "expected COMMA")
+		}
+	}
+	setter(values)
+	return nil
 }
 
 func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) error {

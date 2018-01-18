@@ -157,6 +157,7 @@ func formatColumnType(dst io.Writer, col model.ColumnType) error {
 	if _, err := io.WriteString(dst, col.String()); err != nil {
 		return err
 	}
+
 	return nil
 }
 
@@ -170,15 +171,38 @@ func formatTableColumn(dst io.Writer, col model.TableColumn) error {
 		return err
 	}
 
-	if col.HasLength() {
+	switch col.Type() {
+	case model.ColumnTypeEnum:
 		buf.WriteString(" (")
-		l := col.Length()
-		buf.WriteString(l.Length())
-		if l.HasDecimal() {
+		for enumValue := range col.EnumValues() {
+			buf.WriteByte('\'')
+			buf.WriteString(enumValue)
+			buf.WriteByte('\'')
 			buf.WriteByte(',')
-			buf.WriteString(l.Decimal())
 		}
+		buf.Truncate(buf.Len() - 1)
 		buf.WriteByte(')')
+	case model.ColumnTypeSet:
+		buf.WriteString(" (")
+		for setValue := range col.SetValues() {
+			buf.WriteByte('\'')
+			buf.WriteString(setValue)
+			buf.WriteByte('\'')
+			buf.WriteByte(',')
+		}
+		buf.Truncate(buf.Len() - 1)
+		buf.WriteByte(')')
+	default:
+		if col.HasLength() {
+			l := col.Length()
+			buf.WriteString(" (")
+			buf.WriteString(l.Length())
+			if l.HasDecimal() {
+				buf.WriteByte(',')
+				buf.WriteString(l.Decimal())
+			}
+			buf.WriteByte(')')
+		}
 	}
 
 	if col.IsUnsigned() {

@@ -237,7 +237,8 @@ func TestSchemaSource(t *testing.T) {
 		t.Run(fmt.Sprintf("Parse %s", strconv.Quote(c.Input)), func(t *testing.T) {
 			s, err := NewSchemaSource(c.Input)
 			if c.Error {
-				assert.Error(t, err, "expected '%s' to result in an error")
+				assertError := assert.Error // To avoid 'Error call has possible formatting directive %s'.
+				assertError(t, err, "expected '%s' to result in an error")
 
 				// if we expected an error, we have nothing more to do in this
 				// particular test case regardless of the previous assert
