@@ -217,6 +217,42 @@ func (t *tablecol) AutoUpdate() string {
 	return t.autoUpdate.Value
 }
 
+func (t *tablecol) HasEnumValues() bool {
+	return len(t.enumValues) != 0
+}
+
+func (t *tablecol) SetEnumValues(enumValues []string) TableColumn {
+	t.enumValues = enumValues
+	return t
+}
+
+func (t *tablecol) EnumValues() chan string {
+	ch := make(chan string, len(t.enumValues))
+	for _, enumValue := range t.enumValues {
+		ch <- enumValue
+	}
+	close(ch)
+	return ch
+}
+
+func (t *tablecol) HasSetValues() bool {
+	return len(t.setValues) != 0
+}
+
+func (t *tablecol) SetSetValues(setValues []string) TableColumn {
+	t.setValues = setValues
+	return t
+}
+
+func (t *tablecol) SetValues() chan string {
+	ch := make(chan string, len(t.setValues))
+	for _, setValue := range t.setValues {
+		ch <- setValue
+	}
+	close(ch)
+	return ch
+}
+
 func (t *tablecol) NativeLength() Length {
 	// I referred to perl: SQL::Translator::Parser::MySQL#normalize_field https://metacpan.org/source/SQL::Translator::Parser::MySQL#L1072
 	unsigned := 0
@@ -303,8 +339,6 @@ func (t *tablecol) Normalize() (TableColumn, bool) {
 			}
 		}
 	}
-
-
 
 	// avoid cloning if we don't have to
 	if !clone {

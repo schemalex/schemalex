@@ -214,6 +214,30 @@ primary key (id, c)
 			Input:  "CREATE TABLE `test` (\n`id` int(11) COMMENT 'aaa' PRIMARY KEY NOT NULL,\nhoge int default 1 UNIQUE not null COMMENT 'bbb'\n);",
 			Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
 		},
+		// ENUM
+		{
+			Input:  "CREATE TABLE `test` (\n`status` ENUM('on', 'off') NOT NULL DEFAULT 'off'\n);",
+			Expect: "CREATE TABLE `test` (\n`status` ENUM ('on','off') NOT NULL DEFAULT 'off'\n)",
+		},
+		// SET
+		{
+			Input:  "CREATE TABLE `test` (\n`status` SET('foo', 'bar', 'baz') NOT NULL DEFAULT 'foo,baz'\n);",
+			Expect: "CREATE TABLE `test` (\n`status` SET ('foo','bar','baz') NOT NULL DEFAULT 'foo,baz'\n)",
+		},
+		// BOOLEAN
+		{
+			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default true\n);",
+			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT TRUE\n)",
+		},
+		{
+			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default false\n);",
+			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT FALSE\n)",
+		},
+		// CREATE TABLE IF NOT EXISTS
+		{
+			Input:  "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n);",
+			Expect: "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n)",
+		},
 	}
 
 	p := New()
