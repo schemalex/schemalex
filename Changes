@@ -1,6 +1,10 @@
 Changes
 =======
 
+(NEXT) -
+    * Add new experimental command schemalint (#44)
+    * Fix parsing table definitions with multiple table options (#44)
+
 v0.0.8 - 23 Oct 2017
     * Introduce model.IndexColumn (#38)
     * Support "CREATE TABLE foo LIKE bar" (#39)
