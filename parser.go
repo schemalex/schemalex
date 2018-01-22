@@ -637,16 +637,19 @@ func (p *Parser) parseCreateTableOptionValue(ctx *parseCtx, table model.Table, n
 }
 
 func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error {
-	for {
 		ctx.skipWhiteSpaces()
 		switch t := ctx.peek(); t.Type {
 		case EOF:
+			// no table options, end of input
 			ctx.advance()
 			return nil
 		case SEMICOLON:
+			// no table options, end of statement
 			return nil
 		}
 
+	for {
+		ctx.skipWhiteSpaces()
 		switch t := ctx.next(); t.Type {
 		case ENGINE:
 			if err := p.parseCreateTableOptionValue(ctx, table, "ENGINE", IDENT, BACKTICK_IDENT); err != nil {
@@ -768,8 +771,23 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error
 			return newParseError(ctx, t, "unsupported option TABLESPACE")
 		case UNION:
 			return newParseError(ctx, t, "unsupported option UNION")
+		case COMMA:
+			// no op, continue to next option
+			continue
 		default:
-			return newParseError(ctx, t, "unexpected table options")
+			return newParseError(ctx, t, "unexpected token in table options: "+t.Type.String())
+		}
+
+		// except for the case where we continue to the next option (COMMA)
+		// we should expect the end of this statement
+		switch t := ctx.peek(); t.Type {
+		case EOF:
+			// end of table options, end of input
+			ctx.advance()
+			return nil
+		case SEMICOLON:
+			// end of table options, end of statement
+			return nil
 		}
 	}
 }
