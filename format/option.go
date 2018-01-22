@@ -1,23 +1,25 @@
 package format
 
-// Option is a generic interface for objects that passes
-// optional parameters to the various format functions in this package
-type Option interface {
-	Name() string
-	Value() interface{}
-}
+import (
+	"strings"
 
-type option struct {
-	name  string
-	value interface{}
-}
+	"github.com/schemalex/schemalex"
+	"github.com/schemalex/schemalex/internal/option"
+)
 
-func (o option) Name() string       { return o.name }
-func (o option) Value() interface{} { return o.value }
+type Option = schemalex.Option
 
-func WithIndent(s string) Option {
-	return &option{
-		name:  "indent",
-		value: s,
+const optKeyIndent = "indent"
+
+// WithIndent specifies the indent string to use, and the length.
+// For example, if you specify WithIndent(" " /* single space */, 2), the
+// indent will be 2 spaces per level.
+//
+// Please note that no check on the string will be performed, so anything
+// you specify will be used as-is.
+func WithIndent(s string, n int) Option {
+	if n <= 0 {
+		n = 1
 	}
+	return option.New(optKeyIndent, strings.Repeat(s, n))
 }
