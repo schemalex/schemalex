@@ -14,40 +14,6 @@ import (
 	"github.com/schemalex/schemalex/model"
 )
 
-// Option is a generic interface for objects that passes
-// optional parameters to the various diff functions in this package
-type Option interface {
-	Name() string
-	Value() interface{}
-}
-
-type option struct {
-	name  string
-	value interface{}
-}
-
-func (o option) Name() string       { return o.name }
-func (o option) Value() interface{} { return o.value }
-
-// WithParser specifies the parser instance to use when parsing
-// the statements given to the diffing functions. If unspecified,
-// a default parser will be used
-func WithParser(p *schemalex.Parser) Option {
-	return &option{
-		name:  "parser",
-		value: p,
-	}
-}
-
-// WithTransaction specifies if statements to control transactions
-// should be included in the diff.
-func WithTransaction(b bool) Option {
-	return &option{
-		name:  "transaction",
-		value: b,
-	}
-}
-
 type diffCtx struct {
 	fromSet mapset.Set
 	toSet   mapset.Set
@@ -84,7 +50,7 @@ func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
 	var txn bool
 	for _, o := range options {
 		switch o.Name() {
-		case "transaction":
+		case optKeyTransaction:
 			txn = o.Value().(bool)
 		}
 	}
@@ -130,7 +96,7 @@ func Strings(dst io.Writer, from, to string, options ...Option) error {
 	var p *schemalex.Parser
 	for _, o := range options {
 		switch o.Name() {
-		case "parser":
+		case optKeyParser:
 			p = o.Value().(*schemalex.Parser)
 		}
 	}

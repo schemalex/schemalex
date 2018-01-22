@@ -1,7 +1,7 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"flag"
 	"fmt"
 	"io"
@@ -12,7 +12,7 @@ import (
 
 	"github.com/pkg/errors"
 	"github.com/schemalex/schemalex"
-	"github.com/schemalex/schemalex/format"
+	"github.com/schemalex/schemalex/lint"
 )
 
 var version = fmt.Sprintf("custom build (%s)", time.Now().Format(time.RFC3339))
@@ -92,31 +92,18 @@ Examples:
 		defer f.Close()
 	}
 
-	fromSource, err := schemalex.NewSchemaSource(flag.Arg(0))
+	src, err := schemalex.NewSchemaSource(flag.Arg(0))
 	if err != nil {
 		return errors.Wrap(err, `failed to create schema source for "from"`)
 	}
 
-	var buf bytes.Buffer
-	if err := fromSource.WriteSchema(&buf); err != nil {
-		return errors.Wrap(err, `failed to read from source`)
-	}
+	linter := lint.New()
 
-	p := schemalex.New()
-	stmts, err := p.Parse(buf.Bytes())
-	if err != nil {
-		return errors.Wrap(err, `failed to parse source`)
-	}
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
 
-	var indent string
-	for i := 0; i < indentNum; i++ {
-		indent += " "
-	}
-	for _, stmt := range stmts {
-		if err := format.SQL(dst, stmt, format.WithIndent(indent)); err != nil {
-			return errors.Wrap(err, `failed to format source`)
-		}
-		dst.Write([]byte{';', '\n', '\n'})
+	if err := linter.Run(ctx, src, dst, lint.WithIndent(" ", indentNum)); err != nil {
+		return errors.Wrap(err, `failed to lint source`)
 	}
 
 	return nil
