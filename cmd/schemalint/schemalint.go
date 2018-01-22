@@ -8,14 +8,13 @@ import (
 	"log"
 	"os"
 	"runtime"
-	"time"
 
 	"github.com/pkg/errors"
 	"github.com/schemalex/schemalex"
 	"github.com/schemalex/schemalex/lint"
 )
 
-var version = fmt.Sprintf("custom build (%s)", time.Now().Format(time.RFC3339))
+var version string
 
 func main() {
 	if err := _main(); err != nil {
@@ -66,10 +65,13 @@ Examples:
 	flag.Parse()
 
 	if showVersion {
+		if version == "" {
+			version = "(custom build)"
+		}
+
 		fmt.Printf(
-			"schemalint version %s schemalex %s, built with %s (%s/%s)\n",
+			"schemalint version %s, built with %s (%s/%s)\n",
 			version,
-			schemalex.Version,
 			runtime.Version(),
 			runtime.GOOS,
 			runtime.GOARCH,
