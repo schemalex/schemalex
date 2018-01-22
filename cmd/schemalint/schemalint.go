@@ -67,9 +67,9 @@ Examples:
 
 	if showVersion {
 		fmt.Printf(
-			"schemalint version %s, built with schemalex %s and go %s for %s/%s\n",
-			schemalex.Version,
+			"schemalint version %s schemalex %s, built with %s (%s/%s)\n",
 			version,
+			schemalex.Version,
 			runtime.Version(),
 			runtime.GOOS,
 			runtime.GOARCH,
