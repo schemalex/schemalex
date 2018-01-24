@@ -50,6 +50,7 @@ const (
 	BINARY
 	BIT
 	BLOB
+	BOOL
 	BOOLEAN
 	BTREE
 	CASCADE
@@ -160,6 +161,7 @@ var keywordIdentMap = map[string]TokenType{
 	"BINARY":             BINARY,
 	"BIT":                BIT,
 	"BLOB":               BLOB,
+	"BOOL":               BOOL,
 	"BOOLEAN":            BOOLEAN,
 	"BTREE":              BTREE,
 	"CASCADE":            CASCADE,
@@ -320,6 +322,8 @@ func (t TokenType) String() string {
 		return "BIT"
 	case BLOB:
 		return "BLOB"
+	case BOOL:
+		return "BOOL"
 	case BOOLEAN:
 		return "BOOLEAN"
 	case BTREE:
