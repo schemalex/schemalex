@@ -637,16 +637,16 @@ func (p *Parser) parseCreateTableOptionValue(ctx *parseCtx, table model.Table, n
 }
 
 func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error {
-		ctx.skipWhiteSpaces()
-		switch t := ctx.peek(); t.Type {
-		case EOF:
-			// no table options, end of input
-			ctx.advance()
-			return nil
-		case SEMICOLON:
-			// no table options, end of statement
-			return nil
-		}
+	ctx.skipWhiteSpaces()
+	switch t := ctx.peek(); t.Type {
+	case EOF:
+		// no table options, end of input
+		ctx.advance()
+		return nil
+	case SEMICOLON:
+		// no table options, end of statement
+		return nil
+	}
 
 	for {
 		ctx.skipWhiteSpaces()
