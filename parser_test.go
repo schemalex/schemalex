@@ -1,4 +1,4 @@
-package schemalex
+package schemalex_test
 
 import (
 	"bytes"
@@ -7,6 +7,7 @@ import (
 	"os"
 	"testing"
 
+	"github.com/schemalex/schemalex"
 	"github.com/schemalex/schemalex/format"
 	"github.com/stretchr/testify/assert"
 )
@@ -238,9 +239,15 @@ primary key (id, c)
 			Input:  "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n);",
 			Expect: "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n)",
 		},
+
+		// multiple table options
+		{
+			Input:  "CREATE TABLE foo (id INT(10) NOT NULL) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
+			Expect: "CREATE TABLE `foo` (\n`id` INT (10) NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
+		},
 	}
 
-	p := New()
+	p := schemalex.New()
 	for _, spec := range specs {
 		t.Logf("Parsing '%s'", spec.Input)
 		stmts, err := p.ParseString(spec.Input)
@@ -276,7 +283,7 @@ func TestFile(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	stmts, err := New().Parse(byt)
+	stmts, err := schemalex.New().Parse(byt)
 	if err != nil {
 		t.Fatal(err)
 	}
@@ -287,7 +294,7 @@ func TestFile(t *testing.T) {
 
 func TestParseError1(t *testing.T) {
 	const src = "CREATE TABLE foo (id int PRIMARY KEY);\nCREATE TABLE bar"
-	p := New()
+	p := schemalex.New()
 	_, err := p.ParseString(src)
 	if !assert.Error(t, err, "parse should fail") {
 		return
@@ -301,7 +308,7 @@ func TestParseError1(t *testing.T) {
 
 func TestParseError2(t *testing.T) {
 	const src = "CREATE TABLE foo (id int PRIMARY KEY);\nCREATE TABLE bar (id int PRIMARY KEY baz TEXT)"
-	p := New()
+	p := schemalex.New()
 	_, err := p.ParseString(src)
 	if !assert.Error(t, err, "parse should fail") {
 		return
@@ -324,13 +331,13 @@ func TestParseFileError(t *testing.T) {
 	f.Write([]byte("CREATE TABLE foo (id int PRIMARY KEY);\nCREATE TABLE bar (id int PRIMARY KEY baz TEXT)"))
 	f.Sync()
 
-	p := New()
+	p := schemalex.New()
 	_, err = p.ParseFile(f.Name())
 	if !assert.Error(t, err, "schemalex.ParseFile should fail") {
 		return
 	}
 
-	pe, ok := err.(ParseError)
+	pe, ok := err.(schemalex.ParseError)
 	if !assert.True(t, ok, "err is a ParseError") {
 		return
 	}
