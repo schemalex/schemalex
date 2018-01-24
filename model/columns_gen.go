@@ -40,6 +40,7 @@ const (
 	ColumnTypeEnum
 	ColumnTypeSet
 	ColumnTypeBoolean
+	ColumnTypeBool
 
 	ColumnTypeMax
 )
@@ -110,6 +111,8 @@ func (c ColumnType) String() string {
 		return "SET"
 	case ColumnTypeBoolean:
 		return "BOOLEAN"
+	case ColumnTypeBool:
+		return "BOOL"
 	default:
 		return "(invalid)"
 	}
@@ -119,12 +122,12 @@ func (c ColumnType) String() string {
 // If the type does not have a synonym then this method returns the receiver itself
 func (c ColumnType) SynonymType() ColumnType {
 	switch c {
+	case ColumnTypeReal:
+		return ColumnTypeDouble
 	case ColumnTypeInteger:
 		return ColumnTypeInt
 	case ColumnTypeNumeric:
 		return ColumnTypeDecimal
-	case ColumnTypeReal:
-		return ColumnTypeDouble
 	}
 	return c
 }
