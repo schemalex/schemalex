@@ -50,7 +50,7 @@ func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
 	var txn bool
 	for _, o := range options {
 		switch o.Name() {
-		case optKeyTransaction:
+		case optkeyTransaction:
 			txn = o.Value().(bool)
 		}
 	}
@@ -96,7 +96,7 @@ func Strings(dst io.Writer, from, to string, options ...Option) error {
 	var p *schemalex.Parser
 	for _, o := range options {
 		switch o.Name() {
-		case optKeyParser:
+		case optkeyParser:
 			p = o.Value().(*schemalex.Parser)
 		}
 	}

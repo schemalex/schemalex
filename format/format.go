@@ -35,7 +35,7 @@ func SQL(dst io.Writer, v interface{}, options ...Option) error {
 	ctx := newFmtCtx(dst)
 	for _, o := range options {
 		switch o.Name() {
-		case "indent":
+		case optkeyIndent:
 			ctx.indent = o.Value().(string)
 		}
 	}

@@ -9,7 +9,7 @@ import (
 
 type Option = schemalex.Option
 
-const optKeyIndent = "indent"
+const optkeyIndent = "indent"
 
 // WithIndent specifies the indent string to use, and the length.
 // For example, if you specify WithIndent(" " /* single space */, 2), the
@@ -21,5 +21,5 @@ func WithIndent(s string, n int) Option {
 	if n <= 0 {
 		n = 1
 	}
-	return option.New(optKeyIndent, strings.Repeat(s, n))
+	return option.New(optkeyIndent, strings.Repeat(s, n))
 }
