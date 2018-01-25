@@ -605,6 +605,9 @@ func (p *Parser) parseTableColumnSpec(ctx *parseCtx, col model.TableColumn) erro
 	case BOOLEAN:
 		coltyp = model.ColumnTypeBoolean
 		colopt = coloptFlagNone
+	case BOOL:
+		coltyp = model.ColumnTypeBool
+		colopt = coloptFlagNone
 	default:
 		return newParseError(ctx, t, "unsupported type in column specification")
 	}
