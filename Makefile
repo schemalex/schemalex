@@ -26,6 +26,9 @@ test:
 generate:
 	go generate
 
+check-diff:
+	@./scripts/check-diff.sh
+
 $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH):
 	@mkdir -p $@
 
