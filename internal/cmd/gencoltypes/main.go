@@ -31,6 +31,8 @@ func _main() error {
 		"Integer": "Int",
 		"Numeric": "Decimal",
 		"Real":    "Double",
+		"Bool":    "TinyInt",
+		"Boolean": "TinyInt",
 	}
 
 	types := []string{

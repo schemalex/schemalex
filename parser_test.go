@@ -228,20 +228,20 @@ primary key (id, c)
 		// BOOLEAN
 		{
 			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default true\n);",
-			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT TRUE\n)",
+			Expect: "CREATE TABLE `test` (\n`valid` TINYINT (1) NOT NULL DEFAULT 1\n)",
 		},
 		{
 			Input:  "CREATE TABLE `test` (\n`valid` BOOLEAN not null default false\n);",
-			Expect: "CREATE TABLE `test` (\n`valid` BOOLEAN NOT NULL DEFAULT FALSE\n)",
+			Expect: "CREATE TABLE `test` (\n`valid` TINYINT (1) NOT NULL DEFAULT 0\n)",
 		},
 		// BOOL
 		{
 			Input:  "CREATE TABLE `test` (\n`valid` BOOL not null default true\n);",
-			Expect: "CREATE TABLE `test` (\n`valid` BOOL NOT NULL DEFAULT TRUE\n)",
+			Expect: "CREATE TABLE `test` (\n`valid` TINYINT (1) NOT NULL DEFAULT 1\n)",
 		},
 		{
 			Input:  "CREATE TABLE `test` (\n`valid` BOOL not null default false\n);",
-			Expect: "CREATE TABLE `test` (\n`valid` BOOL NOT NULL DEFAULT FALSE\n)",
+			Expect: "CREATE TABLE `test` (\n`valid` TINYINT (1) NOT NULL DEFAULT 0\n)",
 		},
 		// CREATE TABLE IF NOT EXISTS
 		{
