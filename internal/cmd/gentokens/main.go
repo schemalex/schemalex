@@ -80,6 +80,7 @@ func _main() error {
 		{Ident: "BINARY"},
 		{Ident: "BIT"},
 		{Ident: "BLOB"},
+		{Ident: "BOOL"},
 		{Ident: "BOOLEAN"},
 		{Ident: "BTREE"},
 		{Ident: "CASCADE"},
