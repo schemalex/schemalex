@@ -98,6 +98,76 @@ func TestTableColumnNormalize(t *testing.T) {
 			after: model.NewTableColumn("foo").
 				SetType(model.ColumnTypeText),
 		},
+		{
+			// foo BOOL,
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBool),
+			// foo TINYINT(1) DEFAULT NULL,
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeTinyInt).
+				SetLength(model.NewLength("1")).
+				SetNullState(model.NullStateNone).
+				SetDefault("NULL", false),
+		},
+		{
+			// foo BOOL DEFAULT TRUE,
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBool).
+				SetDefault("TRUE", false),
+			// foo TINYINT(1) DEFAULT 1,
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeTinyInt).
+				SetLength(model.NewLength("1")).
+				SetNullState(model.NullStateNone).
+				SetDefault("1", false),
+		},
+		{
+			// foo BOOL DEFAULT FALSE,
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBool).
+				SetDefault("FALSE", false),
+			// foo TINYINT(1) DEFAULT 0,
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeTinyInt).
+				SetLength(model.NewLength("1")).
+				SetNullState(model.NullStateNone).
+				SetDefault("0", false),
+		},
+		{
+			// foo BOOLEAN
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBoolean),
+			// foo TINYINT(1) DEFAULT NULL,
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeTinyInt).
+				SetLength(model.NewLength("1")).
+				SetNullState(model.NullStateNone).
+				SetDefault("NULL", false),
+		},
+		{
+			// foo BOOLEAN DEFAULT TRUE
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBoolean).
+				SetDefault("TRUE", false),
+			// foo TINYINT(1) DEFAULT 1,
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeTinyInt).
+				SetLength(model.NewLength("1")).
+				SetNullState(model.NullStateNone).
+				SetDefault("1", false),
+		},
+		{
+			// foo BOOLEAN DEFAULT FALSE
+			before: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeBoolean).
+				SetDefault("FALSE", false),
+			// foo TINYINT(1) DEFAULT 0,
+			after: model.NewTableColumn("foo").
+				SetType(model.ColumnTypeTinyInt).
+				SetLength(model.NewLength("1")).
+				SetNullState(model.NullStateNone).
+				SetDefault("0", false),
+		},
 	} {
 		var buf bytes.Buffer
 		format.SQL(&buf, tc.before)
@@ -108,7 +178,10 @@ func TestTableColumnNormalize(t *testing.T) {
 		t.Run(fmt.Sprintf("from %s to %s", beforeStr, afterStr), func(t *testing.T) {
 			norm, _ := tc.before.Normalize()
 			if !assert.Equal(t, norm, tc.after, "Unexpected return value.") {
-				t.Logf("before: %s", beforeStr)
+				buf.Reset()
+				format.SQL(&buf, norm)
+				normStr := buf.String()
+				t.Logf("before: %s normlized: %s", beforeStr, normStr)
 				t.Logf("after: %s", afterStr)
 			}
 		})

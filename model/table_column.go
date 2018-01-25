@@ -261,6 +261,9 @@ func (t *tablecol) NativeLength() Length {
 	}
 	var size int
 	switch t.Type() {
+	case ColumnTypeBool, ColumnTypeBoolean:
+		// bool and boolean is tinyint(1)
+		size = 1
 	case ColumnTypeTinyInt:
 		size = 4 - unsigned
 	case ColumnTypeSmallInt:
@@ -323,6 +326,13 @@ func (t *tablecol) Normalize() (TableColumn, bool) {
 			if t.IsQuotedDefault() {
 				clone = true
 				removeQuotes = true
+			}
+		case ColumnTypeBool, ColumnTypeBoolean:
+			switch t.Default() {
+			case "TRUE":
+				t.SetDefault("1", false)
+			case "FALSE":
+				t.SetDefault("0", false)
 			}
 		}
 	} else {
