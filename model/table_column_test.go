@@ -109,65 +109,6 @@ func TestTableColumnNormalize(t *testing.T) {
 				SetNullState(model.NullStateNone).
 				SetDefault("NULL", false),
 		},
-		{
-			// foo BOOL DEFAULT TRUE,
-			before: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeBool).
-				SetDefault("TRUE", false),
-			// foo TINYINT(1) DEFAULT 1,
-			after: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeTinyInt).
-				SetLength(model.NewLength("1")).
-				SetNullState(model.NullStateNone).
-				SetDefault("1", false),
-		},
-		{
-			// foo BOOL DEFAULT FALSE,
-			before: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeBool).
-				SetDefault("FALSE", false),
-			// foo TINYINT(1) DEFAULT 0,
-			after: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeTinyInt).
-				SetLength(model.NewLength("1")).
-				SetNullState(model.NullStateNone).
-				SetDefault("0", false),
-		},
-		{
-			// foo BOOLEAN
-			before: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeBoolean),
-			// foo TINYINT(1) DEFAULT NULL,
-			after: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeTinyInt).
-				SetLength(model.NewLength("1")).
-				SetNullState(model.NullStateNone).
-				SetDefault("NULL", false),
-		},
-		{
-			// foo BOOLEAN DEFAULT TRUE
-			before: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeBoolean).
-				SetDefault("TRUE", false),
-			// foo TINYINT(1) DEFAULT 1,
-			after: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeTinyInt).
-				SetLength(model.NewLength("1")).
-				SetNullState(model.NullStateNone).
-				SetDefault("1", false),
-		},
-		{
-			// foo BOOLEAN DEFAULT FALSE
-			before: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeBoolean).
-				SetDefault("FALSE", false),
-			// foo TINYINT(1) DEFAULT 0,
-			after: model.NewTableColumn("foo").
-				SetType(model.ColumnTypeTinyInt).
-				SetLength(model.NewLength("1")).
-				SetNullState(model.NullStateNone).
-				SetDefault("0", false),
-		},
 	} {
 		var buf bytes.Buffer
 		format.SQL(&buf, tc.before)
