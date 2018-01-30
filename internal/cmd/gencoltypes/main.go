@@ -7,6 +7,7 @@ import (
 	"go/format"
 	"log"
 	"os"
+	"sort"
 	"strconv"
 	"strings"
 )
@@ -31,6 +32,8 @@ func _main() error {
 		"Integer": "Int",
 		"Numeric": "Decimal",
 		"Real":    "Double",
+		"Bool":    "TinyInt",
+		"Boolean": "TinyInt",
 	}
 
 	types := []string{
@@ -103,9 +106,16 @@ func _main() error {
 	buf.WriteString("\n// If the type does not have a synonym then this method returns the receiver itself")
 	buf.WriteString("\nfunc (c ColumnType) SynonymType() ColumnType {")
 	buf.WriteString("\nswitch c {")
-	for from, to := range synonyms {
+
+	var synonymKeys []string
+	for from := range synonyms {
+		synonymKeys = append(synonymKeys, from)
+	}
+	sort.Strings(synonymKeys)
+
+	for _, from := range synonymKeys {
 		buf.WriteString("\ncase ColumnType" + from + ":")
-		buf.WriteString("\nreturn ColumnType" + to)
+		buf.WriteString("\nreturn ColumnType" + synonyms[from])
 	}
 	buf.WriteString("\n}")
 	buf.WriteString("\nreturn c")

@@ -122,12 +122,16 @@ func (c ColumnType) String() string {
 // If the type does not have a synonym then this method returns the receiver itself
 func (c ColumnType) SynonymType() ColumnType {
 	switch c {
-	case ColumnTypeReal:
-		return ColumnTypeDouble
+	case ColumnTypeBool:
+		return ColumnTypeTinyInt
+	case ColumnTypeBoolean:
+		return ColumnTypeTinyInt
 	case ColumnTypeInteger:
 		return ColumnTypeInt
 	case ColumnTypeNumeric:
 		return ColumnTypeDecimal
+	case ColumnTypeReal:
+		return ColumnTypeDouble
 	}
 	return c
 }
