@@ -7,7 +7,7 @@ import (
 	"github.com/schemalex/schemalex/internal/option"
 )
 
-type Option = schemalex.Option
+type Option schemalex.Option
 
 const optkeyIndent = "indent"
 
