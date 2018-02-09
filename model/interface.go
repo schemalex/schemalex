@@ -181,8 +181,9 @@ type Table interface {
 	AddOption(TableOption) Table
 	Options() chan TableOption
 
-	LookupColumn(string) (TableColumn, bool)
+	LookupColumn(string) (TableColumn, int, bool)
 	LookupIndex(string) (Index, bool)
+	LookupOrderColumn(int) (TableColumn, bool)
 
 	// Normalize returns normalized table. If a normalization was performed
 	// and the table is modified, returns a new instance of the Table object
