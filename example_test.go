@@ -34,7 +34,7 @@ CREATE TABLE fuga (
 	// PRIMARY KEY (`id`)
 	// );
 	//
-	// ALTER TABLE `hoge` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'hoge';
+	// ALTER TABLE `hoge` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'hoge' AFTER `id`;
 	//
 	// SET FOREIGN_KEY_CHECKS = 1;
 	//
