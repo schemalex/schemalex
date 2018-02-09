@@ -285,7 +285,7 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP COLUMN `")
-		col, ok := ctx.from.LookupColumn(columnName.(string))
+		col, _, ok := ctx.from.LookupColumn(columnName.(string))
 		if !ok {
 			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
 		}
@@ -302,9 +302,19 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 
 	columnNames := ctx.toColumns.Difference(ctx.fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
-		stmt, ok := ctx.to.LookupColumn(columnName.(string))
+		stmt, order, ok := ctx.to.LookupColumn(columnName.(string))
 		if !ok {
 			continue
+		}
+
+		var beforeColName string
+		if order > 0 {
+			beforeOrder := order - 1
+			beforeCol, ok := ctx.to.LookupOrderColumn(beforeOrder)
+			if !ok {
+				return 0, errors.Errorf(`failed to lookup order column %d`, beforeOrder)
+			}
+			beforeColName = beforeCol.Name()
 		}
 
 		if buf.Len() > 0 {
@@ -316,6 +326,14 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		if err := format.SQL(&buf, stmt); err != nil {
 			return 0, err
 		}
+		if beforeColName != "" {
+			buf.WriteString(" AFTER `")
+			buf.WriteString(beforeColName)
+			buf.WriteString("`")
+		} else {
+			buf.WriteString(" FIRST")
+		}
+
 		buf.WriteByte(';')
 	}
 
@@ -326,12 +344,12 @@ func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 	columnNames := ctx.toColumns.Intersect(ctx.fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
-		beforeColumnStmt, ok := ctx.from.LookupColumn(columnName.(string))
+		beforeColumnStmt, _, ok := ctx.from.LookupColumn(columnName.(string))
 		if !ok {
 			return 0, errors.Errorf(`column %s not found in old schema`, columnName)
 		}
 
-		afterColumnStmt, ok := ctx.to.LookupColumn(columnName.(string))
+		afterColumnStmt, _, ok := ctx.to.LookupColumn(columnName.(string))
 		if !ok {
 			return 0, errors.Errorf(`column %s not found in new schema`, columnName)
 		}
