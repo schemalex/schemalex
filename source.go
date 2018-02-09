@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"io/ioutil"
+	"log"
 	"net/url"
 	"os"
 	"os/exec"
@@ -164,6 +165,8 @@ func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 		if err != nil {
 			return nil, errors.Wrap(err, `failed to load X509 key pair`)
 		}
+
+		log.Printf("tlsname = %s", tlsName)
 		mysql.RegisterTLSConfig(tlsName, &tls.Config{
 			RootCAs:      rootCertPool,
 			Certificates: []tls.Certificate{certs},
@@ -173,7 +176,7 @@ func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 	return cfg, nil
 }
 
-func (s mysqlSource) open() (*sql.DB, error) {
+func (s mysqlSource) Open() (*sql.DB, error) {
 	// attempt to open connection to mysql
 	cfg, err := s.MySQLConfig()
 	if err != nil {
@@ -197,7 +200,7 @@ func (s localFileSource) WriteSchema(dst io.Writer) error {
 }
 
 func (s mysqlSource) WriteSchema(dst io.Writer) error {
-	db, err := s.open()
+	db, err := s.Open()
 	if err != nil {
 		return errors.Wrap(err, `failed to open connection to database`)
 	}
@@ -229,6 +232,18 @@ func (s mysqlSource) WriteSchema(dst io.Writer) error {
 	}
 
 	return NewReaderSource(&buf).WriteSchema(dst)
+}
+
+func (s localGitSource) File() string {
+	return s.file
+}
+
+func (s localGitSource) Dir() string {
+	return s.dir
+}
+
+func (s localGitSource) Commitish() string {
+	return s.commitish
 }
 
 func (s localGitSource) WriteSchema(dst io.Writer) error {
