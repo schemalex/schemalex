@@ -31,13 +31,13 @@ func (t *table) LookupIndex(id string) (Index, bool) {
 	return nil, false
 }
 
-func (t *table) LookupOrderColumn(order int) (TableColumn, bool) {
-	var count int
+func (t *table) LookupOrderColumn(num int) (TableColumn, bool) {
+	var order int
 	for col := range t.Columns() {
-		if count == order {
+		if order == num {
 			return col, true
 		}
-		count++
+		order++
 	}
 	return nil, false
 }
