@@ -171,7 +171,7 @@ func deployDiff(ctx context.Context, tx *sql.Tx, from, to schemalex.SchemaSource
 }
 
 func deployVersion(ctx context.Context, tx *sql.Tx, hash string) error {
-	if _, err := tx.Exec(`CREATE TABLE schemadeploy_version (version VARCHAR(40) NOT NULL)`); err != nil {
+	if _, err := tx.Exec(`CREATE TABLE IF NOT EXISTS schemadeploy_version (version VARCHAR(40) NOT NULL)`); err != nil {
 		return errors.Wrap(err, `failed to create schemadeploy_version table`)
 	}
 
