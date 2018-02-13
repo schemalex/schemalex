@@ -166,7 +166,6 @@ func (s mysqlSource) MySQLConfig() (*mysql.Config, error) {
 			return nil, errors.Wrap(err, `failed to load X509 key pair`)
 		}
 
-		log.Printf("tlsname = %s", tlsName)
 		mysql.RegisterTLSConfig(tlsName, &tls.Config{
 			RootCAs:      rootCertPool,
 			Certificates: []tls.Certificate{certs},
