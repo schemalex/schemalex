@@ -37,14 +37,14 @@ func TestDiff(t *testing.T) {
 		// add column (after)
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `c` VARCHAR (20) NOT NULL DEFAULT 'xxx');",
-			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'xxx' AFTER `id`;",
+			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `a` INTEGER NOT NULL, `b` INTEGER NOT NULL, `c` INTEGER NOT NULL );",
+			Expect: "ALTER TABLE `fuga` ADD COLUMN `a` INT (11) NOT NULL AFTER `id`;\nALTER TABLE `fuga` ADD COLUMN `b` INT (11) NOT NULL AFTER `a`;\nALTER TABLE `fuga` ADD COLUMN `c` INT (11) NOT NULL AFTER `b`;",
 		},
 		// add column (first)
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
-			After:  "CREATE TABLE `fuga` ( `c` VARCHAR (20) NOT NULL DEFAULT 'xxx', `id` INTEGER NOT NULL);",
-			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'xxx' FIRST;",
+			After:  "CREATE TABLE `fuga` ( `a` INTEGER NOT NULL, `b` INTEGER NOT NULL, `c` INTEGER NOT NULL, `id` INTEGER NOT NULL);",
+			Expect: "ALTER TABLE `fuga` ADD COLUMN `a` INT (11) NOT NULL FIRST;\nALTER TABLE `fuga` ADD COLUMN `b` INT (11) NOT NULL AFTER `a`;\nALTER TABLE `fuga` ADD COLUMN `c` INT (11) NOT NULL AFTER `b`;",
 		},
 		// change column
 		{
