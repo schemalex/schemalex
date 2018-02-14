@@ -22,22 +22,27 @@ func (t *table) LookupColumn(name string) (TableColumn, int, bool) {
 	return nil, 0, false
 }
 
+func (t *table) LookupColumnBefore(col TableColumn) (TableColumn, bool) {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
+	var beforeCol TableColumn
+
+	for _, tblCol := range t.columns {
+		if tblCol.ID() == col.ID() {
+			return beforeCol, true
+		}
+
+		beforeCol = tblCol
+	}
+	return nil, false
+}
+
 func (t *table) LookupIndex(id string) (Index, bool) {
 	for idx := range t.Indexes() {
 		if idx.ID() == id {
 			return idx, true
 		}
-	}
-	return nil, false
-}
-
-func (t *table) LookupOrderColumn(num int) (TableColumn, bool) {
-	var order int
-	for col := range t.Columns() {
-		if order == num {
-			return col, true
-		}
-		order++
 	}
 	return nil, false
 }
