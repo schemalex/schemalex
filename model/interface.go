@@ -183,7 +183,7 @@ type Table interface {
 	AddOption(TableOption) Table
 	Options() chan TableOption
 
-	LookupColumn(string) (TableColumn, int, bool)
+	LookupColumn(string) (TableColumn, bool)
 	// LookupColumnBefore returns the table column before given column,
 	// and whether the given column is exists in this table.
 	LookupColumnBefore(TableColumn) (TableColumn, bool)

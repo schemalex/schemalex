@@ -286,7 +286,7 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP COLUMN `")
-		col, _, ok := ctx.from.LookupColumn(columnName.(string))
+		col, ok := ctx.from.LookupColumn(columnName.(string))
 		if !ok {
 			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
 		}
@@ -304,7 +304,7 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 
 	columnNames := ctx.toColumns.Difference(ctx.fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
-		stmt, _, ok := ctx.to.LookupColumn(columnName.(string))
+		stmt, ok := ctx.to.LookupColumn(columnName.(string))
 		if !ok {
 			continue
 		}
@@ -348,12 +348,12 @@ func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 	columnNames := ctx.toColumns.Intersect(ctx.fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
-		beforeColumnStmt, _, ok := ctx.from.LookupColumn(columnName.(string))
+		beforeColumnStmt, ok := ctx.from.LookupColumn(columnName.(string))
 		if !ok {
 			return 0, errors.Errorf(`column %s not found in old schema`, columnName)
 		}
 
-		afterColumnStmt, _, ok := ctx.to.LookupColumn(columnName.(string))
+		afterColumnStmt, ok := ctx.to.LookupColumn(columnName.(string))
 		if !ok {
 			return 0, errors.Errorf(`column %s not found in new schema`, columnName)
 		}
