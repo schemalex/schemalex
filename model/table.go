@@ -11,15 +11,13 @@ func (t *table) ID() string {
 	return "table#" + t.name
 }
 
-func (t *table) LookupColumn(name string) (TableColumn, int, bool) {
-	var order int
+func (t *table) LookupColumn(name string) (TableColumn, bool) {
 	for col := range t.Columns() {
 		if col.ID() == name {
-			return col, order, true
+			return col, true
 		}
-		order++
 	}
-	return nil, 0, false
+	return nil, false
 }
 
 func (t *table) LookupColumnBefore(col TableColumn) (TableColumn, bool) {
