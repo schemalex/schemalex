@@ -99,8 +99,11 @@ func (t *table) SetTemporary(v bool) Table {
 }
 
 func (t *table) Columns() chan TableColumn {
+	var order int
 	ch := make(chan TableColumn, len(t.columns))
 	for _, col := range t.columns {
+		col.SetOrder(order)
+		order++
 		ch <- col
 	}
 	close(ch)

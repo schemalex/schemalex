@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"io"
 	"reflect"
+	"sort"
 
 	"github.com/deckarep/golang-set"
 	"github.com/schemalex/schemalex"
@@ -299,17 +300,26 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 
 func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
+	var columns []model.TableColumn
 
 	columnNames := ctx.toColumns.Difference(ctx.fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
-		stmt, order, ok := ctx.to.LookupColumn(columnName.(string))
+		stmt, _, ok := ctx.to.LookupColumn(columnName.(string))
 		if !ok {
 			continue
 		}
 
+		columns = append(columns, stmt)
+	}
+
+	sort.Slice(columns, func(i int, j int) bool {
+		return columns[i].Order() < columns[j].Order()
+	})
+	for _, stmt := range columns {
 		var beforeColName string
-		if order > 0 {
-			beforeOrder := order - 1
+
+		if stmt.Order() > 0 {
+			beforeOrder := stmt.Order() - 1
 			beforeCol, ok := ctx.to.LookupOrderColumn(beforeOrder)
 			if !ok {
 				return 0, errors.Errorf(`failed to lookup order column %d`, beforeOrder)
