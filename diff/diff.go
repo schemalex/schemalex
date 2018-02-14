@@ -316,15 +316,9 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		return columns[i].Order() < columns[j].Order()
 	})
 	for _, stmt := range columns {
-		var beforeColName string
-
-		if stmt.Order() > 0 {
-			beforeOrder := stmt.Order() - 1
-			beforeCol, ok := ctx.to.LookupOrderColumn(beforeOrder)
-			if !ok {
-				return 0, errors.Errorf(`failed to lookup order column %d`, beforeOrder)
-			}
-			beforeColName = beforeCol.Name()
+		beforeCol, ok := ctx.to.LookupColumnBefore(stmt)
+		if !ok {
+			return 0, errors.Errorf(`failed to lookup %s column before.`, stmt.Name())
 		}
 
 		if buf.Len() > 0 {
@@ -336,9 +330,9 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		if err := format.SQL(&buf, stmt); err != nil {
 			return 0, err
 		}
-		if beforeColName != "" {
+		if beforeCol != nil {
 			buf.WriteString(" AFTER `")
-			buf.WriteString(beforeColName)
+			buf.WriteString(beforeCol.Name())
 			buf.WriteString("`")
 		} else {
 			buf.WriteString(" FIRST")
