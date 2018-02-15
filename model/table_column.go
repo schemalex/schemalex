@@ -253,15 +253,6 @@ func (t *tablecol) SetValues() chan string {
 	return ch
 }
 
-func (t *tablecol) Order() int {
-	return t.order
-}
-
-func (t *tablecol) SetOrder(order int) TableColumn {
-	t.order = order
-	return t
-}
-
 func (t *tablecol) NativeLength() Length {
 	// I referred to perl: SQL::Translator::Parser::MySQL#normalize_field https://metacpan.org/source/SQL::Translator::Parser::MySQL#L1072
 	unsigned := 0
