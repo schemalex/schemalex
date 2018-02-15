@@ -284,8 +284,6 @@ type TableColumn interface {
 	HasSetValues() bool
 	SetSetValues([]string) TableColumn
 	SetValues() chan string
-	Order() int
-	SetOrder(int) TableColumn
 
 	NullState() NullState
 	SetNullState(NullState) TableColumn
@@ -349,7 +347,6 @@ type tablecol struct {
 	unique       bool
 	unsigned     bool
 	zerofill     bool
-	order        int
 }
 
 // Database represents a database definition
