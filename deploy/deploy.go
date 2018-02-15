@@ -1,7 +1,6 @@
 package deploy
 
 import (
-	"bufio"
 	"bytes"
 	"context"
 	"database/sql"
@@ -139,31 +138,37 @@ func localVersion(gitsrc gitSource) (string, error) {
 }
 
 func deployDiff(ctx context.Context, tx *sql.Tx, from, to schemalex.SchemaSource) error {
-	var dst bytes.Buffer
-	if err := diff.Sources(&dst, from, to, diff.WithTransaction(false)); err != nil {
+	var buf bytes.Buffer
+	if err := from.WriteSchema(&buf); err != nil {
+		return errors.Wrapf(err, `failed to retrieve schema from "from" source %s`, from)
+	}
+	fromStr := buf.String()
+	buf.Reset()
+
+	if err := to.WriteSchema(&buf); err != nil {
+		return errors.Wrapf(err, `failed to retrieve schema from "to" source %s`, to)
+	}
+	toStr := buf.String()
+
+	p := schemalex.New()
+	stmts1, err := p.ParseString(fromStr)
+	if err != nil {
+		return errors.Wrapf(err, `failed to parse "from" %s`, fromStr)
+	}
+
+	stmts2, err := p.ParseString(toStr)
+	if err != nil {
+		return errors.Wrapf(err, `failed to parse "to" %s`, toStr)
+	}
+
+	stmts, err := diff.Diff(stmts1, stmts2, diff.WithTransaction(false))
+	if err != nil {
 		return errors.Wrap(err, `failed to generate diffs`)
 	}
 
-	scanner := bufio.NewScanner(&dst)
-	scanner.Split(func(data []byte, atEOF bool) (int, []byte, error) {
-		if atEOF && len(data) == 0 {
-			return 0, nil, nil
-		}
-		if i := bytes.IndexByte(data, ';'); i >= 0 {
-			return i + 1, data[0:i], nil
-		}
-
-		if atEOF {
-			return len(data), data, nil
-		}
-
-		return 0, nil, nil
-	})
-
-	for scanner.Scan() {
-		query := scanner.Text()
-		if _, err := tx.Exec(query); err != nil {
-			return errors.Wrapf(err, `failed to execute "%s"`, query)
+	for _, stmt := range stmts {
+		if _, err := tx.Exec(stmt.String()); err != nil {
+			return errors.Wrapf(err, `failed to execute "%s"`, stmt)
 		}
 	}
 
