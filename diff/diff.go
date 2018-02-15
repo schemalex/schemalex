@@ -6,7 +6,6 @@ import (
 	"bytes"
 	"io"
 	"reflect"
-	"sort"
 
 	"github.com/deckarep/golang-set"
 	"github.com/schemalex/schemalex"
@@ -300,23 +299,15 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 
 func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
-	var columns []model.TableColumn
 
-	columnNames := ctx.toColumns.Difference(ctx.fromColumns)
-	for _, columnName := range columnNames.ToSlice() {
-		stmt, ok := ctx.to.LookupColumn(columnName.(string))
-		if !ok {
-			continue
-		}
-
-		columns = append(columns, stmt)
+	addColumns := ctx.toColumns.Difference(ctx.fromColumns)
+	columnNames := make([]string, 0, addColumns.Cardinality())
+	for _, addColumn := range addColumns.ToSlice() {
+		columnNames = append(columnNames, addColumn.(string))
 	}
 
-	sort.Slice(columns, func(i int, j int) bool {
-		return columns[i].Order() < columns[j].Order()
-	})
-	for _, stmt := range columns {
-		beforeCol, ok := ctx.to.LookupColumnBefore(stmt)
+	for stmt := range ctx.to.LookupColumns(columnNames) {
+		beforeCol, ok := ctx.to.LookupColumnBefore(stmt.ID())
 		if !ok {
 			return 0, errors.Errorf(`failed to lookup %s column before.`, stmt.Name())
 		}

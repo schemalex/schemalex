@@ -20,18 +20,29 @@ func (t *table) LookupColumn(name string) (TableColumn, bool) {
 	return nil, false
 }
 
-func (t *table) LookupColumnBefore(col TableColumn) (TableColumn, bool) {
-	t.mu.Lock()
-	defer t.mu.Unlock()
+func (t *table) LookupColumns(names []string) chan TableColumn {
+	target := make(map[string]struct{}, len(names))
+	for _, n := range names {
+		target[n] = struct{}{}
+	}
 
+	ch := make(chan TableColumn, len(names))
+	for _, col := range t.columns {
+		if _, ok := target[col.ID()]; ok {
+			ch <- col
+		}
+	}
+	close(ch)
+	return ch
+}
+
+func (t *table) LookupColumnBefore(name string) (TableColumn, bool) {
 	var beforeCol TableColumn
-
-	for _, tblCol := range t.columns {
-		if tblCol.ID() == col.ID() {
+	for col := range t.Columns() {
+		if col.ID() == name {
 			return beforeCol, true
 		}
-
-		beforeCol = tblCol
+		beforeCol = col
 	}
 	return nil, false
 }
@@ -102,11 +113,8 @@ func (t *table) SetTemporary(v bool) Table {
 }
 
 func (t *table) Columns() chan TableColumn {
-	var order int
 	ch := make(chan TableColumn, len(t.columns))
 	for _, col := range t.columns {
-		col.SetOrder(order)
-		order++
 		ch <- col
 	}
 	close(ch)
