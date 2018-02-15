@@ -5,8 +5,6 @@
 
 package model
 
-import "sync"
-
 // Stmt is the interface to define a statement
 type Stmt interface {
 	ID() string
@@ -214,7 +212,6 @@ type table struct {
 	columns     []TableColumn
 	indexes     []Index
 	options     []TableOption
-	mu          sync.Mutex
 }
 
 type tableopt struct {
