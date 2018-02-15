@@ -184,9 +184,10 @@ type Table interface {
 	Options() chan TableOption
 
 	LookupColumn(string) (TableColumn, bool)
+	LookupColumns([]string) chan TableColumn
 	// LookupColumnBefore returns the table column before given column,
 	// and whether the given column is exists in this table.
-	LookupColumnBefore(TableColumn) (TableColumn, bool)
+	LookupColumnBefore(string) (TableColumn, bool)
 	LookupIndex(string) (Index, bool)
 
 	// Normalize returns normalized table. If a normalization was performed
