@@ -46,6 +46,11 @@ func TestDiff(t *testing.T) {
 			After:  "CREATE TABLE `fuga` ( `a` INTEGER NOT NULL, `b` INTEGER NOT NULL, `c` INTEGER NOT NULL, `id` INTEGER NOT NULL);",
 			Expect: "ALTER TABLE `fuga` ADD COLUMN `a` INT (11) NOT NULL FIRST;\nALTER TABLE `fuga` ADD COLUMN `b` INT (11) NOT NULL AFTER `a`;\nALTER TABLE `fuga` ADD COLUMN `c` INT (11) NOT NULL AFTER `b`;",
 		},
+		{
+			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
+			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL, `c` INTEGER NOT NULL, `a` INTEGER NOT NULL, `b` INTEGER NOT NULL );",
+			Expect: "ALTER TABLE `fuga` ADD COLUMN `c` INT (11) NOT NULL AFTER `id`;\nALTER TABLE `fuga` ADD COLUMN `a` INT (11) NOT NULL AFTER `c`;\nALTER TABLE `fuga` ADD COLUMN `b` INT (11) NOT NULL AFTER `a`;",
+		},
 		// change column
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL );",
