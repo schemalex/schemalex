@@ -12,11 +12,11 @@ func (t *table) ID() string {
 	return "table#" + t.name
 }
 
-func (t *table) LookupColumn(name string) (TableColumn, bool) {
+func (t *table) LookupColumn(id string) (TableColumn, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	idx, ok := t.columnNameToIndex[name]
+	idx, ok := t.columnNameToIndex[id]
 	if !ok {
 		return nil, false
 	}
@@ -24,11 +24,11 @@ func (t *table) LookupColumn(name string) (TableColumn, bool) {
 	return t.columns[idx], true
 }
 
-func (t *table) LookupColumnBefore(name string) (TableColumn, bool) {
+func (t *table) LookupColumnBefore(id string) (TableColumn, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	idx, ok := t.columnNameToIndex[name]
+	idx, ok := t.columnNameToIndex[id]
 	if !ok || idx == 0 {
 		return nil, false
 	}
