@@ -376,7 +376,6 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	}
 
 	if len(columnNames) > 0 {
-		sort.Strings(columnNames)
 		writeAddColumn(ctx, &buf, columnNames...)
 	}
 	return buf.WriteTo(dst)
