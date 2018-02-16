@@ -301,19 +301,92 @@ func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 
-	addColumns := ctx.toColumns.Difference(ctx.fromColumns)
+	beforeToNext := make(map[string]string) // lookup next column
+	nextToBefore := make(map[string]string) // lookup before column
 
-	columnNames := make([]string, 0, addColumns.Cardinality())
-	for _, addColumn := range addColumns.ToSlice() {
-		columnNames = append(columnNames, addColumn.(string))
+	// In order to do this correctly, we need to create a graph so that
+	// we always start adding with a column that has a either no before
+	// columns, or one that already exists in the database
+	var firstColumn model.TableColumn
+	for _, v := range ctx.toColumns.Difference(ctx.fromColumns).ToSlice() {
+		columnName := v.(string)
+		// find the before-column for each.
+		col, ok := ctx.to.LookupColumn(columnName)
+		if !ok {
+			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
+		}
+
+		beforeCol, hasBeforeCol := ctx.to.LookupColumnBefore(col.ID())
+		if !hasBeforeCol {
+			// if there is no before-column, then this is a special "FIRST"
+			// column
+			firstColumn = col
+			continue
+		}
+
+		// otherwise, keep a reverse-lookup map of before -> next columns
+		beforeToNext[beforeCol.ID()] = columnName
+		nextToBefore[columnName] = beforeCol.ID()
 	}
 
-	sort.Strings(columnNames)
+	// First column is always safe to add
+	if firstColumn != nil {
+		writeAddColumn(ctx, &buf, firstColumn.ID())
+	}
 
+	var columnNames []string
+	// Find columns that have before columns which existed in both
+	// from and to tables
+	for _, v := range ctx.toColumns.Intersect(ctx.fromColumns).ToSlice() {
+		columnName := v.(string)
+		if nextColumnName, ok := beforeToNext[columnName]; ok {
+			delete(beforeToNext, columnName)
+			delete(nextToBefore, nextColumnName)
+			columnNames = append(columnNames, nextColumnName)
+		}
+	}
+
+	if len(columnNames) > 0 {
+		sort.Strings(columnNames)
+		writeAddColumn(ctx, &buf, columnNames...)
+	}
+
+	// Finally, we process the remaining columns.
+	// All remaining columns are new, and they will depend on a
+	// newly created column. This means we have to make sure to
+	// create them in the order that they are dependent on.
+	columnNames = columnNames[:0]
+	for len(beforeToNext) > 1 {
+		// find that column who depends on nothing
+		for beforeCol, nextCol := range beforeToNext {
+			if _, ok := nextToBefore[beforeCol]; ok {
+				continue
+			}
+			// found it!
+			delete(beforeToNext, beforeCol)
+			delete(nextToBefore, nextCol)
+			columnNames = append(columnNames, nextCol)
+		}
+	}
+	// if there's one left, that can be appended
+	if len(beforeToNext) > 0 {
+		for k := range nextToBefore {
+			columnNames = append(columnNames, k)
+		}
+	}
+
+	if len(columnNames) > 0 {
+		sort.Strings(columnNames)
+		writeAddColumn(ctx, &buf, columnNames...)
+	}
+	return buf.WriteTo(dst)
+}
+
+func writeAddColumn(ctx *alterCtx, buf *bytes.Buffer, columnNames ...string) error {
 	for _, columnName := range columnNames {
 		stmt, ok := ctx.to.LookupColumn(columnName)
 		if !ok {
-			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
+			return errors.Errorf(`failed to lookup column %s`, columnName)
 		}
 
 		beforeCol, hasBeforeCol := ctx.to.LookupColumnBefore(stmt.ID())
@@ -323,8 +396,8 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD COLUMN ")
-		if err := format.SQL(&buf, stmt); err != nil {
-			return 0, err
+		if err := format.SQL(buf, stmt); err != nil {
+			return err
 		}
 		if hasBeforeCol {
 			buf.WriteString(" AFTER `")
@@ -336,8 +409,7 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 
 		buf.WriteByte(';')
 	}
-
-	return buf.WriteTo(dst)
+	return nil
 }
 
 func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
