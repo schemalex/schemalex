@@ -301,17 +301,19 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	var buf bytes.Buffer
 
 	addColumns := ctx.toColumns.Difference(ctx.fromColumns)
+
 	columnNames := make([]string, 0, addColumns.Cardinality())
 	for _, addColumn := range addColumns.ToSlice() {
 		columnNames = append(columnNames, addColumn.(string))
 	}
 
-	for stmt := range ctx.to.LookupColumns(columnNames) {
-		beforeCol, ok := ctx.to.LookupColumnBefore(stmt.ID())
+	for _, columnName := range columnNames {
+		stmt, ok := ctx.to.LookupColumn(columnName)
 		if !ok {
-			return 0, errors.Errorf(`failed to lookup %s column before.`, stmt.Name())
+			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
 		}
 
+		beforeCol, hasBeforeCol := ctx.to.LookupColumnBefore(stmt.ID())
 		if buf.Len() > 0 {
 			buf.WriteByte('\n')
 		}
@@ -321,7 +323,7 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 		if err := format.SQL(&buf, stmt); err != nil {
 			return 0, err
 		}
-		if beforeCol != nil {
+		if hasBeforeCol {
 			buf.WriteString(" AFTER `")
 			buf.WriteString(beforeCol.Name())
 			buf.WriteString("`")

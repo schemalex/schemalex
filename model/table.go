@@ -4,6 +4,7 @@ package model
 func NewTable(name string) Table {
 	return &table{
 		name: name,
+		columnNameToIndex: make(map[string]int),
 	}
 }
 
@@ -12,39 +13,27 @@ func (t *table) ID() string {
 }
 
 func (t *table) LookupColumn(name string) (TableColumn, bool) {
-	for col := range t.Columns() {
-		if col.ID() == name {
-			return col, true
-		}
-	}
-	return nil, false
-}
+	t.mu.RLock()
+	defer t.mu.RUnlock()
 
-func (t *table) LookupColumns(names []string) chan TableColumn {
-	target := make(map[string]struct{}, len(names))
-	for _, n := range names {
-		target[n] = struct{}{}
+	idx, ok := t.columnNameToIndex[name]
+	if !ok {
+		return nil, false
 	}
 
-	ch := make(chan TableColumn, len(names))
-	for _, col := range t.columns {
-		if _, ok := target[col.ID()]; ok {
-			ch <- col
-		}
-	}
-	close(ch)
-	return ch
+	return t.columns[idx], true
 }
 
 func (t *table) LookupColumnBefore(name string) (TableColumn, bool) {
-	var beforeCol TableColumn
-	for col := range t.Columns() {
-		if col.ID() == name {
-			return beforeCol, true
-		}
-		beforeCol = col
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	idx, ok := t.columnNameToIndex[name]
+	if !ok || idx == 0 {
+		return nil, false
 	}
-	return nil, false
+
+	return t.columns[idx-1], true
 }
 
 func (t *table) LookupIndex(id string) (Index, bool) {
@@ -57,12 +46,16 @@ func (t *table) LookupIndex(id string) (Index, bool) {
 }
 
 func (t *table) AddColumn(v TableColumn) Table {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	// Avoid adding the same TableColumn to multiple tables
 	if tblID := v.TableID(); tblID != "" {
 		v = v.Clone()
 	}
 	v.SetTableID(t.ID())
 	t.columns = append(t.columns, v)
+	t.columnNameToIndex[v.ID()] = len(t.columns) - 1
 	return t
 }
 
