@@ -6,6 +6,7 @@ import (
 	"bytes"
 	"io"
 	"reflect"
+	"sort"
 
 	"github.com/deckarep/golang-set"
 	"github.com/schemalex/schemalex"
@@ -306,6 +307,8 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	for _, addColumn := range addColumns.ToSlice() {
 		columnNames = append(columnNames, addColumn.(string))
 	}
+
+	sort.Strings(columnNames)
 
 	for _, columnName := range columnNames {
 		stmt, ok := ctx.to.LookupColumn(columnName)
