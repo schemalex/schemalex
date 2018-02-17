@@ -12,16 +12,29 @@ func (t *table) ID() string {
 	return "table#" + t.name
 }
 
+func (t *table) lookupColumnOrderNoLock(id string) (int, bool) {
+	idx, ok := t.columnNameToIndex[id]
+	return idx, ok
+}
+
 func (t *table) LookupColumn(id string) (TableColumn, bool) {
 	t.mu.RLock()
 	defer t.mu.RUnlock()
 
-	idx, ok := t.columnNameToIndex[id]
+	idx, ok := t.lookupColumnOrderNoLock(id)
 	if !ok {
 		return nil, false
 	}
 
 	return t.columns[idx], true
+}
+
+func (t *table) LookupColumnOrder(id string) (int, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	idx, ok := t.lookupColumnOrderNoLock(id)
+	return idx, ok
 }
 
 func (t *table) LookupColumnBefore(id string) (TableColumn, bool) {

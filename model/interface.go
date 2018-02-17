@@ -184,6 +184,7 @@ type Table interface {
 	Options() chan TableOption
 
 	LookupColumn(string) (TableColumn, bool)
+	LookupColumnOrder(string) (int, bool)
 	// LookupColumnBefore returns the table column before given column.
 	// If the named column does not exist, or if the named column is
 	// the first one, `(nil, false)` is returned

@@ -356,26 +356,16 @@ func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
 	// newly created column. This means we have to make sure to
 	// create them in the order that they are dependent on.
 	columnNames = columnNames[:0]
-	for len(beforeToNext) > 1 {
-		// find that column who depends on nothing
-		for beforeCol, nextCol := range beforeToNext {
-			if _, ok := nextToBefore[beforeCol]; ok {
-				continue
-			}
-			// found it!
-			delete(beforeToNext, beforeCol)
-			delete(nextToBefore, nextCol)
-			columnNames = append(columnNames, nextCol)
-		}
+	for _, nextCol := range beforeToNext {
+		columnNames = append(columnNames, nextCol)
 	}
 	// if there's one left, that can be appended
-	if len(beforeToNext) > 0 {
-		for k := range nextToBefore {
-			columnNames = append(columnNames, k)
-		}
-	}
-
 	if len(columnNames) > 0 {
+		sort.Slice(columnNames, func(i, j int) bool {
+			icol, _ := ctx.to.LookupColumnOrder(columnNames[i])
+			jcol, _ := ctx.to.LookupColumnOrder(columnNames[j])
+			return icol < jcol
+		})
 		writeAddColumn(ctx, &buf, columnNames...)
 	}
 	return buf.WriteTo(dst)
