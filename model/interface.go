@@ -5,6 +5,8 @@
 
 package model
 
+import "sync"
+
 // Stmt is the interface to define a statement
 type Stmt interface {
 	ID() string
@@ -182,6 +184,12 @@ type Table interface {
 	Options() chan TableOption
 
 	LookupColumn(string) (TableColumn, bool)
+	LookupColumnOrder(string) (int, bool)
+	// LookupColumnBefore returns the table column before given column.
+	// If the named column does not exist, or if the named column is
+	// the first one, `(nil, false)` is returned
+	LookupColumnBefore(string) (TableColumn, bool)
+
 	LookupIndex(string) (Index, bool)
 
 	// Normalize returns normalized table. If a normalization was performed
@@ -201,13 +209,15 @@ type TableOption interface {
 }
 
 type table struct {
-	name        string
-	temporary   bool
-	ifnotexists bool
-	likeTable   maybeString
-	columns     []TableColumn
-	indexes     []Index
-	options     []TableOption
+	mu                sync.RWMutex
+	name              string
+	temporary         bool
+	ifnotexists       bool
+	likeTable         maybeString
+	columns           []TableColumn
+	columnNameToIndex map[string]int
+	indexes           []Index
+	options           []TableOption
 }
 
 type tableopt struct {
