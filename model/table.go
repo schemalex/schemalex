@@ -4,6 +4,7 @@ package model
 func NewTable(name string) Table {
 	return &table{
 		name: name,
+		columnNameToIndex: make(map[string]int),
 	}
 }
 
@@ -11,13 +12,41 @@ func (t *table) ID() string {
 	return "table#" + t.name
 }
 
-func (t *table) LookupColumn(name string) (TableColumn, bool) {
-	for col := range t.Columns() {
-		if col.ID() == name {
-			return col, true
-		}
+func (t *table) lookupColumnOrderNoLock(id string) (int, bool) {
+	idx, ok := t.columnNameToIndex[id]
+	return idx, ok
+}
+
+func (t *table) LookupColumn(id string) (TableColumn, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	idx, ok := t.lookupColumnOrderNoLock(id)
+	if !ok {
+		return nil, false
 	}
-	return nil, false
+
+	return t.columns[idx], true
+}
+
+func (t *table) LookupColumnOrder(id string) (int, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	idx, ok := t.lookupColumnOrderNoLock(id)
+	return idx, ok
+}
+
+func (t *table) LookupColumnBefore(id string) (TableColumn, bool) {
+	t.mu.RLock()
+	defer t.mu.RUnlock()
+
+	idx, ok := t.columnNameToIndex[id]
+	if !ok || idx == 0 {
+		return nil, false
+	}
+
+	return t.columns[idx-1], true
 }
 
 func (t *table) LookupIndex(id string) (Index, bool) {
@@ -30,12 +59,16 @@ func (t *table) LookupIndex(id string) (Index, bool) {
 }
 
 func (t *table) AddColumn(v TableColumn) Table {
+	t.mu.Lock()
+	defer t.mu.Unlock()
+
 	// Avoid adding the same TableColumn to multiple tables
 	if tblID := v.TableID(); tblID != "" {
 		v = v.Clone()
 	}
 	v.SetTableID(t.ID())
 	t.columns = append(t.columns, v)
+	t.columnNameToIndex[v.ID()] = len(t.columns) - 1
 	return t
 }
 
