@@ -2,7 +2,7 @@
 
 package model
 
-import "fmt"
+import "strconv"
 
 const _ReferenceOption_name = "ReferenceOptionNoneReferenceOptionRestrictReferenceOptionCascadeReferenceOptionSetNullReferenceOptionNoAction"
 
@@ -10,7 +10,7 @@ var _ReferenceOption_index = [...]uint8{0, 19, 42, 64, 86, 109}
 
 func (i ReferenceOption) String() string {
 	if i < 0 || i >= ReferenceOption(len(_ReferenceOption_index)-1) {
-		return fmt.Sprintf("ReferenceOption(%d)", i)
+		return "ReferenceOption(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ReferenceOption_name[_ReferenceOption_index[i]:_ReferenceOption_index[i+1]]
 }
