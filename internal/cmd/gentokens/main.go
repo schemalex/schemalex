@@ -126,6 +126,7 @@ func _main() error {
 		{Ident: "INSERT_METHOD"},
 		{Ident: "INT"},
 		{Ident: "INTEGER"},
+		{Ident: "JSON"},
 		{Ident: "KEY"},
 		{Ident: "KEY_BLOCK_SIZE"},
 		{Ident: "LAST"},

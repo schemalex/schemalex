@@ -243,6 +243,11 @@ primary key (id, c)
 			Input:  "CREATE TABLE `test` (\n`valid` BOOL not null default false\n);",
 			Expect: "CREATE TABLE `test` (\n`valid` TINYINT (1) NOT NULL DEFAULT 0\n)",
 		},
+		// JSON
+		{
+			Input:  "CREATE TABLE `test` (\n`valid` JSON not null\n);",
+			Expect: "CREATE TABLE `test` (\n`valid` JSON NOT NULL\n)",
+		},
 		// CREATE TABLE IF NOT EXISTS
 		{
 			Input:  "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n);",
