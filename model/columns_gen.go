@@ -41,6 +41,7 @@ const (
 	ColumnTypeSet
 	ColumnTypeBoolean
 	ColumnTypeBool
+	ColumnTypeJSON
 
 	ColumnTypeMax
 )
@@ -113,6 +114,8 @@ func (c ColumnType) String() string {
 		return "BOOLEAN"
 	case ColumnTypeBool:
 		return "BOOL"
+	case ColumnTypeJSON:
+		return "JSON"
 	default:
 		return "(invalid)"
 	}
