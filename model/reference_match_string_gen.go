@@ -2,7 +2,7 @@
 
 package model
 
-import "fmt"
+import "strconv"
 
 const _ReferenceMatch_name = "ReferenceMatchNoneReferenceMatchFullReferenceMatchPartialReferenceMatchSimple"
 
@@ -10,7 +10,7 @@ var _ReferenceMatch_index = [...]uint8{0, 18, 36, 57, 77}
 
 func (i ReferenceMatch) String() string {
 	if i < 0 || i >= ReferenceMatch(len(_ReferenceMatch_index)-1) {
-		return fmt.Sprintf("ReferenceMatch(%d)", i)
+		return "ReferenceMatch(" + strconv.FormatInt(int64(i), 10) + ")"
 	}
 	return _ReferenceMatch_name[_ReferenceMatch_index[i]:_ReferenceMatch_index[i+1]]
 }
