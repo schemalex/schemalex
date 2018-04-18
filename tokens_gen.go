@@ -96,6 +96,7 @@ const (
 	INSERT_METHOD
 	INT
 	INTEGER
+	JSON
 	KEY
 	KEY_BLOCK_SIZE
 	LAST
@@ -207,6 +208,7 @@ var keywordIdentMap = map[string]TokenType{
 	"INSERT_METHOD":      INSERT_METHOD,
 	"INT":                INT,
 	"INTEGER":            INTEGER,
+	"JSON":               JSON,
 	"KEY":                KEY,
 	"KEY_BLOCK_SIZE":     KEY_BLOCK_SIZE,
 	"LAST":               LAST,
@@ -414,6 +416,8 @@ func (t TokenType) String() string {
 		return "INT"
 	case INTEGER:
 		return "INTEGER"
+	case JSON:
+		return "JSON"
 	case KEY:
 		return "KEY"
 	case KEY_BLOCK_SIZE:
