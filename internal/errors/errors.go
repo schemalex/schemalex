@@ -61,3 +61,7 @@ func Wrap(err error, s string) error {
 func Wrapf(err error, s string, args ...interface{}) error {
 	return daverr.Wrapf(err, s, args...)
 }
+
+func Cause(err error) error {
+	return daverr.Cause(err)
+}

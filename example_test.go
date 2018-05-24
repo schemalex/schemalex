@@ -26,17 +26,12 @@ CREATE TABLE fuga (
 
 	// OUTPUT:
 	// BEGIN;
-	//
 	// SET FOREIGN_KEY_CHECKS = 0;
-	//
 	// CREATE TABLE `fuga` (
 	// `id` INT (11) NOT NULL AUTO_INCREMENT,
 	// PRIMARY KEY (`id`)
 	// );
-	//
 	// ALTER TABLE `hoge` ADD COLUMN `c` VARCHAR (20) NOT NULL DEFAULT 'hoge' AFTER `id`;
-	//
 	// SET FOREIGN_KEY_CHECKS = 1;
-	//
 	// COMMIT;
 }

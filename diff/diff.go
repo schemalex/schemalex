@@ -20,6 +20,7 @@ type diffCtx struct {
 	toSet   mapset.Set
 	from    model.Stmts
 	to      model.Stmts
+	result  Stmts
 }
 
 func newDiffCtx(from, to model.Stmts) *diffCtx {
@@ -44,10 +45,10 @@ func newDiffCtx(from, to model.Stmts) *diffCtx {
 	}
 }
 
-// Statements compares two model.Stmts and generates a series
-// of statements to migrate from the old one to the new one,
-// writing the result to `dst`
-func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
+// Diff compares two model.Stmts, and generates a series of
+// statements as `diff.Stmts` so the consumer can, for example,
+// analyze or use these statements standalone by themselves.
+func Diff(from, to model.Stmts, options ...Option) (Stmts, error) {
 	var txn bool
 	for _, o := range options {
 		switch o.Name() {
@@ -58,33 +59,39 @@ func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
 
 	ctx := newDiffCtx(from, to)
 
-	var procs = []func(*diffCtx, io.Writer) (int64, error){
+	var procs = []func(*diffCtx) error{
 		dropTables,
 		createTables,
 		alterTables,
 	}
 
-	var buf bytes.Buffer
 	if txn {
-		buf.WriteString("\nBEGIN;\n\nSET FOREIGN_KEY_CHECKS = 0;")
+		ctx.result.AppendStmt(`BEGIN`)
+		ctx.result.AppendStmt(`SET FOREIGN_KEY_CHECKS = 0`)
 	}
 
 	for _, p := range procs {
-		var pbuf bytes.Buffer
-		n, err := p(ctx, &pbuf)
-		if err != nil {
-			return errors.Wrap(err, `failed to produce diff`)
+		if err := p(ctx); err != nil {
+			return nil, errors.Wrap(err, `failed to produce diff`)
 		}
-		if txn && n > 0 || !txn && buf.Len() > 0 && n > 0 {
-			buf.WriteString("\n\n")
-		}
-		pbuf.WriteTo(&buf)
 	}
 	if txn {
-		buf.WriteString("\n\nSET FOREIGN_KEY_CHECKS = 1;\n\nCOMMIT;")
+		ctx.result.AppendStmt(`SET FOREIGN_KEY_CHECKS = 1`)
+		ctx.result.AppendStmt(`COMMIT`)
+	}
+	return ctx.result, nil
+}
+
+// Statements compares two model.Stmts and generates a series
+// of statements to migrate from the old one to the new one,
+// writing the result to `dst`
+func Statements(dst io.Writer, from, to model.Stmts, options ...Option) error {
+	stmts, err := Diff(from, to, options...)
+	if err != nil {
+		return errors.Wrap(err, `failed to generate difference as statements`)
 	}
 
-	if _, err := buf.WriteTo(dst); err != nil {
+	if _, err := stmts.WriteTo(dst); err != nil {
 		return errors.Wrap(err, `failed to write diff`)
 	}
 	return nil
@@ -142,52 +149,41 @@ func Sources(dst io.Writer, from, to schemalex.SchemaSource, options ...Option) 
 	return Strings(dst, fromStr, buf.String(), options...)
 }
 
-func dropTables(ctx *diffCtx, dst io.Writer) (int64, error) {
-	var buf bytes.Buffer
+func dropTables(ctx *diffCtx) error {
 	ids := ctx.fromSet.Difference(ctx.toSet)
-	for i, id := range ids.ToSlice() {
-		if i > 0 {
-			buf.WriteByte('\n')
-		}
-
+	for _, id := range ids.ToSlice() {
 		stmt, ok := ctx.from.Lookup(id.(string))
 		if !ok {
-			return 0, errors.Errorf(`failed to lookup table %s`, id)
+			return errors.Errorf(`failed to lookup table %s`, id)
 		}
 
 		table, ok := stmt.(model.Table)
 		if !ok {
-			return 0, errors.Errorf(`lookup failed: %s is not a model.Table`, id)
+			return errors.Errorf(`lookup failed: %s is not a model.Table`, id)
 		}
-		buf.WriteString("DROP TABLE `")
-		buf.WriteString(table.Name())
-		buf.WriteString("`;")
+		ctx.result.AppendStmt("DROP TABLE `" + table.Name() + "`")
 	}
 
-	return buf.WriteTo(dst)
+	return nil
 }
 
-func createTables(ctx *diffCtx, dst io.Writer) (int64, error) {
-	var buf bytes.Buffer
-
+func createTables(ctx *diffCtx) error {
 	ids := ctx.toSet.Difference(ctx.fromSet)
+	var buf bytes.Buffer
 	for _, id := range ids.ToSlice() {
 		// Lookup the corresponding statement, and add its SQL
 		stmt, ok := ctx.to.Lookup(id.(string))
 		if !ok {
-			return 0, errors.Errorf(`failed to lookup table %s`, id)
+			return errors.Errorf(`failed to lookup table %s`, id)
 		}
 
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
-
+		buf.Reset()
 		if err := format.SQL(&buf, stmt); err != nil {
-			return 0, err
+			return errors.Wrap(err, `failed to format statement`)
 		}
-		buf.WriteByte(';')
+		ctx.result.AppendStmt(buf.String())
 	}
-	return buf.WriteTo(dst)
+	return nil
 }
 
 type alterCtx struct {
@@ -197,9 +193,10 @@ type alterCtx struct {
 	toIndexes   mapset.Set
 	from        model.Table
 	to          model.Table
+	result      Stmts
 }
 
-func newAlterCtx(from, to model.Table) *alterCtx {
+func newAlterCtx(ctx *diffCtx, from, to model.Table) *alterCtx {
 	fromColumns := mapset.NewSet()
 	for col := range from.Columns() {
 		fromColumns.Add(col.ID())
@@ -227,11 +224,12 @@ func newAlterCtx(from, to model.Table) *alterCtx {
 		toIndexes:   toIndexes,
 		from:        from,
 		to:          to,
+		result:      ctx.result,
 	}
 }
 
-func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
-	procs := []func(*alterCtx, io.Writer) (int64, error){
+func alterTables(ctx *diffCtx) error {
+	procs := []func(*alterCtx) error{
 		dropTableIndexes,
 		dropTableColumns,
 		addTableColumns,
@@ -240,62 +238,47 @@ func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 	}
 
 	ids := ctx.toSet.Intersect(ctx.fromSet)
-	var buf bytes.Buffer
 	for _, id := range ids.ToSlice() {
 		var stmt model.Stmt
 		var ok bool
 
 		stmt, ok = ctx.from.Lookup(id.(string))
 		if !ok {
-			return 0, errors.Errorf(`table '%s' not found in old schema (alter table)`, id)
+			return errors.Errorf(`table '%s' not found in old schema (alter table)`, id)
 		}
 		beforeStmt := stmt.(model.Table)
 
 		stmt, ok = ctx.to.Lookup(id.(string))
 		if !ok {
-			return 0, errors.Errorf(`table '%s' not found in new schema (alter table)`, id)
+			return errors.Errorf(`table '%s' not found in new schema (alter table)`, id)
 		}
 		afterStmt := stmt.(model.Table)
 
-		var pbuf bytes.Buffer
-		alterCtx := newAlterCtx(beforeStmt, afterStmt)
+		alterCtx := newAlterCtx(ctx, beforeStmt, afterStmt)
 		for _, p := range procs {
-			n, err := p(alterCtx, &pbuf)
-			if err != nil {
-				return 0, errors.Wrap(err, `failed to generate alter table`)
+			if err := p(alterCtx); err != nil {
+				return errors.Wrap(err, `failed to generate alter table`)
 			}
-
-			if buf.Len() > 0 && n > 0 {
-				buf.WriteByte('\n')
-			}
-			pbuf.WriteTo(&buf)
 		}
+		ctx.result = alterCtx.result
 	}
 
-	return buf.WriteTo(dst)
+	return nil
 }
 
-func dropTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
+func dropTableColumns(ctx *alterCtx) error {
 	columnNames := ctx.fromColumns.Difference(ctx.toColumns)
 
-	var buf bytes.Buffer
 	for _, columnName := range columnNames.ToSlice() {
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
-		buf.WriteString("ALTER TABLE `")
-		buf.WriteString(ctx.from.Name())
-		buf.WriteString("` DROP COLUMN `")
 		col, ok := ctx.from.LookupColumn(columnName.(string))
 		if !ok {
-			return 0, errors.Errorf(`failed to lookup column %s`, columnName)
+			return errors.Errorf(`failed to lookup column %s`, columnName)
 		}
 
-		buf.WriteString(col.Name())
-		buf.WriteString("`;")
+		ctx.result.AppendStmt("ALTER TABLE `" + ctx.from.Name() + "` DROP COLUMN `" + col.Name() + "`")
 	}
 
-	return buf.WriteTo(dst)
+	return nil
 }
 
 func addTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
@@ -401,42 +384,40 @@ func writeAddColumn(ctx *alterCtx, buf *bytes.Buffer, columnNames ...string) err
 	return nil
 }
 
-func alterTableColumns(ctx *alterCtx, dst io.Writer) (int64, error) {
+func alterTableColumns(ctx *alterCtx) error {
 	var buf bytes.Buffer
 	columnNames := ctx.toColumns.Intersect(ctx.fromColumns)
 	for _, columnName := range columnNames.ToSlice() {
 		beforeColumnStmt, ok := ctx.from.LookupColumn(columnName.(string))
 		if !ok {
-			return 0, errors.Errorf(`column %s not found in old schema`, columnName)
+			return errors.Errorf(`column %s not found in old schema`, columnName)
 		}
 
 		afterColumnStmt, ok := ctx.to.LookupColumn(columnName.(string))
 		if !ok {
-			return 0, errors.Errorf(`column %s not found in new schema`, columnName)
+			return errors.Errorf(`column %s not found in new schema`, columnName)
 		}
 
 		if reflect.DeepEqual(beforeColumnStmt, afterColumnStmt) {
 			continue
 		}
 
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
+		buf.Reset()
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` CHANGE COLUMN `")
 		buf.WriteString(afterColumnStmt.Name())
 		buf.WriteString("` ")
 		if err := format.SQL(&buf, afterColumnStmt); err != nil {
-			return 0, err
+			return errors.Wrap(err, `failed to format statement`)
 		}
-		buf.WriteByte(';')
+		ctx.result.AppendStmt(buf.String())
 	}
 
-	return buf.WriteTo(dst)
+	return nil
 }
 
-func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
+func dropTableIndexes(ctx *alterCtx) error {
 	var buf bytes.Buffer
 	indexes := ctx.fromIndexes.Difference(ctx.toIndexes)
 	// drop index after drop constraint.
@@ -445,30 +426,24 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 	for _, index := range indexes.ToSlice() {
 		indexStmt, ok := ctx.from.LookupIndex(index.(string))
 		if !ok {
-			return 0, errors.Errorf(`index '%s' not found in old schema (drop index)`, index)
+			return errors.Errorf(`index '%s' not found in old schema (drop index)`, index)
 		}
 
 		if indexStmt.IsPrimaryKey() {
-			if buf.Len() > 0 {
-				buf.WriteByte('\n')
-			}
-			buf.WriteString("ALTER TABLE `")
-			buf.WriteString(ctx.from.Name())
-			buf.WriteString("` DROP INDEX PRIMARY KEY;")
+			ctx.result.AppendStmt("ALTER TABLE `" + ctx.from.Name() + "` DROP INDEX PRIMARY KEY")
 			continue
 		}
 
 		if !indexStmt.HasName() && !indexStmt.HasSymbol() {
-			return 0, errors.Errorf("can not drop index without name: %s", indexStmt.ID())
+			return errors.Errorf("can not drop index without name: %s", indexStmt.ID())
 		}
+
 		if !indexStmt.IsForeginKey() {
 			lazy = append(lazy, indexStmt)
 			continue
 		}
 
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
+		buf.Reset()
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP FOREIGN KEY `")
@@ -477,13 +452,13 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		} else {
 			buf.WriteString(indexStmt.Name())
 		}
-		buf.WriteString("`;")
+		buf.WriteString("`")
+		ctx.result.AppendStmt(buf.String())
 	}
+
 	// drop index after drop CONSTRAINT
 	for _, indexStmt := range lazy {
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
+		buf.Reset()
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` DROP INDEX `")
@@ -492,14 +467,14 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		} else {
 			buf.WriteString(indexStmt.Name())
 		}
-
-		buf.WriteString("`;")
+		buf.WriteString("`")
+		ctx.result.AppendStmt(buf.String())
 	}
 
-	return buf.WriteTo(dst)
+	return nil
 }
 
-func addTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
+func addTableIndexes(ctx *alterCtx) error {
 	var buf bytes.Buffer
 	indexes := ctx.toIndexes.Difference(ctx.fromIndexes)
 	// add index before add foreign key.
@@ -508,36 +483,33 @@ func addTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 	for _, index := range indexes.ToSlice() {
 		indexStmt, ok := ctx.to.LookupIndex(index.(string))
 		if !ok {
-			return 0, errors.Errorf(`index '%s' not found in old schema (add index)`, index)
+			return errors.Errorf(`index '%s' not found in old schema (add index)`, index)
 		}
 		if indexStmt.IsForeginKey() {
 			lazy = append(lazy, indexStmt)
 			continue
 		}
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
+
+		buf.Reset()
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD ")
 		if err := format.SQL(&buf, indexStmt); err != nil {
-			return 0, err
+			return errors.Wrap(err, `failed to format statement`)
 		}
-		buf.WriteByte(';')
+		ctx.result.AppendStmt(buf.String())
 	}
 
 	for _, indexStmt := range lazy {
-		if buf.Len() > 0 {
-			buf.WriteByte('\n')
-		}
+		buf.Reset()
 		buf.WriteString("ALTER TABLE `")
 		buf.WriteString(ctx.from.Name())
 		buf.WriteString("` ADD ")
 		if err := format.SQL(&buf, indexStmt); err != nil {
-			return 0, err
+			return errors.Wrap(err, `failed to format statement`)
 		}
-		buf.WriteByte(';')
+		ctx.result.AppendStmt(buf.String())
 	}
 
-	return buf.WriteTo(dst)
+	return nil
 }
