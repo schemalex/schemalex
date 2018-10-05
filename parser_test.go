@@ -259,6 +259,19 @@ primary key (id, c)
 			Input:  "CREATE TABLE foo (id INT(10) NOT NULL) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
 			Expect: "CREATE TABLE `foo` (\n`id` INT (10) NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
 		},
+
+		// Comments (empty lines)
+		{
+			Input: `/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
+/*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
+/*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;`,
+			Expect: ``,
+		},
+		// Comments and statements mixed together
+		{
+			Input:  "/* hello, world*/;\nCREATE TABLE foo (\na int);\n/* hello, world again! */;\nCREATE TABLE bar (\nb int);",
+			Expect: "CREATE TABLE `foo` (\n`a` INT (11) DEFAULT NULL\n)CREATE TABLE `bar` (\n`b` INT (11) DEFAULT NULL\n)",
+		},
 	}
 
 	p := schemalex.New()
