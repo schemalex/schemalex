@@ -271,6 +271,7 @@ type TableColumn interface {
 	SetCharacterSet(string) TableColumn
 	HasCollation() bool
 	Collation() string
+	SetCollation(string) TableColumn
 	HasDefault() bool
 	Default() string
 	IsQuotedDefault() bool
