@@ -461,7 +461,7 @@ func dropTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		if !indexStmt.HasName() && !indexStmt.HasSymbol() {
 			return 0, errors.Errorf("can not drop index without name: %s", indexStmt.ID())
 		}
-		if !indexStmt.IsForeginKey() {
+		if !indexStmt.IsForeignKey() {
 			lazy = append(lazy, indexStmt)
 			continue
 		}
@@ -510,7 +510,7 @@ func addTableIndexes(ctx *alterCtx, dst io.Writer) (int64, error) {
 		if !ok {
 			return 0, errors.Errorf(`index '%s' not found in old schema (add index)`, index)
 		}
-		if indexStmt.IsForeginKey() {
+		if indexStmt.IsForeignKey() {
 			lazy = append(lazy, indexStmt)
 			continue
 		}

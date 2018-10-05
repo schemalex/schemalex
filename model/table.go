@@ -3,7 +3,7 @@ package model
 // NewTable create a new table with the given name
 func NewTable(name string) Table {
 	return &table{
-		name: name,
+		name:              name,
 		columnNameToIndex: make(map[string]int),
 	}
 }
@@ -190,6 +190,7 @@ func (t *table) Normalize() (Table, bool) {
 	}
 
 	var indexes []Index
+	var seen = make(map[string]struct{})
 	for idx := range t.Indexes() {
 		nidx, modified := idx.Normalize()
 		if modified {
@@ -200,20 +201,30 @@ func (t *table) Normalize() (Table, bool) {
 		// implicitly created INDEX too difficult.
 		// (lestrrat) this comment is confusing. Please add
 		// actual examples somewhere
-		if nidx.IsForeginKey() && nidx.Symbol() != "" {
-			clone = true
-			// add implicitly created INDEX
-			index := NewIndex(IndexKindNormal, t.ID())
-			index.SetName(nidx.Symbol())
-			index.SetType(IndexTypeNone)
-			columns := []IndexColumn{}
-			for c := range nidx.Columns() {
-				columns = append(columns, c)
+		if nidx.IsForeignKey() && nidx.HasSymbol() {
+			// There's a chance the user has already explicitly declared the
+			// index for this constraint. Only add this implicit index if we
+			// haven't seen it before
+			if _, ok := seen[nidx.Symbol()]; !ok {
+				clone = true
+				// add implicitly created INDEX
+				index := NewIndex(IndexKindNormal, t.ID())
+				index.SetName(nidx.Symbol())
+				if nidx.IsBtree() {
+					index.SetType(IndexTypeBtree)
+				} else if nidx.IsHash() {
+					index.SetType(IndexTypeHash)
+				}
+				columns := []IndexColumn{}
+				for c := range nidx.Columns() {
+					columns = append(columns, c)
+				}
+				index.AddColumns(columns...)
+				indexes = append(indexes, index)
 			}
-			index.AddColumns(columns...)
-			indexes = append(indexes, index)
 		}
 		indexes = append(indexes, nidx)
+		seen[nidx.Name()] = struct{}{}
 	}
 
 	if !clone {
