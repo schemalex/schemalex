@@ -41,6 +41,7 @@ type Index interface {
 	Stmt
 	ColumnContainer
 
+	HasType() bool
 	HasName() bool
 	HasSymbol() bool
 	Name() string
@@ -57,7 +58,7 @@ type Index interface {
 	IsUnique() bool
 	IsFullText() bool
 	IsSpatial() bool
-	IsForeginKey() bool
+	IsForeignKey() bool
 
 	// Normalize returns normalized index. If a normalization was performed
 	// and the index is modified, returns a new instance of the Table object

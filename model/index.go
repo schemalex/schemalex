@@ -99,6 +99,10 @@ func (stmt *index) SetSymbol(s string) Index {
 	return stmt
 }
 
+func (stmt *index) HasType() bool {
+	return stmt.typ != IndexTypeNone
+}
+
 func (stmt *index) SetType(typ IndexType) Index {
 	stmt.typ = typ
 	return stmt
@@ -132,7 +136,7 @@ func (stmt *index) IsSpatial() bool {
 	return stmt.kind == IndexKindSpatial
 }
 
-func (stmt *index) IsForeginKey() bool {
+func (stmt *index) IsForeignKey() bool {
 	return stmt.kind == IndexKindForeignKey
 }
 

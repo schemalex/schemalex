@@ -341,7 +341,7 @@ func formatIndex(ctx *fmtCtx, index model.Index) error {
 		buf.WriteString("FULLTEXT INDEX")
 	case index.IsSpatial():
 		buf.WriteString("SPATIAL INDEX")
-	case index.IsForeginKey():
+	case index.IsForeignKey():
 		buf.WriteString("FOREIGN KEY")
 	}
 
