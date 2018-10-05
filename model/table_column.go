@@ -56,6 +56,12 @@ func (t *tablecol) SetCharacterSet(s string) TableColumn {
 	return t
 }
 
+func (t *tablecol) SetCollation(s string) TableColumn {
+	t.collation.Valid = true
+	t.collation.Value = s
+	return t
+}
+
 func (t *tablecol) CharacterSet() string {
 	return t.charset.Value
 }

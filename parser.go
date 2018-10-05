@@ -890,6 +890,10 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			ctx.skipWhiteSpaces()
 			v := ctx.next()
 			col.SetCharacterSet(v.Value)
+		case COLLATE:
+			ctx.skipWhiteSpaces()
+			v := ctx.next()
+			col.SetCollation(v.Value)
 		case UNSIGNED:
 			if !check(coloptUnsigned) {
 				return newParseError(ctx, t, "cannot apply UNSIGNED")

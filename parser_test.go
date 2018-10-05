@@ -259,6 +259,12 @@ primary key (id, c)
 			Input:  "CREATE TABLE foo (id INT(10) NOT NULL) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
 			Expect: "CREATE TABLE `foo` (\n`id` INT (10) NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
 		},
+
+		// issue 59
+		{
+			Input: "DROP TABLE IF EXISTS `socialaccount_socialtoken`;\nCREATE TABLE `socialaccount_socialtoken` (\n`id` int(11) NOT NULL AUTO_INCREMENT,\n`token` longtext COLLATE utf8mb4_unicode_ci NOT NULL,\n`token_secret` longtext COLLATE utf8mb4_unicode_ci NOT NULL,\n`expires_at` datetime(6) DEFAULT NULL,\n`account_id` int(11) NOT NULL,\n`app_id` int(11) NOT NULL,\nPRIMARY KEY (`id`) USING BTREE,\nUNIQUE KEY `socialaccount_socialtoken_app_id_account_id_fca4e0ac_uniq` (`app_id`,`account_id`) USING BTREE,\nKEY `socialaccount_social_account_id_951f210e_fk_socialacc` (`account_id`) USING BTREE,\nCONSTRAINT `socialaccount_social_account_id_951f210e_fk_socialacc` FOREIGN KEY (`account_id`) REFERENCES `socialaccount_socialaccount` (`id`),\nCONSTRAINT `socialaccount_social_app_id_636a42d7_fk_socialacc` FOREIGN KEY (`app_id`) REFERENCES `socialaccount_socialapp` (`id`)\n) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci ROW_FORMAT=DYNAMIC;",
+			Expect: "",
+		},
 	}
 
 	p := schemalex.New()
