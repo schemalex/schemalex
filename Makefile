@@ -8,7 +8,7 @@ SRC_FILES = $(wildcard *.go model/*.go diff/*.go cmd/schemalex/*.go internal/*/*
 GITHUB_USERNAME=schemalex
 
 installdeps: glide-$(GOOS)-$(GOARCH)/glide
-	PATH=glide-$(GOOS)-$(GOARCH):$(PATH) glide install
+	PATH="glide-$(GOOS)-$(GOARCH):$(PATH)" glide install
 
 glide-$(GOOS)-$(GOARCH):
 	@echo " * Creating $(@F)"
