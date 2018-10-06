@@ -239,13 +239,13 @@ primary key (id, c)
 			"CONSTRAINT `socialaccount_social_app_id_636a42d7_fk_socialacc` FOREIGN KEY (`app_id`) REFERENCES `socialaccount_socialapp` (`id`)\n" +
 			") ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_unicode_ci, ROW_FORMAT = DYNAMIC",
 	})
-	parse("CoomentsEmptyLines", &Spec{
+	parse("CommentsEmptyLines", &Spec{
 		Input: `/*!40101 SET @OLD_CHARACTER_SET_CLIENT=@@CHARACTER_SET_CLIENT */;
 /*!40101 SET @OLD_CHARACTER_SET_RESULTS=@@CHARACTER_SET_RESULTS */;
 /*!40101 SET @OLD_COLLATION_CONNECTION=@@COLLATION_CONNECTION */;`,
 		Expect: "",
 	})
-	parse("CoomentsAndStatementsMixedTogether", &Spec{
+	parse("CommentsAndStatementsMixedTogether", &Spec{
 		Input:  "/* hello, world*/;\nCREATE TABLE foo (\na int);\n/* hello, world again! */;\nCREATE TABLE bar (\nb int);",
 		Expect: "CREATE TABLE `foo` (\n`a` INT (11) DEFAULT NULL\n)CREATE TABLE `bar` (\n`b` INT (11) DEFAULT NULL\n)",
 	})
