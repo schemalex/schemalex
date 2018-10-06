@@ -182,6 +182,8 @@ func _main() error {
 		{Ident: "VARCHAR"},
 		{Ident: "YEAR"},
 		{Ident: "ZEROFILL"},
+		{Ident: "ASC"},
+		{Ident: "DESC"},
 	}
 
 	for _, tok := range tokens {

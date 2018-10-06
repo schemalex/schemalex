@@ -27,6 +27,14 @@ type ColumnContainer interface {
 	Columns() chan IndexColumn
 }
 
+type IndexColumnSortDirection int
+
+const (
+	SortDirectionNone IndexColumnSortDirection = iota
+	SortDirectionAscending
+	SortDirectionDescending
+)
+
 // IndexColumn is a column name/length specification used in indexes
 type IndexColumn interface {
 	ID() string
@@ -34,6 +42,10 @@ type IndexColumn interface {
 	SetLength(string) IndexColumn
 	HasLength() bool
 	Length() string
+	SetSortDirection(IndexColumnSortDirection)
+	HasSortDirection() bool
+	IsAscending() bool
+	IsDescending() bool
 }
 
 // Index describes an index on a table.
@@ -98,8 +110,9 @@ const (
 // and index column specification may be
 // name or name(length)
 type indexColumn struct {
-	name   string
-	length maybeString
+	name          string
+	length        maybeString
+	sortDirection IndexColumnSortDirection
 }
 
 type index struct {

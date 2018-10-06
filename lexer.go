@@ -378,7 +378,7 @@ func (l *lexer) runNumber() {
 }
 
 func isSpace(r rune) bool {
-	return r == ' ' || r == '\n' || r == '\t'
+	return r == ' ' || r == '\n' || r == '\t' || r == '\r'
 }
 
 func isLetter(r rune) bool {
