@@ -180,3 +180,20 @@ func (col *indexColumn) SetLength(s string) IndexColumn {
 	col.length.Value = s
 	return col
 }
+
+func (col *indexColumn) SetSortDirection(v IndexColumnSortDirection) {
+	col.sortDirection = v
+}
+
+func (col *indexColumn) HasSortDirection() bool {
+	return col.sortDirection != SortDirectionNone
+}
+
+func (col *indexColumn) IsAscending() bool {
+	return col.sortDirection == SortDirectionAscending
+}
+
+func (col *indexColumn) IsDescending() bool {
+	return col.sortDirection == SortDirectionDescending
+}
+

@@ -372,6 +372,14 @@ func formatIndex(ctx *fmtCtx, index model.Index) error {
 			buf.WriteString(col.Length())
 			buf.WriteByte(')')
 		}
+		if col.HasSortDirection() {
+			if col.IsAscending() {
+				buf.WriteString(" ASC")
+			} else {
+				buf.WriteString(" DESC")
+			}
+		}
+
 		if i < lch-1 {
 			buf.WriteString(", ")
 		}
