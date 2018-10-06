@@ -152,6 +152,8 @@ const (
 	VARCHAR
 	YEAR
 	ZEROFILL
+	ASC
+	DESC
 )
 
 var keywordIdentMap = map[string]TokenType{
@@ -264,6 +266,8 @@ var keywordIdentMap = map[string]TokenType{
 	"VARCHAR":            VARCHAR,
 	"YEAR":               YEAR,
 	"ZEROFILL":           ZEROFILL,
+	"ASC":                ASC,
+	"DESC":               DESC,
 }
 
 func (t TokenType) String() string {
@@ -528,6 +532,10 @@ func (t TokenType) String() string {
 		return "YEAR"
 	case ZEROFILL:
 		return "ZEROFILL"
+	case ASC:
+		return "ASC"
+	case DESC:
+		return "DESC"
 	}
 	return "(invalid)"
 }

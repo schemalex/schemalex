@@ -1204,7 +1204,7 @@ func (p *Parser) parseColumnReference(ctx *parseCtx, index model.Index) error {
 	case BACKTICK_IDENT, IDENT:
 		r.SetTableName(t.Value)
 	default:
-		return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
+		return newParseError(ctx, t, "expected IDENT or BACKTICK_IDENT")
 	}
 
 	if err := p.parseColumnIndexColumns(ctx, r); err != nil {
@@ -1337,6 +1337,16 @@ OUTER:
 			col.SetLength(tlen)
 		default:
 			ctx.rewind()
+		}
+
+		// optional sort direction
+		switch t = ctx.peek(); t.Type {
+		case ASC:
+			ctx.advance()
+			col.SetSortDirection(model.SortDirectionAscending)
+		case DESC:
+			ctx.advance()
+			col.SetSortDirection(model.SortDirectionDescending)
 		}
 
 		ctx.skipWhiteSpaces()
