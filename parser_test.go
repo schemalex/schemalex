@@ -249,6 +249,22 @@ primary key (id, c)
 		Input:  "/* hello, world*/;\nCREATE TABLE foo (\na int);\n/* hello, world again! */;\nCREATE TABLE bar (\nb int);",
 		Expect: "CREATE TABLE `foo` (\n`a` INT (11) DEFAULT NULL\n)CREATE TABLE `bar` (\n`b` INT (11) DEFAULT NULL\n)",
 	})
+	parse("GithubIssue62", &Spec{
+		Input: "DROP TABLE IF EXISTS `some_table`;\r\n" +
+			"/*!40101 SET @saved_cs_client     = @@character_set_client */;\r\n" +
+			"SET character_set_client = utf8mb4 ;\r\n" +
+			"CREATE TABLE `some_table` (\r\n" +
+			"  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,\r\n" +
+			"  `user_id` varchar(32) DEFAULT NULL,\r\n" +
+			"  `context` json DEFAULT NULL,\r\n" +
+			"  `created_at` datetime DEFAULT CURRENT_TIMESTAMP,\r\n" +
+			"  PRIMARY KEY (`id`),\r\n" +
+			"  KEY `created_at` (`created_at` DESC) /*!80000 INVISIBLE */,\r\n" +
+			"  KEY `user_id_idx` (`user_id`),\r\n" +
+			"  CONSTRAINT `some_table__user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL\r\n" +
+			") ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;",
+		Expect: "CREATE TABLE `some_table` (\n`id` INT (10) UNSIGNED NOT NULL AUTO_INCREMENT,\n`user_id` VARCHAR (32) DEFAULT NULL,\n`context` JSON DEFAULT NULL,\n`created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,\nPRIMARY KEY (`id`),\nINDEX `created_at` (`created_at` DESC),\nINDEX `user_id_idx` (`user_id`),\nINDEX `some_table__user_id` (`user_id`),\nCONSTRAINT `some_table__user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL\n) ENGINE = InnoDB, AUTO_INCREMENT = 19, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_0900_ai_ci",
+	})
 }
 
 func testParse(t *testing.T, spec *Spec) {
