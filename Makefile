@@ -32,11 +32,13 @@ check-diff:
 $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH):
 	@mkdir -p $@
 
-build: schemalint schemalex
+build: schemalint schemalex schemadiff
 
 schemalex: $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemalex$(SUFFIX)
 
 schemalint: $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemalint$(SUFFIX)
+
+schemadiff: $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemadiff$(SUFFIX)
 
 $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemalint$(SUFFIX): $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH) $(SRC_FILES)
 	echo " * Building schemalint for $(GOOS)/$(GOARCH)..."
@@ -45,6 +47,10 @@ $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemalint$(SUFFIX): $(ARTIFACTS_DI
 $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemalex$(SUFFIX): $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH) $(SRC_FILES)
 	@echo " * Building schemalex for $(GOOS)/$(GOARCH)..."
 	@go build -o $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemalex$(SUFFIX) cmd/schemalex/schemalex.go
+
+$(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemadiff$(SUFFIX): $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH) $(SRC_FILES)
+	echo " * Building schemadiff for $(GOOS)/$(GOARCH)..."
+	go build -ldflags "-X main.version=$(VERSION)" -o $(ARTIFACTS_DIR)/schemalex_$(GOOS)_$(GOARCH)/schemadiff$(SUFFIX) cmd/schemadiff/schemadiff.go
 
 all: build-linux-amd64 build-linux-386 build-darwin-amd64 build-darwin-386 build-windows-amd64 build-windows-386
 
