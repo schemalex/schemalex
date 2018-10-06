@@ -185,11 +185,17 @@ LOOP:
 					ctx.advance()
 				}
 			}
+		case SEMICOLON:
+			// you could have statements where it's just empty, followed by a
+			// semicolon. These are just empty lines, so we just skip and go
+			// process the next statement
+			ctx.advance()
+			continue
 		case EOF:
 			ctx.advance()
 			break LOOP
 		default:
-			return nil, newParseError(ctx, t, "expected CREATE, COMMENT_IDENT or EOF")
+			return nil, newParseError(ctx, t, "expected CREATE, COMMENT_IDENT, SEMICOLON or EOF")
 		}
 	}
 
