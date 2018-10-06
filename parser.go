@@ -318,7 +318,7 @@ func (p *Parser) parseCreateTable(ctx *parseCtx) (model.Table, error) {
 	}
 
 	if t := ctx.next(); t.Type != LPAREN {
-		return nil, newParseError(ctx, t, "expected RPAREN")
+		return nil, newParseError(ctx, t, "expected LPAREN")
 	}
 
 	if err := p.parseCreateTableFields(ctx, table); err != nil {
@@ -896,6 +896,10 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			ctx.skipWhiteSpaces()
 			v := ctx.next()
 			col.SetCharacterSet(v.Value)
+		case COLLATE:
+			ctx.skipWhiteSpaces()
+			v := ctx.next()
+			col.SetCollation(v.Value)
 		case UNSIGNED:
 			if !check(coloptUnsigned) {
 				return newParseError(ctx, t, "cannot apply UNSIGNED")
@@ -1035,15 +1039,7 @@ func (p *Parser) parseColumnIndexPrimaryKey(ctx *parseCtx, index model.Index) er
 		return newParseError(ctx, t, "expected KEY")
 	}
 
-	if err := p.parseColumnIndexType(ctx, index); err != nil {
-		return err
-	}
-
-	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
-		return err
-	}
-
-	return nil
+	return p.parseColumnIndexCommon(ctx, index)
 }
 
 func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index model.Index) error {
@@ -1060,14 +1056,25 @@ func (p *Parser) parseColumnIndexUniqueKey(ctx *parseCtx, index model.Index) err
 		ctx.advance()
 	}
 
+	return p.parseColumnIndexCommon(ctx, index)
+}
+
+func (p *Parser) parseColumnIndexCommon(ctx *parseCtx, index model.Index) error {
 	if err := p.parseColumnIndexName(ctx, index); err != nil {
 		return err
 	}
+
 	if err := p.parseColumnIndexType(ctx, index); err != nil {
 		return err
 	}
 
 	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
+		return err
+	}
+
+	// Doing this AGAIN, because apparently you can specify the index_type
+	// before or after the column declarations
+	if err := p.parseColumnIndexType(ctx, index); err != nil {
 		return err
 	}
 
@@ -1082,18 +1089,7 @@ func (p *Parser) parseColumnIndexKey(ctx *parseCtx, index model.Index) error {
 		return newParseError(ctx, t, "expected KEY or INDEX")
 	}
 
-	if err := p.parseColumnIndexName(ctx, index); err != nil {
-		return err
-	}
-	if err := p.parseColumnIndexType(ctx, index); err != nil {
-		return err
-	}
-
-	if err := p.parseColumnIndexColumns(ctx, index); err != nil {
-		return err
-	}
-
-	return nil
+	return p.parseColumnIndexCommon(ctx, index)
 }
 
 func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index model.Index) error {
@@ -1272,9 +1268,23 @@ func (p *Parser) parseColumnIndexName(ctx *parseCtx, index model.Index) error {
 	return nil
 }
 
-func (p *Parser) parseColumnIndexTypeUsing(ctx *parseCtx, index model.Index) error {
-	if t := ctx.next(); t.Type != USING {
-		return errors.New(`expected USING`)
+func (p *Parser) parseColumnIndexType(ctx *parseCtx, index model.Index) error {
+	ctx.skipWhiteSpaces()
+	if t := ctx.peek(); t.Type != USING {
+		return nil
+	}
+	ctx.advance()
+
+	if index.HasType() {
+		var typ string
+		if index.IsBtree() {
+			typ = "BTREE"
+		} else if index.IsHash() {
+			typ = "HASH"
+		} else {
+			typ = "NONE"
+		}
+		return errors.Errorf(`statement already has index type declared (%s)`, typ)
 	}
 
 	ctx.skipWhiteSpaces()
@@ -1284,18 +1294,8 @@ func (p *Parser) parseColumnIndexTypeUsing(ctx *parseCtx, index model.Index) err
 	case HASH:
 		index.SetType(model.IndexTypeHash)
 	default:
-		return newParseError(ctx, t, "should BTREE or HASH")
+		return newParseError(ctx, t, "expected BTREE or HASH")
 	}
-	return nil
-}
-
-func (p *Parser) parseColumnIndexType(ctx *parseCtx, index model.Index) error {
-	ctx.skipWhiteSpaces()
-	if t := ctx.peek(); t.Type == USING {
-		return p.parseColumnIndexTypeUsing(ctx, index)
-	}
-
-	index.SetType(model.IndexTypeNone)
 	return nil
 }
 
@@ -1303,11 +1303,12 @@ func (p *Parser) parseColumnIndexType(ctx *parseCtx, index model.Index) error {
 func (p *Parser) parseColumnIndexColumns(ctx *parseCtx, container interface {
 	AddColumns(...model.IndexColumn)
 }) error {
+
 	var cols []model.IndexColumn
 
 	ctx.skipWhiteSpaces()
 	if t := ctx.next(); t.Type != LPAREN {
-		return newParseError(ctx, t, "expected RPAREN while parsing index column: %s", t.Type)
+		return newParseError(ctx, t, "expected LPAREN while parsing index column: %s", t.Type)
 	}
 
 OUTER:
@@ -1317,6 +1318,7 @@ OUTER:
 		if !(t.Type == IDENT || t.Type == BACKTICK_IDENT) {
 			return newParseError(ctx, t, "should IDENT or BACKTICK_IDENT")
 		}
+
 		col := model.NewIndexColumn(t.Value)
 		cols = append(cols, col)
 
