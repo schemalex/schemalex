@@ -1,7 +1,16 @@
 Changes
 =======
 
-(NEXT) -
+v0.0.9 - 6 Oct 2018
+    * Accept \r as whitespace, accept sort direction in index column names (#69)
+    * Fix to properly parse COLLATION (#67)
+    * Allow lines only containing a semicolon (#65)
+    * JSON type support (#57)
+    * ADD COLUMN "AFTER / FIRST" support (#53, #54)
+    * Add schemadiff command (#51, #68)
+    * Treat Bool column as tinyint(1) (#47)
+    * Support Bool column type (#45)
+    * Support Enum, Set, Boolean column type (#42, #43)
     * Add new experimental command schemalint (#44)
     * Fix parsing table definitions with multiple table options (#44)
 
