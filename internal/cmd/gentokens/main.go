@@ -184,6 +184,7 @@ func _main() error {
 		{Ident: "ZEROFILL"},
 		{Ident: "ASC"},
 		{Ident: "DESC"},
+		{Ident: "NOW"},
 	}
 
 	for _, tok := range tokens {

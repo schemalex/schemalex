@@ -950,6 +950,15 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				col.SetDefault(t.Value, true)
 			case NUMBER, CURRENT_TIMESTAMP, NULL, TRUE, FALSE:
 				col.SetDefault(strings.ToUpper(t.Value), false)
+			case NOW:
+				now := t.Value
+				if t := ctx.next(); t.Type != LPAREN {
+					return newParseError(ctx, t, "expected LPAREN")
+				}
+				if t := ctx.next(); t.Type != RPAREN {
+					return newParseError(ctx, t, "expected RPAREN")
+				}
+				col.SetDefault(strings.ToUpper(now)+"()", false)
 			default:
 				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
 			}
