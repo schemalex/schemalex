@@ -1,6 +1,9 @@
 Changes
 =======
 
+v0.0.10 - 19 Mar 2019
+    * Accept Now() on default value (#76)
+
 v0.0.9 - 6 Oct 2018
     * Accept \r as whitespace, accept sort direction in index column names (#69)
     * Fix to properly parse COLLATION (#67)
