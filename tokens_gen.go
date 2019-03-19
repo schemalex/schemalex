@@ -154,6 +154,7 @@ const (
 	ZEROFILL
 	ASC
 	DESC
+	NOW
 )
 
 var keywordIdentMap = map[string]TokenType{
@@ -268,6 +269,7 @@ var keywordIdentMap = map[string]TokenType{
 	"ZEROFILL":           ZEROFILL,
 	"ASC":                ASC,
 	"DESC":               DESC,
+	"NOW":                NOW,
 }
 
 func (t TokenType) String() string {
@@ -536,6 +538,8 @@ func (t TokenType) String() string {
 		return "ASC"
 	case DESC:
 		return "DESC"
+	case NOW:
+		return "NOW"
 	}
 	return "(invalid)"
 }
