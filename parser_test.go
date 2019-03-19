@@ -265,6 +265,10 @@ primary key (id, c)
 			") ENGINE=InnoDB AUTO_INCREMENT=19 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_0900_ai_ci;",
 		Expect: "CREATE TABLE `some_table` (\n`id` INT (10) UNSIGNED NOT NULL AUTO_INCREMENT,\n`user_id` VARCHAR (32) DEFAULT NULL,\n`context` JSON DEFAULT NULL,\n`created_at` DATETIME DEFAULT CURRENT_TIMESTAMP,\nPRIMARY KEY (`id`),\nINDEX `created_at` (`created_at` DESC),\nINDEX `user_id_idx` (`user_id`),\nINDEX `some_table__user_id` (`user_id`),\nCONSTRAINT `some_table__user_id` FOREIGN KEY (`user_id`) REFERENCES `users` (`id`) ON DELETE SET NULL ON UPDATE SET NULL\n) ENGINE = InnoDB, AUTO_INCREMENT = 19, DEFAULT CHARACTER SET = utf8mb4, DEFAULT COLLATE = utf8mb4_0900_ai_ci",
 	})
+	parse("DefaultNow", &Spec{
+		Input:  "create table `test_log` (`created_at` DATETIME default NOW())",
+		Expect: "CREATE TABLE `test_log` (\n`created_at` DATETIME DEFAULT NOW()\n)",
+	})
 }
 
 func testParse(t *testing.T, spec *Spec) {
