@@ -269,6 +269,10 @@ primary key (id, c)
 		Input:  "create table `test_log` (`created_at` DATETIME default NOW())",
 		Expect: "CREATE TABLE `test_log` (\n`created_at` DATETIME DEFAULT NOW()\n)",
 	})
+	parse("TimestampPrecision", &Spec{
+		Input:  "CREATE TABLE `test` (`valid` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3))",
+		Expect: "CREATE TABLE `test` (`valid` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3))",
+	})
 }
 
 func testParse(t *testing.T, spec *Spec) {
