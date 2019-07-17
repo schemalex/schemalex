@@ -938,8 +938,30 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 				return newParseError(ctx, t, "expected ON UPDATE")
 			}
 			ctx.skipWhiteSpaces()
-			v := ctx.next()
-			col.SetAutoUpdate(v.Value)
+
+			switch t := ctx.next(); t.Type {
+			case CURRENT_TIMESTAMP, NOW:
+				// Add the precision to the value
+				val := t.Value
+				if next := ctx.peek(); next.Type == LPAREN {
+					for {
+						t := ctx.next()
+						switch t.Type {
+						case LPAREN, NUMBER, RPAREN:
+							val += t.Value
+						default:
+							return newParseError(ctx, t, "expected LPAREN, NUMBER, RPAREN")
+						}
+
+						if t.Type == RPAREN {
+							break
+						}
+					}
+				}
+				col.SetAutoUpdate(val)
+			default:
+				col.SetAutoUpdate(t.Value)
+			}
 		case DEFAULT:
 			if !check(coloptDefault) {
 				return newParseError(ctx, t, "cannot apply DEFAULT")
