@@ -948,19 +948,33 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			switch t := ctx.next(); t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
 				col.SetDefault(t.Value, true)
-			case NUMBER, CURRENT_TIMESTAMP, NULL, TRUE, FALSE:
+			case NUMBER, NULL, TRUE, FALSE:
 				col.SetDefault(strings.ToUpper(t.Value), false)
-			case NOW:
-				now := t.Value
+			case NOW, CURRENT_TIMESTAMP:
+				// CURRENT_TIMESTAMP is an alias for NOW, but
+				// the parthesis are optional
+				if next := ctx.peek(); t.Type == CURRENT_TIMESTAMP && next.Type != LPAREN {
+					col.SetDefault("NOW()", false)
+					break
+				}
 				if t := ctx.next(); t.Type != LPAREN {
 					return newParseError(ctx, t, "expected LPAREN")
 				}
+				t = ctx.next()
+				if t.Type == RPAREN {
+					col.SetDefault("NOW()", false)
+					break
+				}
+				if t.Type != NUMBER {
+					return newParseError(ctx, t, "expected NUMBER or RPAREN")
+				}
+				precision := t.Value
 				if t := ctx.next(); t.Type != RPAREN {
 					return newParseError(ctx, t, "expected RPAREN")
 				}
-				col.SetDefault(strings.ToUpper(now)+"()", false)
+				col.SetDefault("NOW("+precision+")", false)
 			default:
-				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL")
+				return newParseError(ctx, t, "expected IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT, NUMBER, CURRENT_TIMESTAMP, NULL, NOW")
 			}
 		case AUTO_INCREMENT:
 			if !check(coloptAutoIncrement) {
