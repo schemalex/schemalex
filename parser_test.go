@@ -277,6 +277,10 @@ primary key (id, c)
 		Input:  "CREATE TABLE `test` (\n`valid` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3)\n)",
 		Expect: "CREATE TABLE `test` (\n`valid` TIMESTAMP (3) NOT NULL DEFAULT NOW(3)\n)",
 	})
+	parse("Update", &Spec{
+		Input:  "CREATE TABLE `test` (\n`valid` TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3) ON UPDATE CURRENT_TIMESTAMP(3)\n)",
+		Expect: "CREATE TABLE `test` (\n`valid` TIMESTAMP (3) NOT NULL DEFAULT NOW(3) ON UPDATE NOW(3)\n)",
+	})
 }
 
 func testParse(t *testing.T, spec *Spec) {
