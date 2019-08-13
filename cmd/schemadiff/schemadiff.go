@@ -49,7 +49,7 @@ Examples:
   schemadiff /path/to/file "mysql://user:password@tcp(host:port)/dbname?option=value"
 
 * Compare file in local git repository against local file
-  schemadiff local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf /path/to/file
+  schemadiff "local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf" /path/to/file
 
 * Compare schema from stdin against local file
 	.... | schemadiff - /path/to/file
