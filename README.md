@@ -85,7 +85,7 @@ Examples:
   schemalex /path/to/file "mysql://user:password@tcp(host:port)/dbname?option=value"
 
 * Compare file in local git repository against local file
-  schemalex local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf /path/to/file
+  schemalex "local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf" /path/to/file
 
 * Compare schema from stdin against local file
 	.... | schemalex - /path/to/file
