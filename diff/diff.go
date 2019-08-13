@@ -262,7 +262,7 @@ func alterTables(ctx *diffCtx, dst io.Writer) (int64, error) {
 		for _, p := range procs {
 			n, err := p(alterCtx, &pbuf)
 			if err != nil {
-				return 0, errors.Wrap(err, `failed to generate alter table`)
+				return 0, errors.Wrapf(err, `failed to generate alter table from table '%s'`, id)
 			}
 
 			if buf.Len() > 0 && n > 0 {
