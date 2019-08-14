@@ -51,6 +51,13 @@ func NewSchemaSource(uri string) (SchemaSource, error) {
 		return NewReaderSource(os.Stdin), nil
 	}
 
+	if strings.HasPrefix(uri, "mysql://") {
+		// Treat the argument as a DSN for mysql.
+		// DSN is everything after "mysql://", so let's be lazy
+		// and use everything after the second slash
+		return NewMySQLSource(uri[8:]), nil
+	}
+
 	u, err := url.Parse(uri)
 	if err != nil {
 		return nil, errors.Wrap(err, `failed to parse uri`)
@@ -61,11 +68,6 @@ func NewSchemaSource(uri string) (SchemaSource, error) {
 		// local-git:///path/to/dir?file=foo&commitish=bar
 		q := u.Query()
 		return NewLocalGitSource(u.Path, q.Get("file"), q.Get("commitish")), nil
-	case "mysql":
-		// Treat the argument as a DSN for mysql.
-		// DSN is everything after "mysql://", so let's be lazy
-		// and use everything after the second slash
-		return NewMySQLSource(uri[8:]), nil
 	case "file", "":
 		// Eh, no remote host, please
 		if u.Host != "" && u.Host != "localhost" {
