@@ -13,7 +13,11 @@ import (
 	"github.com/stretchr/testify/assert"
 )
 
-var testFile = flag.String("test-file", "", "path to test file")
+var testFile = ""
+
+func init() {
+	flag.StringVar(&testFile, "test-file", testFile, "path to test file")
+}
 
 type Spec struct {
 	Input  string
@@ -303,12 +307,12 @@ func testParse(t *testing.T, spec *Spec) {
 
 func TestFile(t *testing.T) {
 	flag.Parse()
-	if len(*testFile) == 0 {
+	if testFile == "" {
 		t.Skipf("test-file is nil")
 		return
 	}
 
-	byt, err := ioutil.ReadFile(*testFile)
+	byt, err := ioutil.ReadFile(testFile)
 	if err != nil {
 		t.Fatal(err)
 	}
