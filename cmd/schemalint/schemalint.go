@@ -52,7 +52,7 @@ Examples:
   schemalint "mysql://user:password@tcp(host:port)/dbname?option=value"
 
 * Lint a file in local git repository 
-  schemalint local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf
+  schemalint "local-git:///path/to/repo?file=foo.sql&commitish=deadbeaf"
 
 * Lint schema from stdin against local file
 	.... | schemalint -
