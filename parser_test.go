@@ -17,7 +17,6 @@ var testFile = ""
 
 func init() {
 	flag.StringVar(&testFile, "test-file", testFile, "path to test file")
-	flag.Parse()
 }
 
 type Spec struct {
@@ -307,6 +306,7 @@ func testParse(t *testing.T, spec *Spec) {
 }
 
 func TestFile(t *testing.T) {
+	flag.Parse()
 	if testFile == "" {
 		t.Skipf("test-file is nil")
 		return
