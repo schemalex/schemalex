@@ -67,7 +67,7 @@ func TestDiff(t *testing.T) {
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, PRIMARY KEY (`id`) );",
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT );",
-			Expect: "ALTER TABLE `fuga` DROP INDEX PRIMARY KEY;",
+			Expect: "ALTER TABLE `fuga` DROP PRIMARY KEY;",
 		},
 		// add primary key
 		{
