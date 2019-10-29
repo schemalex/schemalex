@@ -268,6 +268,23 @@ primary key (id, c)
 		Input:  "create table `test_log` (`created_at` DATETIME default NOW())",
 		Expect: "CREATE TABLE `test_log` (\n`created_at` DATETIME DEFAULT NOW()\n)",
 	})
+
+	parse("GithubIssue79", &Spec{
+		Input: "CREATE TABLE `test_tb` (" +
+			"  `t_id` char(17) NOT NULL," +
+			"  `t_type` smallint(6) NOT NULL," +
+			"  `cur_date` datetime NOT NULL" +
+			") ENGINE=InnoDB DEFAULT CHARSET=utf8" +
+			"/*!50100 PARTITION BY LIST (`t_type`)" +
+			"(PARTITION p_1 VALUES IN (1) ENGINE = InnoDB," +
+			" PARTITION p_100 VALUES IN (100) ENGINE = InnoDB) */;" +
+			"/*!40101 SET character_set_client = @saved_cs_client */;",
+		Expect: "CREATE TABLE `test_tb` (\n`t_id` CHAR (17) NOT NULL,\n`t_type` SMALLINT (6) NOT NULL,\n`cur_date` DATETIME NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8",
+	})
+	parse("WhiteSpacesBetweenTableOptionsAndSemicolon", &Spec{
+		Input:  "CREATE TABLE foo (id INT(10) NOT NULL) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4 \n/**/ ;",
+		Expect: "CREATE TABLE `foo` (\n`id` INT (10) NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
+	})
 }
 
 func testParse(t *testing.T, spec *Spec) {
