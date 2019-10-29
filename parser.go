@@ -790,6 +790,7 @@ func (p *Parser) parseCreateTableOptions(ctx *parseCtx, table model.Table) error
 			return newParseError(ctx, t, "unexpected token in table options: "+t.Type.String())
 		}
 
+		ctx.skipWhiteSpaces()
 		// except for the case where we continue to the next option (COMMA)
 		// we should expect the end of this statement
 		switch t := ctx.peek(); t.Type {
