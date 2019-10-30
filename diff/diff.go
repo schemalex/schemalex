@@ -9,10 +9,10 @@ import (
 	"sort"
 
 	"github.com/deckarep/golang-set"
-	"github.com/schemalex/schemalex"
-	"github.com/schemalex/schemalex/format"
-	"github.com/schemalex/schemalex/internal/errors"
-	"github.com/schemalex/schemalex/model"
+	"github.com/eihigh/schemalex"
+	"github.com/eihigh/schemalex/format"
+	"github.com/eihigh/schemalex/internal/errors"
+	"github.com/eihigh/schemalex/model"
 )
 
 type diffCtx struct {

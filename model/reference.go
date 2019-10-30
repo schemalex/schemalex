@@ -5,8 +5,8 @@ import (
 	"crypto/sha256"
 	"fmt"
 
-	"github.com/schemalex/schemalex/internal/errors"
-	"github.com/schemalex/schemalex/internal/util"
+	"github.com/eihigh/schemalex/internal/errors"
+	"github.com/eihigh/schemalex/internal/util"
 )
 
 // NewReference creates a reference constraint

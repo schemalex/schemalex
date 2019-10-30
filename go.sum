@@ -1,0 +1,8 @@
+github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186 h1:dZ5eOoFA9ldlxOD6FjCVqDLClSdMbNKRpf5JAZaZ3rs=
+github.com/deckarep/golang-set v0.0.0-20170826194844-b3af78e1d186/go.mod h1:93vsz/8Wt4joVM7c2AVqh+YRMiUSc14yDtF28KmMOgQ=
+github.com/go-sql-driver/mysql v1.3.0 h1:pgwjLi/dvffoP9aabwkT3AKpXQM93QARkjFhDDqC1UE=
+github.com/go-sql-driver/mysql v1.3.0/go.mod h1:zAC/RDZ24gD3HViQzih4MyKcchzm+sOG5ZlKdlhCg5w=
+github.com/pkg/errors v0.8.1-0.20170910134614-2b3a18b5f0fb h1:CKWls8QOVQs/qmuUuGOeHMpIqSx6f9S72udJ48vEeKo=
+github.com/pkg/errors v0.8.1-0.20170910134614-2b3a18b5f0fb/go.mod h1:bwawxfHBFNV+L2hUp1rHADufV3IMtnDRdf1r5NINEl0=
+github.com/schemalex/schemalex v0.0.10 h1:ylpGhRF0UQcZNU+2yGLlohja94RNRvaGPmH/hMDPVOs=
+github.com/schemalex/schemalex v0.0.10/go.mod h1:zWwTMDNFIqKCdfpDybbRG7R+UK6ixHM2eHGKbrraOYc=

@@ -8,8 +8,8 @@ import (
 	"testing"
 
 	"github.com/pmezard/go-difflib/difflib"
-	"github.com/schemalex/schemalex"
-	"github.com/schemalex/schemalex/format"
+	"github.com/eihigh/schemalex"
+	"github.com/eihigh/schemalex/format"
 	"github.com/stretchr/testify/assert"
 )
 
@@ -171,17 +171,17 @@ primary key (id, c)
 		Expect: "CREATE TABLE `foo` LIKE `bar`",
 	})
 	parse("ColumnOptionPrimaryKey", &Spec{
-		// see https://github.com/schemalex/schemalex/pull/40
+		// see https://github.com/eihigh/schemalex/pull/40
 		Input:  "CREATE TABLE foo (id INTEGER PRIMARY KEY AUTO_INCREMENT)",
 		Expect: "CREATE TABLE `foo` (\n`id` INT (11) DEFAULT NULL AUTO_INCREMENT,\nPRIMARY KEY (`id`)\n)",
 	})
 	parse("ColumnOptionCommentPrimaryKey1", &Spec{
-		// see https://github.com/schemalex/schemalex/pull/40
+		// see https://github.com/eihigh/schemalex/pull/40
 		Input:  "CREATE TABLE `test` (\n`id` int(11) PRIMARY KEY COMMENT 'aaa' NOT NULL,\nhoge int default 1 not null COMMENT 'bbb' UNIQUE\n);",
 		Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
 	})
 	parse("ColumnOptionCommentPrimaryKey2", &Spec{
-		// see https://github.com/schemalex/schemalex/pull/40
+		// see https://github.com/eihigh/schemalex/pull/40
 		Input:  "CREATE TABLE `test` (\n`id` int(11) COMMENT 'aaa' PRIMARY KEY NOT NULL,\nhoge int default 1 UNIQUE not null COMMENT 'bbb'\n);",
 		Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
 	})
