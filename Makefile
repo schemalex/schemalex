@@ -7,21 +7,12 @@ RELEASE_DIR=$(CURDIR)/release/$(VERSION)
 SRC_FILES = $(wildcard *.go model/*.go diff/*.go cmd/schemalex/*.go internal/*/*.go)
 GITHUB_USERNAME=schemalex
 
-installdeps: glide-$(GOOS)-$(GOARCH)/glide
-	PATH="glide-$(GOOS)-$(GOARCH):$(PATH)" glide install
-
-glide-$(GOOS)-$(GOARCH):
-	@echo " * Creating $(@F)"
-	@mkdir -p $(@F)
-	
-glide-$(GOOS)-$(GOARCH)/glide:
-	@$(MAKE) glide-$(GOOS)-$(GOARCH)
-	@wget -O - https://github.com/Masterminds/glide/releases/download/v0.12.3/glide-v0.12.3-$(GOOS)-$(GOARCH).tar.gz | tar xvz
-	@mv $(GOOS)-$(GOARCH)/glide glide-$(GOOS)-$(GOARCH)
-	@rm -rf $(GOOS)-$(GOARCH)
+installdeps:
+	go get -d
+	go mod tidy
 
 test:
-	go test -v $(shell glide-$(GOOS)-$(GOARCH)/glide novendor)
+	go test -v ./...
 
 generate:
 	go generate
