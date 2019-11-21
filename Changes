@@ -1,6 +1,13 @@
 Changes
 =======
 
+v0.1.0 - 21 Nov 2019
+    * Add double quote in docs  (#81)
+    * fix parse error mysql://user:@protocol(host:port)/dbname case at go 1.12.8 (#82)
+    * `DROP INDEX PRIMARY KEY` -> `DROP PRIMARY KEY` (#85)
+    * introduce Go Modules (#87)
+    * parser: change to allow spaces between table options and semicolon (#89)
+
 v0.0.10 - 19 Mar 2019
     * Accept Now() on default value (#76)
 
