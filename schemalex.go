@@ -5,4 +5,4 @@ package schemalex
 
 // Version contains the version number. Note that this does
 // not necessarily reflect the current state of the source code.
-const Version = "v0.0.10"
+const Version = "v0.1.1"
