@@ -53,6 +53,9 @@ Examples:
 * Compare schema from stdin against local file
 	.... | schemalex - /path/to/file
 
+* Compare two local schemas
+  schemalex "mysql://user:password@tcp(127.0.0.1:3306)/db1" "mysql://user:password@tcp(127.0.0.1:3306)/db2
+
 `, schemalex.Version)
 	}
 	flag.BoolVar(&version, "v", false, "")
