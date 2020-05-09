@@ -111,7 +111,7 @@ primary key (id, c)
 		Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
 	})
 	parse("WithFulltextIndex", &Spec{
-		Input:  "create table hoge (txt TEXT, fulltext ft_idx(txt))",
+		Input:  "create table hoge (txt TEXT, fulltext key ft_idx(txt))",
 		Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
 	})
 	parse("WithSimpleReferenceForeignKey", &Spec{
