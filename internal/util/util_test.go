@@ -2,7 +2,7 @@ package util
 
 import "testing"
 
-func TestSinglequotes(t *testing.T) {
+func TestSinglequote(t *testing.T) {
 	tests := []struct {
 		input, want string
 	}{
