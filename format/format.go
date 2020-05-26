@@ -92,9 +92,7 @@ func formatTableOption(ctx *fmtCtx, option model.TableOption) error {
 	buf.WriteString(option.Key())
 	buf.WriteString(" = ")
 	if option.NeedQuotes() {
-		buf.WriteByte('\'')
-		buf.WriteString(option.Value())
-		buf.WriteByte('\'')
+		buf.WriteString(util.Singlequote(option.Value()))
 	} else {
 		buf.WriteString(option.Value())
 	}
@@ -216,9 +214,7 @@ func formatTableColumn(ctx *fmtCtx, col model.TableColumn) error {
 	case model.ColumnTypeEnum:
 		buf.WriteString(" (")
 		for enumValue := range col.EnumValues() {
-			buf.WriteByte('\'')
-			buf.WriteString(enumValue)
-			buf.WriteByte('\'')
+			buf.WriteString(util.Singlequote(enumValue))
 			buf.WriteByte(',')
 		}
 		buf.Truncate(buf.Len() - 1)
@@ -226,9 +222,7 @@ func formatTableColumn(ctx *fmtCtx, col model.TableColumn) error {
 	case model.ColumnTypeSet:
 		buf.WriteString(" (")
 		for setValue := range col.SetValues() {
-			buf.WriteByte('\'')
-			buf.WriteString(setValue)
-			buf.WriteByte('\'')
+			buf.WriteString(util.Singlequote(setValue))
 			buf.WriteByte(',')
 		}
 		buf.Truncate(buf.Len() - 1)
@@ -286,9 +280,7 @@ func formatTableColumn(ctx *fmtCtx, col model.TableColumn) error {
 	if col.HasDefault() {
 		buf.WriteString(" DEFAULT ")
 		if col.IsQuotedDefault() {
-			buf.WriteByte('\'')
-			buf.WriteString(col.Default())
-			buf.WriteByte('\'')
+			buf.WriteString(util.Singlequote(col.Default()))
 		} else {
 			buf.WriteString(col.Default())
 		}
@@ -309,9 +301,8 @@ func formatTableColumn(ctx *fmtCtx, col model.TableColumn) error {
 	}
 
 	if col.HasComment() {
-		buf.WriteString(" COMMENT '")
-		buf.WriteString(col.Comment())
-		buf.WriteByte('\'')
+		buf.WriteString(" COMMENT ")
+		buf.WriteString(util.Singlequote(col.Comment()))
 	}
 
 	if _, err := buf.WriteTo(ctx.dst); err != nil {

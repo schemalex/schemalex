@@ -285,6 +285,40 @@ primary key (id, c)
 		Input:  "CREATE TABLE foo (id INT(10) NOT NULL) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4 \n/**/ ;",
 		Expect: "CREATE TABLE `foo` (\n`id` INT (10) NOT NULL\n) ENGINE = InnoDB, DEFAULT CHARACTER SET = utf8mb4",
 	})
+
+	parse("EscapedDefaultValues", &Spec{
+		Input: `create table hoge (
+a varchar(20) default "hoge""s",
+b varchar(20) default 'hoge\'s',
+c varchar(20) default 'hoge''s'
+);
+`,
+		Expect: "CREATE TABLE `hoge` (\n`a` VARCHAR (20) DEFAULT 'hoge\"s',\n`b` VARCHAR (20) DEFAULT 'hoge\\'s',\n`c` VARCHAR (20) DEFAULT 'hoge\\'s'\n)",
+	})
+
+	parse("EscapedTableComment", &Spec{
+		Input:  "create table hoge (id bigint unsigned not null auto_increment) ENGINE=InnoDB AUTO_INCREMENT 10 DEFAULT CHARACTER SET = utf8 COMMENT = 'hoge''s comment';",
+		Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT\n) ENGINE = InnoDB, AUTO_INCREMENT = 10, DEFAULT CHARACTER SET = utf8, COMMENT = 'hoge\\'s comment'",
+	})
+
+	parse("EscapedColumnOptionCommentPrimaryKey1", &Spec{
+		// see https://github.com/schemalex/schemalex/pull/40
+		Input:  "CREATE TABLE `test` (\n`id` int(11) PRIMARY KEY COMMENT 'aaa\\'' NOT NULL,\nhoge int default 1 not null COMMENT 'bbb''' UNIQUE\n);",
+		Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa\\'',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb\\'',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
+	})
+	parse("EscapedColumnOptionCommentPrimaryKey2", &Spec{
+		// see https://github.com/schemalex/schemalex/pull/40
+		Input:  "CREATE TABLE `test` (\n`id` int(11) COMMENT 'aaa\\'' PRIMARY KEY NOT NULL,\nhoge int default 1 UNIQUE not null COMMENT 'bbb'''\n);",
+		Expect: "CREATE TABLE `test` (\n`id` INT (11) NOT NULL COMMENT 'aaa\\'',\n`hoge` INT (11) NOT NULL DEFAULT 1 COMMENT 'bbb\\'',\nPRIMARY KEY (`id`),\nUNIQUE INDEX `hoge` (`hoge`)\n)",
+	})
+	parse("EscapedEnum", &Spec{
+		Input:  "CREATE TABLE `test` (\n`status` ENUM('on\\'', 'off''') NOT NULL DEFAULT 'off'\n);",
+		Expect: "CREATE TABLE `test` (\n`status` ENUM ('on\\'','off\\'') NOT NULL DEFAULT 'off'\n)",
+	})
+	parse("EscapedSet", &Spec{
+		Input:  "CREATE TABLE `test` (\n`status` SET('foo\\'', 'bar''', 'baz') NOT NULL DEFAULT 'foo,baz'\n);",
+		Expect: "CREATE TABLE `test` (\n`status` SET ('foo\\'','bar\\'','baz') NOT NULL DEFAULT 'foo,baz'\n)",
+	})
 }
 
 func testParse(t *testing.T, spec *Spec) {
