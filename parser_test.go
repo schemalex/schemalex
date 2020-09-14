@@ -110,8 +110,16 @@ primary key (id, c)
 		Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) )",
 		Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`)\n)",
 	})
-	parse("WithFulltextIndex", &Spec{
+	parse("WithFulltextIndex1", &Spec{
 		Input:  "create table hoge (txt TEXT, fulltext ft_idx(txt))",
+		Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
+	})
+	parse("WithFulltextIndex2", &Spec{
+		Input:  "create table hoge (txt TEXT, fulltext index ft_idx(txt))",
+		Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
+	})
+	parse("WithFulltextIndex3", &Spec{
+		Input:  "create table hoge (txt TEXT, fulltext key ft_idx(txt))",
 		Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
 	})
 	parse("WithSimpleReferenceForeignKey", &Spec{
