@@ -8,8 +8,7 @@ install:
   - make installdeps
 cache:
   directories:
-    - vendor
-    - glide-$(go version | awk '{ print $NF }' | tr '/' '-')
+    - /home/travis/gopath/pkg/mod
 before_script:
   - make generate
 script:
