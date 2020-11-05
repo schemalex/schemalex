@@ -1,0 +1,36 @@
+name: Test
+on: [push, pull_request]
+
+jobs:
+  test:
+    name: Test
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        go:
+          - "1"
+          - "1.15"
+          - "1.14"
+          - "1.13"
+
+    steps:
+      - name: Set up Go ${{ matrix.go }}
+        uses: actions/setup-go@v2
+        with:
+          go-version: ${{ matrix.go }}
+        id: go
+      - name: Check out code into the Go module directory
+        uses: actions/checkout@v2
+      - name: restore cache
+        uses: actions/cache@v2
+        with:
+          path: ~/go/pkg/mod
+          key: schemalex-${{ hashFiles('go.sum') }}
+          restore-keys: |
+            schemalex-
+      - name: Before script
+        run: make generate
+      - name: Test
+        run: make test
+      - name: Diff check
+        run: make check-diff
