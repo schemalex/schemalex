@@ -2,9 +2,9 @@
 
 Generate the difference of two mysql schema
 
-[![Build Status](https://travis-ci.org/schemalex/schemalex.png?branch=master)](https://travis-ci.org/schemalex/schemalex)
+![Test](https://github.com/schemalex/schemalex/workflows/Test/badge.svg)
 
-[![GoDoc](https://godoc.org/github.com/schemalex/schemalex?status.svg)](https://godoc.org/github.com/schemalex/schemalex)
+[![PkgGoDev](https://pkg.go.dev/badge/github.com/schemalex/schemalex?tab=doc)](https://pkg.go.dev/github.com/schemalex/schemalex?tab=doc)
 
 ## SYNOPSIS
 
