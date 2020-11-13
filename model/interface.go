@@ -71,6 +71,8 @@ type Index interface {
 	IsFullText() bool
 	IsSpatial() bool
 	IsForeignKey() bool
+	AddOption(IndexOption) Index
+	Options() chan IndexOption
 
 	// Normalize returns normalized index. If a normalization was performed
 	// and the index is modified, returns a new instance of the Table object
@@ -115,15 +117,29 @@ type indexColumn struct {
 	sortDirection IndexColumnSortDirection
 }
 
+// IndexOption describes a possible index option, such as `WITH PARSER ngram`
+type IndexOption interface {
+	Stmt
+	Key() string
+	Value() string
+	NeedQuotes() bool
+}
+
 type index struct {
-	symbol  maybeString
-	kind    IndexKind
-	name    maybeString
-	typ     IndexType
-	table   string
-	columns []IndexColumn
-	// TODO Options.
+	symbol    maybeString
+	kind      IndexKind
+	name      maybeString
+	typ       IndexType
+	table     string
+	columns   []IndexColumn
 	reference Reference
+	options   []IndexOption
+}
+
+type indexopt struct {
+	key        string
+	value      string
+	needQuotes bool
 }
 
 // Reference describes a possible reference from one table to another
@@ -364,6 +380,7 @@ type tablecol struct {
 	primary      bool
 	unique       bool
 	unsigned     bool
+	fulltext     bool
 	zerofill     bool
 }
 

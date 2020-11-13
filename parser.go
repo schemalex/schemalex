@@ -1122,7 +1122,49 @@ func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index model.Index) e
 		return err
 	}
 
+	// optional WITH PARSER
+	if err := p.parseColumnFullTextKeyOptions(ctx, index); err != nil {
+		return err
+	}
 	return nil
+}
+
+// Parses such as 'WITH PARSER `ngram`'
+func (p *Parser) parseColumnFullTextKeyOptions(ctx *parseCtx, index model.Index) error {
+	ctx.skipWhiteSpaces()
+	if t := ctx.peek(); t.Type == WITH {
+		ctx.advance()
+		ctx.skipWhiteSpaces()
+		if t := ctx.peek(); t.Type != PARSER {
+			return newParseError(ctx, t, "expeected PARSER")
+		}
+		ctx.advance()
+		if err := p.parseColumnFullTextKeyOptionValue(ctx, index, "WITH PARSER", IDENT); err != nil {
+			return err
+		}
+		return nil
+	} else if t.Type == RPAREN {
+		return nil
+	}
+	return newParseError(ctx, ctx.peek(), "expecteed WITH", nil)
+}
+
+func (p *Parser) parseColumnFullTextKeyOptionValue(ctx *parseCtx, index model.Index, name string, follow ...TokenType) error {
+	ctx.skipWhiteSpaces()
+	t := ctx.next()
+	for _, typ := range follow {
+		if typ != t.Type {
+			continue
+		}
+		var quotes bool
+		switch t.Type {
+		case IDENT:
+			quotes = true
+		}
+		index.AddOption(model.NewIndexOption(name, t.Value, quotes))
+		return nil
+	}
+	return newParseError(ctx, t, "expected %v", follow)
 }
 
 func (p *Parser) parseColumnIndexSpatialKey(ctx *parseCtx, index model.Index) error {

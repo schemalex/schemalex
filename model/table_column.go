@@ -122,6 +122,10 @@ func (t *tablecol) IsUnique() bool {
 	return t.unique
 }
 
+func (t *tablecol) IsFulltext() bool {
+	return t.fulltext
+}
+
 func (t *tablecol) IsUnsigned() bool {
 	return t.unsigned
 }
@@ -196,6 +200,11 @@ func (t *tablecol) SetType(v ColumnType) TableColumn {
 
 func (t *tablecol) SetUnique(v bool) TableColumn {
 	t.unique = v
+	return t
+}
+
+func (t *tablecol) SetFulltext(v bool) TableColumn {
+	t.fulltext = v
 	return t
 }
 
