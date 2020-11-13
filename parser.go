@@ -1139,7 +1139,7 @@ func (p *Parser) parseColumnFullTextKeyOptions(ctx *parseCtx, index model.Index)
 			return newParseError(ctx, t, "expeected PARSER")
 		}
 		ctx.advance()
-		if err := p.parseColumnFullTextKeyOptionValue(ctx, index, "WITH PARSER", IDENT); err != nil {
+		if err := p.parseColumnFullTextKeyOptionValue(ctx, index, "WITH PARSER", IDENT, BACKTICK_IDENT); err != nil {
 			return err
 		}
 		return nil
@@ -1158,7 +1158,7 @@ func (p *Parser) parseColumnFullTextKeyOptionValue(ctx *parseCtx, index model.In
 		}
 		var quotes bool
 		switch t.Type {
-		case IDENT:
+		case IDENT, BACKTICK_IDENT:
 			quotes = true
 		}
 		index.AddOption(model.NewIndexOption(name, t.Value, quotes))
