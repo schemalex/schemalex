@@ -140,6 +140,20 @@ func (stmt *index) IsForeignKey() bool {
 	return stmt.kind == IndexKindForeignKey
 }
 
+func (stmt *index) AddOption(v IndexOption) Index {
+	stmt.options = append(stmt.options, v)
+	return stmt
+}
+
+func (stmt *index) Options() chan IndexOption {
+	ch := make(chan IndexOption, len(stmt.options))
+	for _, idx := range stmt.options {
+		ch <- idx
+	}
+	close(ch)
+	return ch
+}
+
 func (stmt *index) Normalize() (Index, bool) {
 	return stmt, false
 }
@@ -197,3 +211,15 @@ func (col *indexColumn) IsDescending() bool {
 	return col.sortDirection == SortDirectionDescending
 }
 
+func NewIndexOption(k, v string, q bool) IndexOption {
+	return &indexopt{
+		key:        k,
+		value:      v,
+		needQuotes: q,
+	}
+}
+
+func (i *indexopt) ID() string       { return "indexopt#" + i.key }
+func (i *indexopt) Key() string      { return i.key }
+func (i *indexopt) Value() string    { return i.value }
+func (i *indexopt) NeedQuotes() bool { return i.needQuotes }

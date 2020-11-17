@@ -122,6 +122,10 @@ primary key (id, c)
 		Input:  "create table hoge (txt TEXT, fulltext key ft_idx(txt))",
 		Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`)\n)",
 	})
+	parse("WithFullTextIndexWithParser", &Spec{
+		Input:  "create table hoge (txt TEXT, fulltext ft_idx(txt) with parser ngram)",
+		Expect: "CREATE TABLE `hoge` (\n`txt` TEXT,\nFULLTEXT INDEX `ft_idx` (`txt`) WITH PARSER `ngram`\n)",
+	})
 	parse("WithSimpleReferenceForeignKey", &Spec{
 		Input:  "create table hoge ( `id` bigint unsigned not null auto_increment,\n `c` varchar(20) not null,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`) )",
 		Expect: "CREATE TABLE `hoge` (\n`id` BIGINT (20) UNSIGNED NOT NULL AUTO_INCREMENT,\n`c` VARCHAR (20) NOT NULL,\nFOREIGN KEY `fk_c` (`c`) REFERENCES `fuga` (`id`)\n)",

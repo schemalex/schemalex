@@ -1122,6 +1122,9 @@ func (p *Parser) parseColumnIndexFullTextKey(ctx *parseCtx, index model.Index) e
 		return err
 	}
 
+	if err := p.parseColumnIndexOptions(ctx, index); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -1373,6 +1376,48 @@ OUTER:
 
 	container.AddColumns(cols...)
 	return nil
+}
+
+func (p *Parser) parseColumnIndexOptions(ctx *parseCtx, index model.Index) error {
+	ctx.skipWhiteSpaces()
+	t := ctx.peek()
+	if t.Type == RPAREN {
+		return nil
+	}
+	// TODO: support for other index options.
+	switch t.Type {
+	case WITH:
+		ctx.advance()
+		ctx.skipWhiteSpaces()
+		if t := ctx.peek(); t.Type != PARSER {
+			return newParseError(ctx, t, "expeected PARSER")
+		}
+		ctx.advance()
+		if err := p.parseColumnIndexOptionValue(ctx, index, "WITH PARSER", IDENT, BACKTICK_IDENT); err != nil {
+			return err
+		}
+	default:
+		return newParseError(ctx, t, "unsupported type in index option specification")
+	}
+	return nil
+}
+
+func (p *Parser) parseColumnIndexOptionValue(ctx *parseCtx, index model.Index, name string, follow ...TokenType) error {
+	ctx.skipWhiteSpaces()
+	t := ctx.next()
+	for _, typ := range follow {
+		if typ != t.Type {
+			continue
+		}
+		var quotes bool
+		switch t.Type {
+		case IDENT, BACKTICK_IDENT:
+			quotes = true
+		}
+		index.AddOption(model.NewIndexOption(name, t.Value, quotes))
+		return nil
+	}
+	return newParseError(ctx, t, "expected %v", follow)
 }
 
 // Skips over whitespaces. Once this method returns, you can be

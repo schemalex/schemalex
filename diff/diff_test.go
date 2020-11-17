@@ -111,6 +111,18 @@ func TestDiff(t *testing.T) {
 			After:  "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `fid` INTEGER NOT NULL, INDEX fid (fid) );",
 			Expect: "ALTER TABLE `fuga` DROP FOREIGN KEY `fk`;\nALTER TABLE `fuga` ADD INDEX `fid` (`fid`);",
 		},
+		// add  fulltext key
+		{
+			Before: "CREATE TABLE `hoge` ( `txt` TEXT );",
+			After:  "CREATE TABLE `hoge` ( `txt` TEXT, FULLTEXT INDEX `ft_idx` (`txt`) WITH PARSER `ngram`);",
+			Expect: "ALTER TABLE `hoge` ADD FULLTEXT INDEX `ft_idx` (`txt`) WITH PARSER `ngram`;",
+		},
+		// drop fulltext key
+		{
+			Before: "CREATE TABLE `hoge` ( `txt` TEXT, FULLTEXT INDEX `ft_idx` (`txt`) WITH PARSER `ngram`);",
+			After:  "CREATE TABLE `hoge` ( `txt` TEXT );",
+			Expect: "ALTER TABLE `hoge` DROP INDEX `ft_idx`;",
+		},
 		// multi modify
 		{
 			Before: "CREATE TABLE `fuga` ( `id` INTEGER NOT NULL AUTO_INCREMENT, `aid` INTEGER NOT NULL, `bid` INTEGER NOT NULL, INDEX `ab` (`aid`, `bid`) );",
