@@ -142,7 +142,6 @@ CREATE TABLE fuga (
 
 ## SEE ALSO
 
-* http://rspace.googlecode.com/hg/slide/lex.html#landing-slide
 * http://blog.gopheracademy.com/advent-2014/parsers-lexers/
 * https://github.com/soh335/git-schemalex
 
