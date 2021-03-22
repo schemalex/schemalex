@@ -90,6 +90,7 @@ const (
 	FOREIGN
 	FULL
 	FULLTEXT
+	GEOMETRY
 	HASH
 	IF
 	INDEX
@@ -207,6 +208,7 @@ var keywordIdentMap = map[string]TokenType{
 	"FOREIGN":            FOREIGN,
 	"FULL":               FULL,
 	"FULLTEXT":           FULLTEXT,
+	"GEOMETRY":           GEOMETRY,
 	"HASH":               HASH,
 	"IF":                 IF,
 	"INDEX":              INDEX,
@@ -414,6 +416,8 @@ func (t TokenType) String() string {
 		return "FULL"
 	case FULLTEXT:
 		return "FULLTEXT"
+	case GEOMETRY:
+		return "GEOMETRY"
 	case HASH:
 		return "HASH"
 	case IF:
