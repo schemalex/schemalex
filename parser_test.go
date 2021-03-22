@@ -225,6 +225,10 @@ primary key (id, c)
 		Input:  "CREATE TABLE `test` (\n`valid` JSON not null\n);",
 		Expect: "CREATE TABLE `test` (\n`valid` JSON NOT NULL\n)",
 	})
+	parse("GEOMETRY", &Spec{
+		Input:  "CREATE TABLE `test` (\n`valid` GEOMETRY not null\n);",
+		Expect: "CREATE TABLE `test` (\n`valid` GEOMETRY NOT NULL\n)",
+	})
 	parse("CreateTableIfNotExists", &Spec{
 		Input:  "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n);",
 		Expect: "CREATE TABLE IF NOT EXISTS `test` (\n`id` INT (10) NOT NULL\n)",
