@@ -120,6 +120,7 @@ func _main() error {
 		{Ident: "FOREIGN"},
 		{Ident: "FULL"},
 		{Ident: "FULLTEXT"},
+		{Ident: "GEOMETRY"},
 		{Ident: "HASH"},
 		{Ident: "IF"},
 		{Ident: "INDEX"},
