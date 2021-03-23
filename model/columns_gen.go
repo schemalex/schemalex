@@ -42,6 +42,7 @@ const (
 	ColumnTypeBoolean
 	ColumnTypeBool
 	ColumnTypeJSON
+	ColumnTypeGEOMETRY
 
 	ColumnTypeMax
 )
@@ -116,6 +117,8 @@ func (c ColumnType) String() string {
 		return "BOOL"
 	case ColumnTypeJSON:
 		return "JSON"
+	case ColumnTypeGEOMETRY:
+		return "GEOMETRY"
 	default:
 		return "(invalid)"
 	}
