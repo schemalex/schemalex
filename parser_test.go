@@ -284,6 +284,19 @@ primary key (id, c)
 		Input:  "create table `test_log` (`created_at` DATETIME default NOW())",
 		Expect: "CREATE TABLE `test_log` (\n`created_at` DATETIME DEFAULT NOW()\n)",
 	})
+	parse("CurrentTimeStampWithParensMariaDB10.2.3+", &Spec{
+		// When displayed in the INFORMATION_SCHEMA.COLUMNS table, a default CURRENT TIMESTAMP is
+		// displayed as CURRENT_TIMESTAMP up until MariaDB 10.2.2, and as current_timestamp() from
+		// MariaDB 10.2.3, due to to MariaDB 10.2 accepting expressions in the DEFAULT clause.
+		// source: https://mariadb.com/kb/en/now/
+		Input:  " create table `tb` (`created_at` datetime NOT NULL DEFAULT current_timestamp())",
+		Expect: "CREATE TABLE `tb` (\n`created_at` DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP ()\n)",
+	})
+	parse("CurrentTimestampFractionalSecondsPrecision", &Spec{
+		// see https://github.com/schemalex/schemalex/issues/91
+		Input:  " create table `tb` (`created_at` timestamp(6) default current_timestamp(6) on update current_timestamp(6))",
+		Expect: "CREATE TABLE `tb` (\n`created_at` TIMESTAMP (6) ON UPDATE CURRENT_TIMESTAMP (6) DEFAULT CURRENT_TIMESTAMP (6)\n)",
+	})
 
 	parse("GithubIssue79", &Spec{
 		Input: "CREATE TABLE `test_tb` (" +

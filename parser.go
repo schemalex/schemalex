@@ -943,7 +943,25 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			}
 			ctx.skipWhiteSpaces()
 			v := ctx.next()
-			col.SetAutoUpdate(v.Value)
+			if v.Type == CURRENT_TIMESTAMP {
+				if lp := ctx.peek(); lp.Type == LPAREN {
+					ctx.advance()
+					num := ctx.peek()
+					numValue := ""
+					if num.Type == NUMBER {
+						numValue = num.Value
+						ctx.advance()
+					}
+					if rp := ctx.next(); rp.Type != RPAREN {
+						return newParseError(ctx, rp, "expected RPAREN")
+					}
+					col.SetAutoUpdate(strings.ToUpper(v.Value) + " (" + numValue + ")")
+				} else {
+					col.SetAutoUpdate(strings.ToUpper(v.Value))
+				}
+			} else {
+				col.SetAutoUpdate(strings.ToUpper(v.Value))
+			}
 		case DEFAULT:
 			if !check(coloptDefault) {
 				return newParseError(ctx, t, "cannot apply DEFAULT")
@@ -952,7 +970,23 @@ func (p *Parser) parseColumnOption(ctx *parseCtx, col model.TableColumn, f int) 
 			switch t := ctx.next(); t.Type {
 			case IDENT, SINGLE_QUOTE_IDENT, DOUBLE_QUOTE_IDENT:
 				col.SetDefault(t.Value, true)
-			case NUMBER, CURRENT_TIMESTAMP, NULL, TRUE, FALSE:
+			case CURRENT_TIMESTAMP:
+				if lp := ctx.peek(); lp.Type == LPAREN {
+					ctx.advance()
+					num := ctx.peek()
+					numValue := ""
+					if num.Type == NUMBER {
+						numValue = num.Value
+						ctx.advance()
+					}
+					if rp := ctx.next(); rp.Type != RPAREN {
+						return newParseError(ctx, rp, "expected RPAREN")
+					}
+					col.SetDefault(strings.ToUpper(t.Value)+" ("+numValue+")", false)
+				} else {
+					col.SetDefault(strings.ToUpper(t.Value), false)
+				}
+			case NUMBER, NULL, TRUE, FALSE:
 				col.SetDefault(strings.ToUpper(t.Value), false)
 			case NOW:
 				now := t.Value
